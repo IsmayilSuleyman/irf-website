@@ -5,6 +5,7 @@ import {
   getHolderByName,
   getTransactions,
   computeHolderPerformance,
+  computeHolderValueHistory,
 } from "@/lib/sheets";
 import {
   getPriceHistory,
@@ -89,10 +90,12 @@ export default async function DashboardPage() {
   const holdingPnl =
     perf.avgBuyPrice != null ? perf.pnlAzn : null;
 
-  const chartData = priceHistory.map((p) => ({
-    label: p.label,
-    value: p.price,
-  }));
+  // Per-user holding value over time: units_held_at_T × unit_price_at_T
+  const chartData = computeHolderValueHistory(
+    holder.name,
+    transactions,
+    priceHistory,
+  );
 
   return (
     <main className="px-6 pb-24">

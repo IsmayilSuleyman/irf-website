@@ -26,9 +26,9 @@ export function PerformanceChart({ data }: { data: Point[] }) {
     <div className="glass w-full p-6">
       <div className="mb-4 flex items-baseline justify-between">
         <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-          1 payın qiymət tarixçəsi
+          Sahiblik dəyərinin tarixçəsi
         </div>
-        <div className="text-[10px] text-black/35">₼ / pay</div>
+        <div className="text-[10px] text-black/35">₼</div>
       </div>
       <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
@@ -65,7 +65,7 @@ export function PerformanceChart({ data }: { data: Point[] }) {
               color: "#0a0a0a",
             }}
             labelStyle={{ color: "rgba(0,0,0,0.55)" }}
-            formatter={(v: number) => [formatAzn(v), "Qiymət"]}
+            formatter={(v: number) => [formatAzn(v), "Dəyər"]}
           />
           <Area
             type="monotone"

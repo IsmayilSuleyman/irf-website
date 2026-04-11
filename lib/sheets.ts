@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { unstable_cache } from "next/cache";
+import type { NavPoint } from "@/lib/priceHistory";
 
 export type Holder = {
   name: string;
@@ -178,6 +179,56 @@ export function computeHolderPerformance(
     pnlAzn,
     pnlPct,
   };
+}
+
+/**
+ * Builds a per-user holding-value time series by combining price history with
+ * the user's transaction history.
+ *
+ * At each price-history point T:
+ *   value_T = Σ(units from transactions on or before T) × unit_price_T
+ *
+ * Points before the user's first transaction are excluded so the chart starts
+ * from when they first held units.
+ */
+export function computeHolderValueHistory(
+  holderName: string,
+  transactions: Transaction[],
+  priceHistory: NavPoint[],
+): { label: string; value: number }[] {
+  const target = norm(holderName);
+  const mine = transactions.filter((t) => norm(t.holderName) === target);
+
+  if (mine.length === 0) return [];
+
+  // Earliest transaction date (ms) — chart starts here
+  const firstTxMs = Math.min(
+    ...mine
+      .map((t) => new Date(t.date).getTime())
+      .filter((n) => Number.isFinite(n)),
+  );
+
+  const result: { label: string; value: number }[] = [];
+
+  for (const point of priceHistory) {
+    const pointMs = new Date(point.recordedAt).getTime();
+    if (!Number.isFinite(pointMs) || pointMs < firstTxMs) continue;
+
+    // Units held by this user at this point in time
+    let units = 0;
+    for (const t of mine) {
+      const tMs = new Date(t.date).getTime();
+      if (Number.isFinite(tMs) && tMs <= pointMs) {
+        units += t.units;
+      }
+    }
+
+    if (units > 0) {
+      result.push({ label: point.label, value: units * point.price });
+    }
+  }
+
+  return result;
 }
 
 /**
