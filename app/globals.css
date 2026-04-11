@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #ffffff;
+  --fg: #0a0a0a;
+  --muted: #6b7280;
+  --hairline: rgba(0, 0, 0, 0.08);
+  --brand-green: #16a34a;
+  --brand-red: #dc2626;
+  --accent: #16a34a;
+  --accent-light: #22c55e;
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(22, 163, 74, 0.18);
+  --glass-blur: 14px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  height: 100%;
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #ffffff 0%, #f4fdf7 50%, #e8faee 100%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+@layer components {
+  .glass {
+    @apply rounded-2xl border bg-white/55 shadow-glass-green backdrop-blur-md;
+    border-color: var(--glass-border);
+  }
+
+  .glass-strong {
+    @apply rounded-2xl border bg-white/70 shadow-glass-green backdrop-blur-md;
+    border-color: var(--glass-border);
+  }
+
+  .glass-tinted {
+    @apply rounded-2xl border backdrop-blur-md;
+    background: rgba(22, 163, 74, 0.06);
+    border-color: var(--glass-border);
+  }
+
+  .num {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+      "SF Pro Text", "Segoe UI", system-ui, sans-serif !important;
+    @apply tabular-nums tracking-tight;
+  }
+
+  .hairline {
+    @apply border-t;
+    border-color: var(--glass-border);
+  }
+}
+
+::selection {
+  background: rgba(22, 163, 74, 0.20);
+  color: #0a1a10;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(22, 163, 74, 0.18);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(22, 163, 74, 0.32);
+}

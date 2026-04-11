@@ -1,0 +1,231 @@
+import { google } from "googleapis";
+import { unstable_cache } from "next/cache";
+
+export type Holder = {
+  name: string;
+  units: number;
+  percent: number; // 0..1
+  valueAzn: number;
+};
+
+export type FundData = {
+  totalCapital: number;
+  debtCapital: number;
+  netCapital: number;
+  totalUnits: number;
+  unitPrice: number;
+  holders: Holder[];
+};
+
+export type Transaction = {
+  holderName: string;
+  date: string;
+  units: number;
+  price: number;
+};
+
+export type HolderPerformance = {
+  totalUnits: number;
+  totalInvested: number;
+  avgBuyPrice: number | null;
+  currentValue: number;
+  pnlAzn: number;
+  pnlPct: number;
+};
+
+function getAuth() {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON env var is missing");
+  const credentials = JSON.parse(raw);
+  return new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+  });
+}
+
+const parseAzn = (v: unknown): number => {
+  if (v == null) return 0;
+  const cleaned = String(v).replace(/[₼\s,]/g, "");
+  const n = Number(cleaned.replace(/[^\d.\-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+};
+
+async function readTab(tabName: string, range: string): Promise<string[][]> {
+  const sheetId = process.env.SHEET_ID;
+  if (!sheetId) throw new Error("SHEET_ID env var is missing");
+  const sheets = google.sheets({ version: "v4", auth: getAuth() });
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `'${tabName}'!${range}`,
+  });
+  return (res.data.values ?? []) as string[][];
+}
+
+function findRowByPrefix(rows: string[][], prefix: string): number {
+  return rows.findIndex((r) =>
+    r[0]?.toString().trim().toLowerCase().startsWith(prefix.toLowerCase()),
+  );
+}
+
+async function parseFundData(): Promise<FundData> {
+  // Fund totals come from the IRF tab — labels in col A, values in col D (index 3)
+  const irfRows = await readTab("IRF", "A1:D20");
+
+  const cellAt = (label: string) => {
+    const idx = findRowByPrefix(irfRows, label);
+    return idx >= 0 ? irfRows[idx]?.[3] : undefined;
+  };
+
+  const totalCapital = parseAzn(cellAt("Ümumi Kapital"));
+  const debtCapital = parseAzn(cellAt("Borclu Kapital"));
+  const netCapital = parseAzn(cellAt("Xalis Kapital"));
+  const totalUnits = parseAzn(cellAt("Pay sayı"));
+  const unitPrice = parseAzn(cellAt("1 payın qiyməti"));
+
+  // Holders come from the Sahiblik tab — col A: name, col B: value, col C: units
+  const sahiblikRows = await readTab("Sahiblik", "A1:C20");
+  const holders: Holder[] = [];
+
+  for (let i = 1; i < sahiblikRows.length; i++) { // skip header row
+    const name = sahiblikRows[i]?.[0]?.toString().trim();
+    if (!name) break;
+    const valueAzn = parseAzn(sahiblikRows[i]?.[1]);
+    const units = parseAzn(sahiblikRows[i]?.[2]);
+    const percent = totalUnits > 0 ? units / totalUnits : 0;
+    holders.push({ name, units, percent, valueAzn });
+  }
+
+  return { totalCapital, debtCapital, netCapital, totalUnits, unitPrice, holders };
+}
+
+export const getFundData = unstable_cache(
+  async (): Promise<FundData> => parseFundData(),
+  ["irf-fund-data"],
+  { revalidate: 60, tags: ["sheet"] },
+);
+
+async function parseTransactions(): Promise<Transaction[]> {
+  let rows: string[][];
+  try {
+    rows = await readTab("Transactions", "A1:D1000");
+  } catch (err) {
+    console.error("Transactions tab read error:", err);
+    return [];
+  }
+  const out: Transaction[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+    const holderName = row[0]?.toString().trim();
+    if (!holderName) continue;
+    const date = row[1]?.toString().trim() ?? "";
+    const units = parseAzn(row[2]);
+    const price = parseAzn(row[3]);
+    if (!Number.isFinite(units) || units === 0) continue;
+    out.push({ holderName, date, units, price });
+  }
+  return out;
+}
+
+export const getTransactions = unstable_cache(
+  async (): Promise<Transaction[]> => parseTransactions(),
+  ["irf-transactions"],
+  { revalidate: 60, tags: ["sheet"] },
+);
+
+const norm = (s: string) =>
+  s.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
+
+export async function getHolderByName(
+  name: string | undefined | null,
+): Promise<Holder | undefined> {
+  if (!name) return undefined;
+  const data = await getFundData();
+  const target = norm(name);
+  return data.holders.find((h) => norm(h.name) === target);
+}
+
+export function computeHolderPerformance(
+  holderName: string,
+  transactions: Transaction[],
+  currentPrice: number,
+  currentUnits: number,
+): HolderPerformance {
+  const target = norm(holderName);
+  const mine = transactions.filter((t) => norm(t.holderName) === target);
+
+  let buyUnits = 0;
+  let totalInvested = 0;
+  for (const t of mine) {
+    if (t.units > 0) {
+      buyUnits += t.units;
+      totalInvested += t.units * t.price;
+    }
+  }
+
+  const avgBuyPrice = buyUnits > 0 ? totalInvested / buyUnits : null;
+  const currentValue = currentUnits * currentPrice;
+  // Cost basis attributable to currently-held units (assumes FIFO/avg-cost)
+  const costBasisOfHeld = avgBuyPrice != null ? avgBuyPrice * currentUnits : 0;
+  const pnlAzn = avgBuyPrice != null ? currentValue - costBasisOfHeld : 0;
+  const pnlPct = costBasisOfHeld > 0 ? pnlAzn / costBasisOfHeld : 0;
+
+  return {
+    totalUnits: currentUnits,
+    totalInvested,
+    avgBuyPrice,
+    currentValue,
+    pnlAzn,
+    pnlPct,
+  };
+}
+
+/**
+ * Transaction-aware holding-value change over a period.
+ *
+ * Computes how much the user's holding actually gained or lost over the
+ * window, netting out cash flows so that fresh buys don't masquerade as gains
+ * and sells don't masquerade as losses.
+ *
+ *   delta = (currentValue + cashOutFromSells) − (pastValue + cashInFromBuys)
+ *
+ * Where:
+ *   currentValue = currentUnits × currentPrice
+ *   pastValue    = unitsAtPastDate × pastPrice
+ *   unitsAtPastDate = currentUnits − Σ(t.units) over transactions in (pastDate, now]
+ *
+ * Returns null if no past price is available.
+ */
+export function computeHoldingDeltaSince(
+  holderName: string,
+  transactions: Transaction[],
+  currentUnits: number,
+  currentPrice: number,
+  pastPrice: number | null,
+  pastDate: Date,
+): number | null {
+  if (pastPrice == null) return null;
+
+  const target = norm(holderName);
+  const pastMs = pastDate.getTime();
+  const mineInWindow = transactions.filter((t) => {
+    if (norm(t.holderName) !== target) return false;
+    const ts = new Date(t.date).getTime();
+    return Number.isFinite(ts) && ts > pastMs;
+  });
+
+  let netUnitsInWindow = 0;
+  let cashIn = 0; // cash spent on buys in the window
+  let cashOut = 0; // cash received from sells in the window
+  for (const t of mineInWindow) {
+    netUnitsInWindow += t.units;
+    if (t.units > 0) cashIn += t.units * t.price;
+    else cashOut += -t.units * t.price;
+  }
+
+  const unitsAtPastDate = currentUnits - netUnitsInWindow;
+  const pastValue = unitsAtPastDate * pastPrice;
+  const currentValue = currentUnits * currentPrice;
+
+  return currentValue + cashOut - (pastValue + cashIn);
+}
