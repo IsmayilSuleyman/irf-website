@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Logo } from "@/components/Logo";
 import { motion } from "framer-motion";
 
 const fade = (delay: number) => ({
@@ -15,9 +14,8 @@ export default function WelcomePage() {
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-20">
       {/* Hero */}
       <motion.div {...fade(0)} className="flex flex-col items-center gap-4 mb-14 text-center">
-        <Logo size={72} />
-        <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-black/85">
-          İsmayıl Ailə Xidmətləri
+        <h1 className="text-4xl font-extrabold tracking-tight text-black/85">
+          İsmayıl Maliyyə Xidmətləri
         </h1>
         <p className="max-w-md text-base text-black/45 leading-relaxed">
           Portfel idarəetməsi və bank məhsulları — hamısı bir yerdə.
@@ -70,10 +68,10 @@ export default function WelcomePage() {
             </span>
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
-                İsmayılBanka
+                İsmayılBank
               </p>
               <h2 className="text-lg font-bold text-black/85 leading-tight">
-                Bank Məhsulları
+                Maliyyə Məhsulları
               </h2>
             </div>
           </div>
