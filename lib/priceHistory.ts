@@ -25,6 +25,26 @@ export async function getPriceHistory(): Promise<NavPoint[]> {
   }));
 }
 
+export function findLatestPriceBeforeDate(
+  history: NavPoint[],
+  currentDate: Date,
+): NavPoint | null {
+  if (history.length === 0) return null;
+
+  const currentDateLabel = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Baku",
+  }).format(currentDate);
+
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const point = history[i];
+    if (point.recordedAt < currentDateLabel) {
+      return point;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Returns the price entry whose recorded_at is closest to (today − days).
  * Returns null if history is empty or has no entries that old.

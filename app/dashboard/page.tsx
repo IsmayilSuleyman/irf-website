@@ -6,10 +6,12 @@ import {
   getTransactions,
   computeHolderPerformance,
   computeHolderValueHistory,
+  computeHoldingDeltaSince,
 } from "@/lib/sheets";
 import {
   getPriceHistory,
   computePeriodChanges,
+  findLatestPriceBeforeDate,
 } from "@/lib/priceHistory";
 import { formatAzn } from "@/lib/portfolio";
 import { Header } from "@/components/Header";
@@ -84,11 +86,18 @@ export default async function DashboardPage() {
     holder.units,
   );
   const periodChanges = computePeriodChanges(fund.unitPrice, priceHistory);
+  const previousPricePoint = findLatestPriceBeforeDate(priceHistory, new Date());
   const holdingValue = fund.unitPrice * holder.units;
-  // Profit/loss vs the user's average buy price (cost basis).
-  // null when the user has no transactions in the sheet yet.
-  const holdingPnl =
-    perf.avgBuyPrice != null ? perf.pnlAzn : null;
+  const dayChange = previousPricePoint
+    ? computeHoldingDeltaSince(
+        holder.name,
+        transactions,
+        holder.units,
+        fund.unitPrice,
+        previousPricePoint.price,
+        new Date(previousPricePoint.recordedAt),
+      )
+    : null;
 
   // Per-user holding value over time: units_held_at_T × unit_price_at_T
   const chartData = computeHolderValueHistory(
@@ -108,7 +117,7 @@ export default async function DashboardPage() {
             <HeroPrice
               holderName={holder.name}
               holdingValue={holdingValue}
-              holdingPnl={holdingPnl}
+              dayChange={dayChange}
               units={holder.units}
               avgBuyPrice={perf.avgBuyPrice}
             />
