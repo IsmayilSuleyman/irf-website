@@ -88,6 +88,8 @@ export default async function DashboardPage() {
   const periodChanges = computePeriodChanges(fund.unitPrice, priceHistory);
   const previousPricePoint = findLatestPriceBeforeDate(priceHistory, new Date());
   const holdingValue = fund.unitPrice * holder.units;
+  const holdingPnl =
+    perf.avgBuyPrice != null ? perf.pnlAzn : null;
   const dayChange = previousPricePoint
     ? computeHoldingDeltaSince(
         holder.name,
@@ -117,6 +119,7 @@ export default async function DashboardPage() {
             <HeroPrice
               holderName={holder.name}
               holdingValue={holdingValue}
+              holdingPnl={holdingPnl}
               dayChange={dayChange}
               units={holder.units}
               avgBuyPrice={perf.avgBuyPrice}
