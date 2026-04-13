@@ -13,10 +13,10 @@ export default function LoginPage() {
           <div className="flex flex-col gap-4">
             <LoginForm />
             <Link
-              href="https://ismayilrifahfondu-six.vercel.app/welcome"
+              href="/welcome"
               className="rounded-xl border border-[rgba(22,163,74,0.2)] bg-white/70 px-4 py-3 text-center text-sm font-medium uppercase tracking-[0.18em] text-black/65 transition hover:-translate-y-0.5 hover:border-brand-green hover:text-brand-green"
             >
-              geriyə qayıt
+              Geriyə qayıt
             </Link>
           </div>
         </div>
