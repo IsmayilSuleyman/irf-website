@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
@@ -10,11 +10,18 @@ const riseIn = (delay: number, y = 24) => ({
   transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const, delay },
 });
 
-function SurfaceBlock({ className }: { className: string }) {
+function GlassLayer({
+  className,
+  style,
+}: {
+  className: string;
+  style?: CSSProperties;
+}) {
   return (
     <div
       aria-hidden
-      className={`absolute rounded-[28px] border border-white/35 bg-white/18 shadow-[0_24px_70px_rgba(74,121,90,0.08)] backdrop-blur-[3px] ${className}`}
+      className={`absolute border border-white/35 bg-[linear-gradient(135deg,rgba(255,255,255,0.34),rgba(255,255,255,0.1))] shadow-[0_24px_70px_rgba(74,121,90,0.08)] backdrop-blur-[16px] ${className}`}
+      style={style}
     />
   );
 }
@@ -172,32 +179,45 @@ function ProductCard({
 export default function WelcomePage() {
   return (
     <main className="min-h-screen overflow-hidden p-1.5 sm:p-2">
-      <section className="relative mx-auto min-h-[calc(100vh-0.75rem)] max-w-[1920px] overflow-hidden rounded-[1.7rem] border border-black/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.78),rgba(241,250,245,0.84)_48%,rgba(229,246,235,0.88))] shadow-[0_28px_90px_rgba(48,94,63,0.08)]">
-        <SurfaceBlock className="left-[3%] top-[4.5%] hidden h-[9.5rem] w-[60%] max-w-[64rem] lg:block" />
-        <SurfaceBlock className="left-[5%] top-[17%] hidden h-[4.7rem] w-[46%] max-w-[55rem] lg:block" />
+      <section className="relative mx-auto min-h-[calc(100vh-0.75rem)] max-w-[1920px] overflow-hidden rounded-[1.7rem] border border-black/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.8),rgba(242,250,245,0.88)_48%,rgba(229,246,235,0.9))] shadow-[0_28px_90px_rgba(48,94,63,0.08)]">
         <div
           aria-hidden
-          className="absolute left-[7%] top-[31%] hidden h-[26rem] w-[52rem] rounded-[2.25rem] bg-[radial-gradient(circle_at_top_left,rgba(210,245,221,0.62),rgba(230,247,236,0.2)_55%,rgba(255,255,255,0)_80%)] blur-3xl lg:block"
+          className="absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(255,255,255,0.76),rgba(255,255,255,0)_30%),radial-gradient(circle_at_74%_78%,rgba(205,244,219,0.54),rgba(205,244,219,0)_26%)]"
+        />
+        <GlassLayer className="left-[2.5%] top-[4.5%] hidden h-[9rem] w-[58rem] rounded-full lg:block" />
+        <GlassLayer className="left-[5.5%] top-[17.5%] hidden h-[4.75rem] w-[34rem] rounded-full lg:block" />
+        <div
+          aria-hidden
+          className="absolute left-[4%] top-[29%] hidden h-[25rem] w-[54rem] rounded-full bg-[radial-gradient(circle_at_35%_35%,rgba(214,245,223,0.76),rgba(214,245,223,0.2)_48%,rgba(255,255,255,0)_76%)] blur-3xl lg:block"
+        />
+        <GlassLayer
+          className="right-[6%] top-[18%] hidden h-[35rem] w-[36rem] lg:block"
+          style={{
+            borderRadius: "42% 58% 53% 47% / 39% 43% 57% 61%",
+            transform: "rotate(-11deg)",
+          }}
         />
         <div
           aria-hidden
-          className="absolute right-[8%] top-[23%] hidden h-[33rem] w-[34rem] overflow-hidden rounded-[2rem] border border-white/30 bg-white/18 shadow-[0_24px_70px_rgba(74,121,90,0.08)] backdrop-blur-[4px] lg:block"
-        >
-          <div className="grid h-full grid-cols-2 grid-rows-3">
-            <div className="border-b border-r border-white/25 bg-[#E8F8ED]/55" />
-            <div className="border-b border-white/25 bg-[#E6F5EA]/75" />
-            <div className="border-r border-white/25 bg-[#E5F3E8]/65" />
-            <div className="bg-[#DFF1E4]/55" />
-            <div className="border-r border-t border-white/25 bg-[#EAF6EC]/55" />
-            <div className="border-t border-white/25 bg-[#DFF0E3]/65" />
-          </div>
-        </div>
-        <div className="absolute left-[49%] top-[23%] hidden h-10 w-10 rounded-sm bg-white/55 shadow-[0_10px_25px_rgba(255,255,255,0.6)] lg:block" />
+          className="absolute right-[8%] top-[20%] hidden h-[31rem] w-[31rem] rounded-full border border-white/30 bg-[radial-gradient(circle_at_28%_28%,rgba(255,255,255,0.58),rgba(255,255,255,0.08)_54%,rgba(255,255,255,0)_72%)] shadow-[0_18px_60px_rgba(92,132,106,0.08)] backdrop-blur-md lg:block"
+        />
+        <GlassLayer
+          className="right-[11%] top-[28%] hidden h-[14rem] w-[27rem] rounded-full lg:block"
+          style={{ transform: "rotate(15deg)" }}
+        />
+        <div
+          aria-hidden
+          className="absolute right-[13%] bottom-[11%] hidden h-[9rem] w-[9rem] rounded-full border border-white/25 bg-white/22 shadow-[0_18px_50px_rgba(101,144,118,0.08)] backdrop-blur-md lg:block"
+        />
+        <div
+          aria-hidden
+          className="absolute left-[50%] top-[22%] hidden h-11 w-11 rounded-full border border-white/40 bg-white/42 shadow-[0_10px_25px_rgba(255,255,255,0.6)] backdrop-blur-md lg:block"
+        />
 
         <div className="relative z-10 flex min-h-[calc(100vh-0.75rem)] flex-col px-6 py-8 sm:px-10 sm:py-12 lg:px-20 lg:py-16">
           <motion.div
             {...riseIn(0)}
-            className="max-w-[60rem] rounded-[2rem] bg-white/56 px-5 py-5 shadow-[0_18px_60px_rgba(106,149,121,0.06)] backdrop-blur-[2px] sm:px-8 sm:py-7 lg:px-10"
+            className="max-w-[60rem] rounded-[2.25rem] bg-[linear-gradient(135deg,rgba(255,255,255,0.62),rgba(255,255,255,0.34))] px-5 py-5 shadow-[0_18px_60px_rgba(106,149,121,0.06)] backdrop-blur-[10px] sm:px-8 sm:py-7 lg:px-10"
           >
             <h1 className="text-[clamp(3.5rem,7.2vw,6.1rem)] font-black leading-[0.92] tracking-[-0.08em] text-[#222222]">
               İsmayıl Maliyyə Xidmətləri
