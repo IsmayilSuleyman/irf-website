@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LoginForm } from "@/components/LoginForm";
 import { Logo } from "@/components/Logo";
 
@@ -9,7 +10,15 @@ export default function LoginPage() {
           <div className="mb-10 flex flex-col items-center">
             <Logo size={130} />
           </div>
-          <LoginForm />
+          <div className="flex flex-col gap-4">
+            <LoginForm />
+            <Link
+              href="https://ismayilrifahfondu-six.vercel.app/welcome"
+              className="rounded-xl border border-[rgba(22,163,74,0.2)] bg-white/70 px-4 py-3 text-center text-sm font-medium uppercase tracking-[0.18em] text-black/65 transition hover:-translate-y-0.5 hover:border-brand-green hover:text-brand-green"
+            >
+              Back to home
+            </Link>
+          </div>
         </div>
       </div>
     </main>
