@@ -30,7 +30,7 @@ export default function IsmayilBankPage() {
             İndi hesabla
           </h1>
           <p className="mx-auto mt-4 max-w-3xl text-center text-[1.1rem] leading-8 tracking-[-0.02em] text-black/52 sm:text-[1.2rem]">
-            50–500 ₼ arası kredit məbləğini və 1–12 ay müddəti seçin. Faiz dərəcəsi
+            50–2000 ₼ arası kredit məbləğini və 1–12 ay müddəti seçin. Faiz dərəcəsi
             seçdiyiniz müddətə əsasən avtomatik hesablanır.
           </p>
 
