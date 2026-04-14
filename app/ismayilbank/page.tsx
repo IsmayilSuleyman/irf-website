@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { IsmayilBankCalculator } from "@/components/IsmayilBankCalculator";
+import { IsmayilBankDepositCalculator } from "@/components/IsmayilBankDepositCalculator";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 
 export default function IsmayilBankPage() {
@@ -30,12 +31,42 @@ export default function IsmayilBankPage() {
             İndi hesabla
           </h1>
           <p className="mx-auto mt-4 max-w-3xl text-center text-[1.1rem] leading-8 tracking-[-0.02em] text-black/52 sm:text-[1.2rem]">
-            50–2000 ₼ arası kredit məbləğini və 1–12 ay müddəti seçin. Faiz dərəcəsi
-            seçdiyiniz müddətə əsasən avtomatik hesablanır.
+            Kredit və depozit məhsulları üçün ilkin hesablamanı burada edin.
+            Şərtləri müqayisə edib sizə uyğun variantı rahat seçə bilərsiniz.
           </p>
 
-          <div className="mt-10">
-            <IsmayilBankCalculator />
+          <div className="mt-12 space-y-12">
+            <section className="space-y-5">
+              <div className="max-w-2xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2F61D8]/76">
+                  Kredit
+                </p>
+                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-[#161616]">
+                  Kredit kalkulyatoru
+                </h2>
+                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/52">
+                  50–2000 ₼ arası məbləği və 1–12 ay müddəti seçin. İllik faiz dərəcəsi
+                  seçdiyiniz müddətə uyğun tətbiq olunur.
+                </p>
+              </div>
+              <IsmayilBankCalculator />
+            </section>
+
+            <section className="space-y-5">
+              <div className="max-w-2xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#18A957]/76">
+                  Depozit
+                </p>
+                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-[#161616]">
+                  Depozit kalkulyatoru
+                </h2>
+                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/52">
+                  50–2000 ₼ arası depozit məbləğini seçin və 3, 6, 9 və ya 12 ay
+                  müddətləri üzrə müddət sonu qazancı görün.
+                </p>
+              </div>
+              <IsmayilBankDepositCalculator />
+            </section>
           </div>
 
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
