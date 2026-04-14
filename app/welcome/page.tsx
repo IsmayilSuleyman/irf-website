@@ -3,6 +3,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 
 const riseIn = (delay: number, y = 24) => ({
   initial: { opacity: 0, y },
@@ -53,32 +54,6 @@ function PortfolioIcon() {
   );
 }
 
-function BankIcon() {
-  return (
-    <svg viewBox="0 0 40 40" className="h-8 w-8" aria-hidden>
-      <rect
-        x="8"
-        y="10"
-        width="18"
-        height="22"
-        rx="2"
-        fill="#9AD0FF"
-        stroke="#111827"
-        strokeWidth="1.6"
-      />
-      <rect x="13" y="15" width="3.5" height="3.5" fill="#FFFFFF" stroke="#111827" strokeWidth="1.1" />
-      <rect x="19" y="15" width="3.5" height="3.5" fill="#7DD3FC" stroke="#111827" strokeWidth="1.1" />
-      <rect x="13" y="21" width="3.5" height="3.5" fill="#7DD3FC" stroke="#111827" strokeWidth="1.1" />
-      <rect x="19" y="21" width="3.5" height="8" fill="#16A34A" stroke="#111827" strokeWidth="1.1" />
-      <path d="M26 14H33V32H26" fill="#E5F0FF" stroke="#111827" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M29.5 18.5H33" stroke="#111827" strokeWidth="1.3" strokeLinecap="round" />
-      <path d="M29.5 22.5H33" stroke="#111827" strokeWidth="1.3" strokeLinecap="round" />
-      <path d="M29.5 26.5H33" stroke="#111827" strokeWidth="1.3" strokeLinecap="round" />
-      <path d="M8 32H33" stroke="#111827" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function ArrowIcon() {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden>
@@ -98,8 +73,9 @@ type ProductCardProps = {
   action: string;
   brand: string;
   description: string;
+  headerVisual?: ReactNode;
   href: string;
-  icon: ReactNode;
+  icon?: ReactNode;
   tags: string[];
   title: string;
   tone: "blue" | "green";
@@ -109,6 +85,7 @@ function ProductCard({
   action,
   brand,
   description,
+  headerVisual,
   href,
   icon,
   tags,
@@ -134,21 +111,30 @@ function ProductCard({
 
   return (
     <article className="flex h-full flex-col rounded-[2rem] border border-[#CFE8D8] bg-white/72 p-7 shadow-[0_22px_65px_rgba(83,131,101,0.12)] backdrop-blur-xl sm:p-10">
-      <div className="flex items-start gap-4">
-        <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${palette.iconShell}`}
-        >
-          {icon}
-        </div>
-        <div className="pt-0.5">
-          <p className={`text-[0.68rem] font-bold uppercase tracking-[0.14em] ${palette.brand}`}>
-            {brand}
-          </p>
-          <h2 className="mt-1 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-[#2A2A2A]">
+      {headerVisual ? (
+        <div>
+          {headerVisual}
+          <h2 className="mt-5 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-[#2A2A2A]">
             {title}
           </h2>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-start gap-4">
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${palette.iconShell}`}
+          >
+            {icon}
+          </div>
+          <div className="pt-0.5">
+            <p className={`text-[0.68rem] font-bold uppercase tracking-[0.14em] ${palette.brand}`}>
+              {brand}
+            </p>
+            <h2 className="mt-1 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-[#2A2A2A]">
+              {title}
+            </h2>
+          </div>
+        </div>
+      )}
 
       <p className="mt-7 max-w-[20rem] text-[1.05rem] leading-[1.7] tracking-[-0.02em] text-black/48">
         {description}
@@ -245,8 +231,12 @@ export default function WelcomePage() {
               action="İsmayılBanka keç"
               brand="İSMAYILBANK"
               description="Depozit və kredit faizlərini müqayisə edin. Ən sərfəli şərtləri tapın və qərarlarınızı daha ağıllı verin."
+              headerVisual={
+                <div className="inline-flex rounded-[1.2rem] border border-blue-200/70 bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
+                  <IsmayilBankLogo size={38} />
+                </div>
+              }
               href="/ismayilbank"
-              icon={<BankIcon />}
               tags={["Depozit", "Kredit", "Müqayisə"]}
               title="Maliyyə Məhsulları"
               tone="blue"

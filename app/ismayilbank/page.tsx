@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 
 export default function IsmayilBankPage() {
   return (
@@ -14,7 +15,10 @@ export default function IsmayilBankPage() {
         />
 
         <div className="relative">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#2F61D8]">
+          <div className="mb-5 inline-flex rounded-[1.2rem] border border-blue-200/70 bg-white/82 px-5 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
+            <IsmayilBankLogo size={54} />
+          </div>
+          <p className="sr-only">
             İSMAYILBANK
           </p>
           <h1 className="mt-3 text-4xl font-black tracking-[-0.06em] text-[#222222] sm:text-5xl">
