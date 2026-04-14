@@ -23,8 +23,8 @@ export function Header({ dateLabel }: { dateLabel: string }) {
       className="sticky top-0 z-40 -mx-6 mb-12 border-b border-[rgba(22,163,74,0.14)] bg-white/55 px-6 backdrop-blur-md"
     >
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 py-5">
-        <div className="flex items-center">
-          <Logo size={40} />
+        <div className="w-[150px] sm:w-[190px]">
+          <Logo width={190} priority />
         </div>
         <div className="flex items-center gap-6">
           <span className="text-xs text-black/45">{dateLabel}</span>

@@ -7,8 +7,10 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="glass p-10">
-          <div className="mb-10 flex flex-col items-center">
-            <Logo size={130} />
+          <div className="mb-10 flex w-full flex-col items-center">
+            <div className="w-full max-w-[250px]">
+              <Logo width={250} priority />
+            </div>
           </div>
           <div className="flex flex-col gap-4">
             <LoginForm />
