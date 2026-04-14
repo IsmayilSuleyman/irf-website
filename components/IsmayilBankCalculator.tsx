@@ -103,24 +103,6 @@ function SliderField({
   );
 }
 
-function RateField({ rate }: { rate: number }) {
-  return (
-    <div className="rounded-[1.5rem] border border-blue-100 bg-blue-50/70 p-5 sm:p-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-[1.1rem] tracking-[-0.03em] text-black/56">Faiz dərəcəsi</p>
-          <p className="mt-2 text-sm leading-6 tracking-[-0.01em] text-black/46">
-            Müddət seçiminizə görə avtomatik hesablanır.
-          </p>
-        </div>
-        <p className="num text-[2rem] font-semibold tracking-[-0.06em] text-[#111827]">
-          {formatRate(rate)}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function SummaryRow({
   label,
   value,
@@ -182,8 +164,6 @@ export function IsmayilBankCalculator() {
               maxLabel={`${MAX_PERIOD} ay`}
               valueLabel={`${period} ay`}
             />
-
-            <RateField rate={annualRate} />
           </div>
         </div>
 
