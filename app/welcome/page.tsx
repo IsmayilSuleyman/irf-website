@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
+import { Logo } from "@/components/Logo";
 
 const riseIn = (delay: number, y = 24) => ({
   initial: { opacity: 0, y },
@@ -24,33 +25,6 @@ function GlassLayer({
       className={`absolute border border-white/35 bg-[linear-gradient(135deg,rgba(255,255,255,0.34),rgba(255,255,255,0.1))] shadow-[0_24px_70px_rgba(74,121,90,0.08)] backdrop-blur-[16px] ${className}`}
       style={style}
     />
-  );
-}
-
-function PortfolioIcon() {
-  return (
-    <svg viewBox="0 0 40 40" className="h-8 w-8" aria-hidden>
-      <rect
-        x="5.5"
-        y="5.5"
-        width="29"
-        height="29"
-        rx="7"
-        fill="#FFFFFF"
-        stroke="#111827"
-        strokeWidth="1.5"
-      />
-      <path d="M12 29V15.5" stroke="#111827" strokeWidth="1.7" strokeLinecap="round" />
-      <path d="M12 29H29" stroke="#111827" strokeWidth="1.7" strokeLinecap="round" />
-      <path
-        d="M13.5 24.5L19 19L23 22L29 13.5"
-        fill="none"
-        stroke="#EF4444"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
@@ -77,7 +51,7 @@ type ProductCardProps = {
   href: string;
   icon?: ReactNode;
   tags: string[];
-  title: string;
+  title?: string;
   tone: "blue" | "green";
 };
 
@@ -114,9 +88,11 @@ function ProductCard({
       {headerVisual ? (
         <div>
           {headerVisual}
-          <h2 className="mt-5 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-[#2A2A2A]">
-            {title}
-          </h2>
+          {title ? (
+            <h2 className="mt-5 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-[#2A2A2A]">
+              {title}
+            </h2>
+          ) : null}
         </div>
       ) : (
         <div className="flex items-start gap-4">
@@ -221,10 +197,15 @@ export default function WelcomePage() {
               action="Portfolioma keç"
               brand="İRF"
               description="Şəxsi investisiya portfelinizi real vaxt rejimində izləyin. Aktivlər, gəlirlilik və bölgü — bir baxışda."
+              headerVisual={
+                <div className="inline-flex rounded-[1.2rem] border border-[#BDE5CA] bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(31,164,71,0.12)]">
+                  <div className="w-[180px] sm:w-[210px]">
+                    <Logo width={210} priority />
+                  </div>
+                </div>
+              }
               href="/login"
-              icon={<PortfolioIcon />}
               tags={["Portfel", "Analitika", "Real vaxt"]}
-              title="Rifah Fondu"
               tone="green"
             />
             <ProductCard
