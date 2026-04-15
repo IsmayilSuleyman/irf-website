@@ -76,6 +76,13 @@ Recommended column headers:
 - `deposited_azn`
 - `outstanding_loan_azn`
 - `updated_at` optional
+- `annual_rate_pct` optional
+- `term_months` optional
+- `maturity_bonus_azn` optional
+- `maturity_date` optional
+- `monthly_payment_azn` optional
+- `next_payment_date` optional
+- `payment_schedule` optional (`2026-05-20|145|Növbədə|May ödənişi;2026-06-20|145|Planlaşdırılır|İyun ödənişi` or JSON array)
 
 Aliases are supported too, so you can also use labels like `Sahib`, `Depozit`, and `Kredit`.
 
