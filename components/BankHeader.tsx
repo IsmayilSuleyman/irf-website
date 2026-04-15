@@ -45,11 +45,9 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
 
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-3 text-[clamp(1.15rem,2vw,1.85rem)] font-black tracking-[-0.06em] text-[#151515] transition hover:text-[#2F61D8]"
+            className="inline-flex items-center gap-2 rounded-[0.9rem] border border-black/10 bg-white/80 px-4 py-2.5 text-sm font-semibold tracking-[-0.02em] text-black/66 shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition hover:border-[#2F61D8]/25 hover:text-[#2F61D8]"
           >
-            <span className="rounded-full border border-black/10 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#2F61D8]">
-              IRF
-            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#2F61D8]">IRF</span>
             <span>Portfelimə keçid et</span>
           </Link>
         </div>

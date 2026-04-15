@@ -90,14 +90,6 @@ function statusStyles(status: string | null | undefined): string {
   return "border-[#bfd1fb] bg-[#f3f7ff] text-[#2F61D8]";
 }
 
-function AccentMark({ className = "" }: { className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={`inline-block h-7 w-7 shrink-0 rounded-[0.35rem] border-[5px] border-[#141414] bg-[#F16E73] shadow-[0_10px_24px_rgba(241,110,115,0.18)] ${className}`}
-    />
-  );
-}
 
 function SummaryTile({
   label,
@@ -140,34 +132,31 @@ function StatementCard({
 }) {
   return (
     <section className="overflow-hidden rounded-[2rem] border border-[#d7e7da] bg-[linear-gradient(135deg,rgba(255,255,255,0.94),rgba(247,252,249,0.96))] p-5 shadow-[0_22px_70px_rgba(61,104,72,0.08)] sm:p-8 lg:p-10">
-      <div className="flex items-start gap-4">
-        <AccentMark className="mt-1" />
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[clamp(1.9rem,3.3vw,3.15rem)] font-black leading-[0.95] tracking-[-0.07em] text-[#151515]">
-            {title}
-          </h2>
+      <div className="min-w-0">
+        <h2 className="text-[clamp(1.9rem,3.3vw,3.15rem)] font-black leading-[0.95] tracking-[-0.07em] text-[#151515]">
+          {title}
+        </h2>
 
-          <div className="mt-5 flex flex-wrap items-end gap-x-2 gap-y-3 leading-none">
-            <span className="num text-[clamp(3.8rem,13vw,8.4rem)] font-black tracking-[-0.11em] text-[#111111]">
-              {formatStatementAmount(amount)}
-            </span>
-            <span className="pb-1 text-[clamp(2.8rem,8vw,5.2rem)] font-black tracking-[-0.09em] text-[#111111]">
-              {"\u20BC"}
-            </span>
-          </div>
-
-          {detail ? (
-            <p className="mt-5 text-[1rem] leading-7 tracking-[-0.02em] text-[#1b1b1b]/88 sm:text-[1.08rem]">
-              {detail}
-            </p>
-          ) : null}
-
-          {footnote ? (
-            <p className="mt-1 text-[0.98rem] leading-7 tracking-[-0.02em] text-black/38">
-              {footnote}
-            </p>
-          ) : null}
+        <div className="mt-5 flex flex-wrap items-end gap-x-2 gap-y-3 leading-none">
+          <span className="num text-[clamp(3.8rem,13vw,8.4rem)] font-black tracking-[-0.11em] text-[#111111]">
+            {formatStatementAmount(amount)}
+          </span>
+          <span className="pb-1 text-[clamp(2.8rem,8vw,5.2rem)] font-black tracking-[-0.09em] text-[#111111]">
+            {"\u20BC"}
+          </span>
         </div>
+
+        {detail ? (
+          <p className="mt-5 text-[1rem] leading-7 tracking-[-0.02em] text-[#1b1b1b]/88 sm:text-[1.08rem]">
+            {detail}
+          </p>
+        ) : null}
+
+        {footnote ? (
+          <p className="mt-1 text-[0.98rem] leading-7 tracking-[-0.02em] text-black/38">
+            {footnote}
+          </p>
+        ) : null}
       </div>
     </section>
   );
@@ -228,24 +217,23 @@ function PaymentSchedule({ account }: { account: BankAccount }) {
   const description = showTable
     ? "Aşağıdakı sətirlər bank cədvəlində verilən növbəti ödənişləri göstərir."
     : account.outstandingLoanAzn > 0
-      ? "Aktiv kredit görünür, amma tam cədvəl hələ əlavə olunmayıb. `payment_schedule`, `monthly_payment_azn` və `next_payment_date` sütunları daxil ediləndə bu blok avtomatik dolacaq."
+      ? null
       : "Hazırda aktiv kredit olmadığı üçün ödəniş cədvəli boşdur.";
 
   return (
     <section className="rounded-[2rem] border border-[#d7e7da] bg-[linear-gradient(135deg,rgba(255,255,255,0.94),rgba(246,252,248,0.96))] p-5 shadow-[0_22px_70px_rgba(61,104,72,0.08)] sm:p-8 lg:p-10">
-      <div className="flex items-start gap-4">
-        <AccentMark className="mt-1" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-black/42">
-            Ödəniş cədvəli
-          </p>
-          <h2 className="mt-2 text-[clamp(1.9rem,3.2vw,3rem)] font-black leading-[0.95] tracking-[-0.07em] text-[#151515]">
-            Kredit ödəniş planı
-          </h2>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-black/42">
+          Ödəniş cədvəli
+        </p>
+        <h2 className="mt-2 text-[clamp(1.9rem,3.2vw,3rem)] font-black leading-[0.95] tracking-[-0.07em] text-[#151515]">
+          Kredit ödəniş planı
+        </h2>
+        {description ? (
           <p className="mt-4 max-w-4xl text-[1rem] leading-7 tracking-[-0.02em] text-black/54">
             {description}
           </p>
-        </div>
+        ) : null}
       </div>
 
       {showTable ? (
@@ -347,9 +335,7 @@ export default async function BankPage() {
       : null,
   ]);
   const maturityLabel = formatDisplayDate(account.maturityDate);
-  const depositFootnote = maturityLabel
-    ? `Depozitin yetişmə tarixi: ${maturityLabel}`
-    : "Depozit şərtləri sheet-ə əlavə olunduqca burada daha detallı görünəcək.";
+  const depositFootnote = maturityLabel ? `Depozitin yetişmə tarixi: ${maturityLabel}` : null;
   const nextPaymentLabel = formatDisplayDate(account.nextPaymentDate);
   const loanDetail = joinParts([
     account.monthlyPaymentAzn != null
@@ -360,7 +346,7 @@ export default async function BankPage() {
   const loanFootnote =
     account.outstandingLoanAzn > 0
       ? "Qalıq kredit məbləği yuxarıda göstərilir. Tam cədvəl aşağıdakı blokda görünəcək."
-      : "Hazırda aktiv cash loan görünmür.";
+      : null;
 
   return (
     <main className="min-h-screen px-2 py-2 sm:px-4 sm:py-4">
@@ -381,18 +367,10 @@ export default async function BankPage() {
                     Xoş gəldin, {account.name.toLocaleUpperCase("az-AZ")}
                   </p>
 
-                  <div className="flex items-start gap-4">
-                    <AccentMark className="mt-2" />
-                    <div>
-                      <h1 className="text-[clamp(2.45rem,5vw,4.8rem)] font-black leading-[0.93] tracking-[-0.08em] text-[#2F61D8]">
-                        {greetingName}, şəxsi hesabın hazırdır
-                      </h1>
-                      <p className="mt-3 max-w-3xl text-[1rem] leading-7 tracking-[-0.02em] text-black/54 sm:text-[1.08rem]">
-                        Depozit və kredit məlumatların bu girişə bağlı şəkildə burada görünür.
-                        İstəsəniz sheet-ə əlavə faiz və ödəniş sütunları qoşaraq bu səhifəni daha da
-                        zənginləşdirə bilərik.
-                      </p>
-                    </div>
+                  <div>
+                    <h1 className="text-[clamp(2.45rem,5vw,4.8rem)] font-black leading-[0.93] tracking-[-0.08em] text-[#151515]">
+                      {greetingName}, şəxsi hesabın hazırdır
+                    </h1>
                   </div>
                 </div>
 
@@ -411,10 +389,6 @@ export default async function BankPage() {
                 <h2 className="mt-3 text-[clamp(2rem,3vw,3rem)] font-black leading-[0.95] tracking-[-0.07em] text-[#151515]">
                   Bu gün üçün əsas baxış
                 </h2>
-                <p className="mt-4 text-[1rem] leading-7 tracking-[-0.02em] text-black/54">
-                  Böyük məbləğləri önə çıxardım ki, səhifə bank çıxarışı kimi daha tez oxunsun.
-                  Yardımçı detallar isə sağ blokda toplandı.
-                </p>
 
                 <div className="mt-6 grid gap-3">
                   <SummaryTile
@@ -431,17 +405,6 @@ export default async function BankPage() {
                     tone={account.outstandingLoanAzn > 0 ? "negative" : "positive"}
                     value={account.outstandingLoanAzn > 0 ? "Aktiv kredit var" : "Aktiv kredit yoxdur"}
                   />
-                </div>
-
-                <div className="mt-6 rounded-[1.4rem] border border-dashed border-black/10 bg-white/68 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-black/42">
-                    Təklif olunan yaxşılaşdırma
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-black/56">
-                    Sheet-ə `annual_rate_pct`, `term_months`, `maturity_date`,
-                    `monthly_payment_azn` və `payment_schedule` əlavə etsəniz, bu səhifə
-                    eskizə daha da yaxınlaşacaq və boş hissələr qalmayacaq.
-                  </p>
                 </div>
 
                 <div className="mt-6 flex flex-col gap-3">
