@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseServerUser } from "@/lib/supabase/server";
 import {
   getFundData,
   getHolderByName,
@@ -44,10 +44,15 @@ function formatBakuDate(d: Date): string {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { reason, user } = await getSupabaseServerUser();
+
+  if (reason === "missing_config") {
+    redirect("/welcome?setup=supabase");
+  }
+
+  if (reason === "error") {
+    redirect("/login");
+  }
 
   if (!user) {
     redirect("/login");

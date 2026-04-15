@@ -1,11 +1,18 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import type { User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 
 export async function createSupabaseServerClient() {
+  const config = getSupabaseConfig();
+  if (!config) {
+    return null;
+  }
+
   const cookieStore = await cookies();
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    config.url,
+    config.anonKey,
     {
       cookies: {
         getAll() {
@@ -25,4 +32,39 @@ export async function createSupabaseServerClient() {
       },
     },
   );
+}
+
+export type SupabaseServerUserResult =
+  | {
+      reason: "configured";
+      user: User | null;
+    }
+  | {
+      reason: "error" | "missing_config";
+      user: null;
+    };
+
+export async function getSupabaseServerUser(): Promise<SupabaseServerUserResult> {
+  const supabase = await createSupabaseServerClient();
+
+  if (!supabase) {
+    return { reason: "missing_config", user: null };
+  }
+
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error) {
+      console.error("Supabase auth.getUser() failed:", error);
+      return { reason: "error", user: null };
+    }
+
+    return { reason: "configured", user };
+  } catch (error) {
+    console.error("Supabase auth bootstrap failed:", error);
+    return { reason: "error", user: null };
+  }
 }

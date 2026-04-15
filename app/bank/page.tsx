@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseServerUser } from "@/lib/supabase/server";
 import {
   getBankAccountByName,
   type BankAccount,
@@ -279,10 +279,15 @@ function PaymentSchedule({ account }: { account: BankAccount }) {
 }
 
 export default async function BankPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { reason, user } = await getSupabaseServerUser();
+
+  if (reason === "missing_config") {
+    redirect("/welcome?setup=supabase");
+  }
+
+  if (reason === "error") {
+    redirect("/login");
+  }
 
   if (!user) {
     redirect("/login?next=/bank");

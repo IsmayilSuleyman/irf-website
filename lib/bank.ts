@@ -292,7 +292,14 @@ function findColumn(
 async function parseBankAccounts(): Promise<BankAccount[]> {
   const tabName = process.env.BANK_SHEET_TAB ?? "BankAccounts";
   const range = process.env.BANK_SHEET_RANGE ?? "A1:Z1000";
-  const rows = await readTab(tabName, range);
+
+  let rows: string[][];
+  try {
+    rows = await readTab(tabName, range);
+  } catch (err) {
+    console.error("[bank] Google Sheets fetch failed:", err);
+    return [];
+  }
 
   if (rows.length === 0) {
     return [];
