@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
+function safeNextPath(raw: string | null): string {
+  if (raw && raw.startsWith("/") && !raw.startsWith("//")) {
+    return raw;
+  }
+  return "/portal";
+}
+
 export function LoginForm() {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
@@ -12,6 +19,10 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const redirectTo =
+    typeof window !== "undefined"
+      ? safeNextPath(new URLSearchParams(window.location.search).get("next"))
+      : "/portal";
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +37,7 @@ export function LoginForm() {
       setError(error.message);
       return;
     }
-    router.push("/dashboard");
+    router.push(redirectTo);
     router.refresh();
   };
 

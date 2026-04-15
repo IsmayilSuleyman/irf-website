@@ -11,6 +11,9 @@ export default function LoginPage() {
             <div className="w-full max-w-[250px]">
               <Logo width={250} priority />
             </div>
+            <p className="mt-4 text-center text-sm leading-6 text-black/50">
+              Bir girişlə həm IRF, həm də İsmayılBank açılır.
+            </p>
           </div>
           <div className="flex flex-col gap-4">
             <LoginForm />
@@ -18,7 +21,7 @@ export default function LoginPage() {
               href="/welcome"
               className="rounded-xl border border-[rgba(22,163,74,0.2)] bg-white/70 px-4 py-3 text-center text-sm font-medium uppercase tracking-[0.18em] text-black/65 transition hover:-translate-y-0.5 hover:border-brand-green hover:text-brand-green"
             >
-              Geriyə qayıt
+              Geriyə qayt
             </Link>
           </div>
         </div>

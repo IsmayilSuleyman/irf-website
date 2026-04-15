@@ -28,7 +28,7 @@ export default function IsmayilBankPage() {
           </div>
 
           <h1 className="mt-8 text-center text-[clamp(3rem,8vw,5rem)] font-black tracking-[-0.08em] text-[#161616]">
-            İndi hesabla
+            İsmayılBank hesablayıcısı
           </h1>
           <p className="mx-auto mt-4 max-w-3xl text-center text-[1.1rem] leading-8 tracking-[-0.02em] text-black/52 sm:text-[1.2rem]">
             Kredit və depozit məhsulları üçün ilkin hesablamanı burada edin.
@@ -45,8 +45,8 @@ export default function IsmayilBankPage() {
                   Kredit kalkulyatoru
                 </h2>
                 <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/52">
-                  50–2000 ₼ arası məbləği və 1–12 ay müddəti seçin. İllik faiz dərəcəsi
-                  seçdiyiniz müddətə uyğun tətbiq olunur.
+                  50-2000 AZN arasındakı məbləği və 1-12 ay müddəti seçin. İllik
+                  faiz dərəcəsi seçdiyiniz müddətə uyğun tətbiq olunur.
                 </p>
               </div>
               <IsmayilBankCalculator />
@@ -61,8 +61,8 @@ export default function IsmayilBankPage() {
                   Depozit kalkulyatoru
                 </h2>
                 <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/52">
-                  50–2000 ₼ arası depozit məbləğini seçin və 3, 6, 9 və ya 12 ay
-                  müddətləri üzrə müddət sonu qazancı görün.
+                  50-2000 AZN arasındakı depozit məbləğini seçin və 3, 6, 9 və ya
+                  12 ay müddətlər üzrə müddət sonu qazancını görün.
                 </p>
               </div>
               <IsmayilBankDepositCalculator />
@@ -75,12 +75,6 @@ export default function IsmayilBankPage() {
               className="inline-flex items-center justify-center rounded-[1rem] border border-black/10 bg-white/80 px-6 py-4 text-base font-semibold tracking-[-0.03em] text-black/65 transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-[#2F61D8]"
             >
               Geri qayıt
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center rounded-[1rem] bg-[#1FA447] px-6 py-4 text-base font-semibold tracking-[-0.03em] text-white shadow-[0_16px_36px_rgba(31,164,71,0.24)] transition hover:-translate-y-0.5 hover:bg-[#19903d]"
-            >
-              İRF portfelinə keç
             </Link>
           </div>
         </div>

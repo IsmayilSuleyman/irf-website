@@ -63,7 +63,27 @@ Paste the entire JSON key as a single-line value in `GOOGLE_SERVICE_ACCOUNT_JSON
 
 ---
 
-## 4. Local development
+## 4. İsmayılBank sheet setup
+
+The private bank dashboard reads a separate tab from the same Google Sheet. By default it looks for:
+
+- `BANK_SHEET_TAB=BankAccounts`
+- `BANK_SHEET_RANGE=A1:D1000`
+
+Recommended column headers:
+
+- `full_name`
+- `deposited_azn`
+- `outstanding_loan_azn`
+- `updated_at` optional
+
+Aliases are supported too, so you can also use labels like `Sahib`, `Depozit`, and `Kredit`.
+
+The logged-in user's `user_metadata.full_name` must match the bank sheet name, just like the IRF sheet linkage.
+
+---
+
+## 5. Local development
 
 ```bash
 npm install
@@ -75,9 +95,11 @@ npm run dev
 
 Open <http://localhost:3000>. You'll be redirected to `/login`. Sign in with a Supabase user whose `full_name` metadata matches a row in the `Paylar üzrə sahiblik` table.
 
+After login, the shared portal lands on `/portal`, where the user can open either the IRF dashboard or the İsmayılBank account page.
+
 ---
 
-## 5. Deploy to Vercel
+## 6. Deploy to Vercel
 
 1. Push this repo to GitHub.
 2. Import it on <https://vercel.com/new>.
@@ -88,7 +110,7 @@ Open <http://localhost:3000>. You'll be redirected to `/login`. Sign in with a S
 
 ---
 
-## 6. How to add a new investor
+## 7. How to add a new investor
 
 1. Add their row to the `Paylar üzrə sahiblik` table in the sheet.
 2. In Supabase **Authentication → Users → Add user**, create them with an email + password and set `user_metadata.full_name` to exactly the `Sahib` value you used in step 1.
@@ -102,6 +124,7 @@ Open <http://localhost:3000>. You'll be redirected to `/login`. Sign in with a S
 - **Fond haqqında** (About the fund): net capital, unit price, debt capital
 - **1 payın qiymət dinamikası** (Unit price dynamics): area chart of historical price points
 - **Fondun investisiya allokasiyası** (Allocation): bar list of fund holdings
+- **Portal**: shared post-login landing page with links to both IRF and İsmayılBank
 
 ---
 
