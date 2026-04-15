@@ -9,12 +9,14 @@ function safeNextPath(raw: string | null): string {
   if (raw && raw.startsWith("/") && !raw.startsWith("//")) {
     return raw;
   }
+
   return "/portal";
 }
 
 export function LoginForm() {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
+  const isConfigured = supabase != null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,17 +28,27 @@ export function LoginForm() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!supabase) {
+      setError("Supabase ayarlari Vercel-de tam qurasdirilmayib.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+
     setLoading(false);
+
     if (error) {
       setError(error.message);
       return;
     }
+
     router.push(redirectTo);
     router.refresh();
   };
@@ -51,7 +63,7 @@ export function LoginForm() {
     >
       <div className="flex flex-col gap-2">
         <label className="text-[10px] uppercase tracking-[0.22em] text-black/45">
-          E-poçt
+          E-poct
         </label>
         <input
           type="email"
@@ -63,9 +75,10 @@ export function LoginForm() {
           placeholder="ad@example.com"
         />
       </div>
+
       <div className="flex flex-col gap-2">
         <label className="text-[10px] uppercase tracking-[0.22em] text-black/45">
-          Şifrə
+          Sifre
         </label>
         <input
           type="password"
@@ -74,18 +87,36 @@ export function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="border-b border-[rgba(22,163,74,0.28)] bg-transparent px-0 py-2 text-black outline-none transition focus:border-brand-green"
-          placeholder="••••••••"
+          placeholder="********"
         />
       </div>
 
-      {error && <div className="text-xs text-brand-red">{error}</div>}
+      {!isConfigured ? (
+        <div className="text-xs leading-5 text-black/55">
+          Supabase ayarlari hazir deyil. Vercel-e
+          {" "}
+          <code>NEXT_PUBLIC_SUPABASE_URL</code>
+          {" "}
+          ve
+          {" "}
+          <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>
+          {" "}
+          elave edilenden sonra giris aktiv olacaq.
+        </div>
+      ) : null}
+
+      {error ? <div className="text-xs text-brand-red">{error}</div> : null}
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !isConfigured}
         className="mt-4 rounded-xl bg-brand-green px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-white shadow-glass-green transition hover:-translate-y-0.5 hover:bg-brand-green-soft disabled:opacity-60 disabled:hover:translate-y-0"
       >
-        {loading ? "Daxil olunur…" : "Daxil ol"}
+        {!isConfigured
+          ? "Qurasdirma gozlenilir"
+          : loading
+            ? "Daxil olunur..."
+            : "Daxil ol"}
       </button>
     </motion.form>
   );

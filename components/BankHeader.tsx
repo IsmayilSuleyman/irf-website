@@ -10,8 +10,14 @@ import { Logo } from "@/components/Logo";
 export function BankHeader({ dateLabel }: { dateLabel: string }) {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
+  const canLogout = supabase != null;
 
   const onLogout = async () => {
+    if (!supabase) {
+      router.push("/welcome?setup=supabase");
+      return;
+    }
+
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
@@ -52,6 +58,7 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
           <span className="text-sm text-black/42">{dateLabel}</span>
           <button
             onClick={onLogout}
+            disabled={!canLogout}
             className="text-sm uppercase tracking-[0.18em] text-black/58 transition hover:text-[#2F61D8]"
           >
             Çıxış

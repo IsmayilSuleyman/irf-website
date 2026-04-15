@@ -1,12 +1,32 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const { pathname } = request.nextUrl;
+  const isProtected =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/bank") ||
+    pathname.startsWith("/portal");
+  const isAuthPage = pathname.startsWith("/login");
+  const config = getSupabaseConfig();
+
+  if (!config) {
+    if (isProtected) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/welcome";
+      url.search = "";
+      url.searchParams.set("setup", "supabase");
+      return NextResponse.redirect(url);
+    }
+
+    return response;
+  }
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    config.url,
+    config.anonKey,
     {
       cookies: {
         getAll() {
@@ -27,16 +47,21 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const {
+      data,
+      error,
+    } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
-  const isProtected =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/bank") ||
-    pathname.startsWith("/portal");
-  const isAuthPage = pathname.startsWith("/login");
+    if (error) {
+      console.error("Middleware auth.getUser() failed:", error);
+    } else {
+      user = data.user;
+    }
+  } catch (error) {
+    console.error("Middleware auth bootstrap failed:", error);
+  }
 
   if (isProtected && !user) {
     const url = request.nextUrl.clone();

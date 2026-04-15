@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseServerUser } from "@/lib/supabase/server";
 import { getFundData, getHolderByName } from "@/lib/sheets";
 
 function displayNameOf(meta: Record<string, unknown> | undefined): string | null {
@@ -13,10 +13,21 @@ function displayNameOf(meta: Record<string, unknown> | undefined): string | null
 }
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { reason, user } = await getSupabaseServerUser();
+
+  if (reason === "missing_config") {
+    return NextResponse.json(
+      { error: "Supabase environment variables are not configured." },
+      { status: 503 },
+    );
+  }
+
+  if (reason === "error") {
+    return NextResponse.json(
+      { error: "Authentication service is temporarily unavailable." },
+      { status: 503 },
+    );
+  }
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

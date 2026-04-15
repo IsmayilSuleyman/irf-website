@@ -9,8 +9,14 @@ import { Logo } from "@/components/Logo";
 export function Header({ dateLabel }: { dateLabel: string }) {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
+  const canLogout = supabase != null;
 
   const onLogout = async () => {
+    if (!supabase) {
+      router.push("/welcome?setup=supabase");
+      return;
+    }
+
     await supabase.auth.signOut();
     router.push("/login");
     router.refresh();
@@ -39,6 +45,7 @@ export function Header({ dateLabel }: { dateLabel: string }) {
           <span className="text-xs text-black/45">{dateLabel}</span>
           <button
             onClick={onLogout}
+            disabled={!canLogout}
             className="text-xs uppercase tracking-[0.18em] text-black/60 transition hover:text-brand-green"
           >
             Çıxış

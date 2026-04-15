@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder GOOGLE_SERVICE_ACCOUNT_JSON='{}' SHEET_ID=placeholder npx next build)",
+      "WebFetch(domain:docs.google.com)",
+      "WebFetch(domain:doc-0g-c0-sheets.googleusercontent.com)",
+      "Bash(NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder GOOGLE_SERVICE_ACCOUNT_JSON='{}' SHEET_ID=placeholder SHEET_GID=0 npx next build)",
+      "Bash(npm run:*)"
+    ]
+  }
+}
