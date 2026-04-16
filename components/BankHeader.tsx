@@ -35,7 +35,7 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
           <IsmayilBankLogo size={28} />
           <Link
             href="/dashboard"
-            className="hidden items-center gap-2 rounded border border-black/12 bg-white/80 px-3 py-2 transition hover:-translate-y-px hover:border-[#16a34a]/30 hover:shadow-sm sm:inline-flex"
+            className="inline-flex items-center gap-2 rounded border border-black/12 bg-white/80 px-2 py-1.5 transition hover:-translate-y-px hover:border-[#16a34a]/30 hover:shadow-sm sm:px-3 sm:py-2"
           >
             <div className="w-[80px]">
               <Logo width={80} />
