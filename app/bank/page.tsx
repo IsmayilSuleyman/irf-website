@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getSupabaseServerUser } from "@/lib/supabase/server";
 import {
   getBankAccountByName,
-  type BankAccount,
   type BankPaymentScheduleItem,
 } from "@/lib/bank";
 import { MotionSection } from "@/components/MotionSection";
@@ -52,10 +51,6 @@ function formatPercent(value: number | null): string {
   return `${new Intl.NumberFormat("az-AZ", { maximumFractionDigits: 2 }).format(value)}%`;
 }
 
-function firstNameOf(name: string): string {
-  return name.trim().split(/\s+/)[0] || name;
-}
-
 function simplifyText(value: string): string {
   return value
     .replace(/[\u018F\u0259]/g, "e")
@@ -84,10 +79,12 @@ function statusStyles(status: string | null | undefined): string {
 function StatTile({
   label,
   value,
+  children,
   tone = "default",
 }: {
   label: string;
-  value: string;
+  value?: string;
+  children?: React.ReactNode;
   tone?: "default" | "positive" | "negative";
 }) {
   const valueTone =
@@ -102,9 +99,11 @@ function StatTile({
       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">
         {label}
       </p>
-      <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${valueTone}`}>
-        {value}
-      </p>
+      {children ?? (
+        <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${valueTone}`}>
+          {value}
+        </p>
+      )}
     </div>
   );
 }
@@ -206,9 +205,26 @@ export default async function BankPage() {
     );
   }
 
-  const greetingName = firstNameOf(account.name);
-  const netTone: "positive" | "negative" | "default" =
-    account.netAzn > 0 ? "positive" : account.netAzn < 0 ? "negative" : "default";
+  const maturityEndAmount =
+    account.depositedAzn > 0 && account.maturityBonusAzn != null
+      ? account.depositedAzn + account.maturityBonusAzn
+      : null;
+
+  const depositTermLabel =
+    account.termMonths != null ? `${account.termMonths} ay` : "—";
+
+  const remainingPayments =
+    account.paymentSchedule.length > 0
+      ? account.paymentSchedule.filter(
+          (p) =>
+            !simplifyText(String(p.status ?? ""))
+              .toLocaleLowerCase("en-US")
+              .includes("oden") &&
+            !simplifyText(String(p.status ?? ""))
+              .toLocaleLowerCase("en-US")
+              .includes("paid"),
+        ).length
+      : null;
 
   return (
     <main className="min-h-screen">
@@ -216,96 +232,89 @@ export default async function BankPage() {
 
       <section className="mx-auto max-w-[960px] px-5 py-10 sm:py-14">
         <MotionSection>
-          <p className="text-sm text-black/50">Salam, {greetingName}</p>
+          <p className="text-sm font-medium tracking-[-0.01em] text-[#2F61D8]">
+            Xoş gəlmisən, {account.name}
+          </p>
         </MotionSection>
 
-        <MotionSection delay={0.04}>
-          <div className="mt-5 rounded-3xl border border-black/6 bg-white/92 px-8 py-10 sm:px-10 sm:py-12">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/42">
-              Xalis mövqe
-            </p>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span
-                className={`text-[clamp(2.4rem,5.5vw,3.4rem)] font-semibold tracking-[-0.04em] tabular-nums ${
-                  netTone === "positive"
-                    ? "text-[#128342]"
-                    : netTone === "negative"
-                      ? "text-[#c74252]"
-                      : "text-[#111111]"
-                }`}
-              >
-                {formatAmount(account.netAzn)}
-              </span>
-              <span className="text-2xl font-semibold tracking-[-0.03em] text-black/62">₼</span>
-            </div>
-            <p className="mt-2 text-xs text-black/48">
-              {account.outstandingLoanAzn > 0
-                ? "Depozit minus qalıq kredit"
-                : "Aktiv kredit yoxdur"}
-              {account.updatedAt
-                ? ` · yenilənib ${formatDisplayDate(account.updatedAt)}`
-                : ""}
-            </p>
-          </div>
-        </MotionSection>
-
-        <MotionSection delay={0.08}>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatTile
-              label="Depozit"
-              value={`${formatAmount(account.depositedAzn)} ₼`}
-            />
-            <StatTile
-              label="Kredit"
-              value={`${formatAmount(account.outstandingLoanAzn)} ₼`}
-              tone={account.outstandingLoanAzn > 0 ? "negative" : "default"}
-            />
-            <StatTile label="İllik faiz" value={formatPercent(account.annualRatePct)} />
-            <StatTile
-              label="Müddət bitimi"
-              value={formatDisplayDate(account.maturityDate) ?? "—"}
-            />
-          </div>
-        </MotionSection>
-
-        {account.outstandingLoanAzn > 0 ? (
-          <MotionSection delay={0.12}>
-            <div className="mt-5 grid grid-cols-2 gap-3">
+        {/* ── Deposits Section ── */}
+        {account.depositedAzn > 0 ? (
+          <MotionSection delay={0.04}>
+            <h2 className="mt-8 text-[15px] font-semibold tracking-[-0.01em] text-[#111111]">
+              İsmayılBank-da olan depozitlərim:
+            </h2>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatTile
-                label="Aylıq ödəniş"
+                label="Depozit"
+                value={`${formatAmount(account.depositedAzn)}₼`}
+              />
+              <StatTile
+                label="Depozitin müddəti"
+                value={depositTermLabel}
+              />
+              <StatTile
+                label="Depozitin illik gəlirlik faizi"
+                value={formatPercent(account.annualRatePct)}
+              />
+              <StatTile label="Müddətin sonunda alacağın məbləğ">
+                {maturityEndAmount != null ? (
+                  <p className="mt-2 flex items-baseline gap-1.5 font-semibold tracking-[-0.03em]">
+                    <span className="text-base text-black/48">{formatAmount(account.depositedAzn)}₼</span>
+                    <span className="text-xs text-black/30" aria-hidden>─►</span>
+                    <span className="text-[1.35rem] text-[#128342]">{formatAmount(maturityEndAmount)}₼</span>
+                  </p>
+                ) : (
+                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-[#111111]">—</p>
+                )}
+              </StatTile>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-black/48">
+              Qeyd: depozit üzrə hesablanmış faiz yalnız depozit müddətinin
+              sonunda{account.maturityDate ? ` (${formatDisplayDate(account.maturityDate)})` : ""} ödənilir.
+              Vaxtından əvvəl çıxarılan depozitlərə faiz gəliri verilmir.
+            </p>
+          </MotionSection>
+        ) : null}
+
+        {/* ── Credits Section ── */}
+        {account.outstandingLoanAzn > 0 ? (
+          <MotionSection delay={0.08}>
+            <h2 className="mt-10 text-[15px] font-semibold tracking-[-0.01em] text-[#111111]">
+              İsmayılBank ilə olan kreditlərim:
+            </h2>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              <StatTile
+                label="Qalan kredit məbləği"
+                value={`${formatAmount(account.outstandingLoanAzn)}₼`}
+                tone="negative"
+              />
+              <StatTile
+                label="Qalan ödəniş sayı (ay)"
                 value={
-                  account.monthlyPaymentAzn != null
-                    ? `${formatAmount(account.monthlyPaymentAzn)} ₼`
+                  remainingPayments != null
+                    ? `${remainingPayments} (ay)`
                     : "—"
                 }
               />
               <StatTile
-                label="Növbəti ödəniş"
-                value={formatDisplayDate(account.nextPaymentDate) ?? "—"}
+                label="Aylıq ödəniləcək məbləğ"
+                value={
+                  account.monthlyPaymentAzn != null
+                    ? `${formatAmount(account.monthlyPaymentAzn)}₼`
+                    : "—"
+                }
               />
             </div>
           </MotionSection>
         ) : null}
 
         {account.paymentSchedule.length > 0 ? (
-          <MotionSection delay={0.16}>
+          <MotionSection delay={0.12}>
             <div className="mt-6">
               <PaymentSchedule schedule={account.paymentSchedule} />
             </div>
           </MotionSection>
         ) : null}
-
-        <MotionSection delay={0.2}>
-          <div className="mt-8 flex items-center justify-center">
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 text-sm text-black/54 transition hover:text-[#2F61D8]"
-            >
-              <span>Portfelimə keçid</span>
-              <span aria-hidden>→</span>
-            </Link>
-          </div>
-        </MotionSection>
       </section>
     </main>
   );
