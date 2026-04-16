@@ -37,16 +37,16 @@ export function Header({ dateLabel }: { dateLabel: string }) {
           </div>
           <Link
             href="/bank"
-            className="hidden items-center gap-2 rounded border border-black/12 bg-white/80 px-3 py-2 transition hover:-translate-y-px hover:border-[#2F61D8]/30 hover:shadow-sm sm:inline-flex"
+            className="inline-flex items-center gap-2 rounded border border-black/12 bg-white/80 px-2 py-1.5 transition hover:-translate-y-px hover:border-[#2F61D8]/30 hover:shadow-sm sm:px-3 sm:py-2"
           >
             <IsmayilBankLogo size={18} />
             <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/55">
-              İsmayılBank Hesabına Keç
+              Hesabına Keç
             </span>
           </Link>
         </div>
-        <div className="flex items-center gap-6">
-          <span className="text-xs text-black/45">{dateLabel}</span>
+        <div className="flex shrink-0 items-center gap-4 sm:gap-6">
+          <span className="hidden text-xs text-black/45 sm:inline">{dateLabel}</span>
           <button
             onClick={onLogout}
             disabled={!canLogout}

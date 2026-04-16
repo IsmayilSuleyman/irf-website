@@ -32,18 +32,18 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
     >
       <div className="flex items-center justify-between gap-6">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="inline-flex items-center" aria-label="IRF">
-            <div className="w-[128px] sm:w-[156px]">
-              <Logo width={156} priority />
+          <IsmayilBankLogo size={28} />
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 rounded border border-black/12 bg-white/80 px-2 py-1.5 transition hover:-translate-y-px hover:border-[#16a34a]/30 hover:shadow-sm sm:px-3 sm:py-2"
+          >
+            <div className="w-[80px]">
+              <Logo width={80} />
             </div>
-          </Link>
-          <span className="h-6 w-px bg-black/10" aria-hidden />
-          <div className="inline-flex items-center gap-2">
-            <IsmayilBankLogo size={22} />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/58">
-              İsmayılBank
+            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/55">
+              Hesabına Keç
             </span>
-          </div>
+          </Link>
         </div>
 
         <div className="flex items-center gap-5">
