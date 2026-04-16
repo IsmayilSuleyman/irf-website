@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
+import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 
 export function Header({ dateLabel }: { dateLabel: string }) {
   const router = useRouter();
@@ -36,9 +37,12 @@ export function Header({ dateLabel }: { dateLabel: string }) {
           </div>
           <Link
             href="/bank"
-            className="hidden rounded-full border border-[rgba(47,97,216,0.18)] bg-white/75 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#2F61D8] transition hover:-translate-y-0.5 hover:border-[#2F61D8]/30 sm:inline-flex"
+            className="hidden items-center gap-2 rounded border border-black/12 bg-white/80 px-3 py-2 transition hover:-translate-y-px hover:border-[#2F61D8]/30 hover:shadow-sm sm:inline-flex"
           >
-            İsmayılBank
+            <IsmayilBankLogo size={18} />
+            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/55">
+              İsmayılBank Hesabına Keç
+            </span>
           </Link>
         </div>
         <div className="flex items-center gap-6">
