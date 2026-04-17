@@ -17,8 +17,6 @@ const PALETTE = [
   "#0f3d1f",
 ];
 
-const OTHERS_COLOR = "rgba(22, 163, 74, 0.22)";
-
 export function PortfolioPie({ data }: { data: Slice[] }) {
   if (!data || data.length === 0) {
     return (
@@ -46,11 +44,7 @@ export function PortfolioPie({ data }: { data: Slice[] }) {
             {data.map((entry, i) => (
               <Cell
                 key={entry.name}
-                fill={
-                  entry.name === "Others"
-                    ? OTHERS_COLOR
-                    : PALETTE[i % PALETTE.length]
-                }
+                fill={PALETTE[i % PALETTE.length]}
               />
             ))}
           </Pie>
