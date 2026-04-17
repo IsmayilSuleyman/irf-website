@@ -2,6 +2,7 @@ import {
   getFundData,
   getHolderByName,
   getTransactions,
+  getHoldings,
   computeHolderPerformance,
   computeHolderValueHistory,
   computeHoldingDeltaSince,
@@ -21,6 +22,7 @@ import { HeroPrice } from "@/components/HeroPrice";
 import { PriceBadge } from "@/components/PriceBadge";
 import { IndicatorsCard } from "@/components/IndicatorsCard";
 import { MotionSection } from "@/components/MotionSection";
+import { AllocationList } from "@/components/AllocationList";
 
 export const dynamic = "force-dynamic";
 
@@ -28,11 +30,12 @@ export default async function DashboardPage() {
   const user = await requireUser();
 
   const name = displayNameOf(user.user_metadata);
-  const [holder, fund, priceHistory, transactions] = await Promise.all([
+  const [holder, fund, priceHistory, transactions, holdings] = await Promise.all([
     getHolderByName(name),
     getFundData(),
     getPriceHistory(),
     getTransactions(),
+    getHoldings(),
   ]);
 
   const dateLabel = formatBakuDate(new Date());
@@ -124,6 +127,25 @@ export default async function DashboardPage() {
             <IndicatorsCard changes={periodChanges} />
           </div>
         </MotionSection>
+
+        {/* Fond portfeli */}
+        {holdings.length > 0 && (
+          <MotionSection delay={0.15} className="hairline pt-10">
+            <div className="glass p-6 flex flex-col gap-6">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+                Fond Portfeli
+              </div>
+              <AllocationList
+                items={holdings.map((h) => ({
+                  name: h.name,
+                  valueAzn: h.valueAzn,
+                  percent: h.percent,
+                  priceUsd: h.priceUsd,
+                }))}
+              />
+            </div>
+          </MotionSection>
+        )}
       </div>
     </main>
   );

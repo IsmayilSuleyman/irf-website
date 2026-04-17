@@ -25,6 +25,13 @@ export type Transaction = {
   price: number;
 };
 
+export type Holding = {
+  name: string;
+  priceUsd: number;
+  valueAzn: number;
+  percent: number; // fraction of top-10 total, 0..1
+};
+
 export type HolderPerformance = {
   totalUnits: number;
   totalInvested: number;
@@ -131,6 +138,56 @@ async function parseTransactions(): Promise<Transaction[]> {
 export const getTransactions = unstable_cache(
   async (): Promise<Transaction[]> => parseTransactions(),
   ["irf-transactions"],
+  { revalidate: 60, tags: ["sheet"] },
+);
+
+const USD_TO_AZN = 1.7;
+
+async function parseHoldings(): Promise<Holding[]> {
+  // Watchlist tab layout (B:I): B=symbol, C=exchange, D=stockName, E=priceUSD,
+  // F=priceChange, G=%change, H=shares, I=valueUSD.
+  // Rows 1-7 are metadata; row 8 is the real header ("Symbol" in col B).
+  // Some tickers (e.g. IBIT, IREN) have no Google-Finance name in col D —
+  // fall back to the ticker symbol in col B so they are never silently dropped.
+  const rows = await readTab("Watchlist", "B1:I1000");
+
+  // Locate the real header row dynamically so metadata rows are never parsed as data.
+  const headerIdx = rows.findIndex(
+    (r) => r[0]?.toString().trim().toLowerCase() === "symbol",
+  );
+  const startIdx = headerIdx >= 0 ? headerIdx + 1 : 1;
+
+  const data: Array<{ name: string; priceUsd: number; valueUsd: number }> = [];
+
+  for (let i = startIdx; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+    const symbol = row[0]?.toString().trim();
+    const stockName = row[2]?.toString().trim();
+    // Prefer the full stock name; fall back to ticker when the name cell is empty.
+    const name = stockName || symbol;
+    if (!name) continue;
+    const priceUsd = parseAzn(row[3]);
+    const valueUsd = parseAzn(row[7]);
+    if (valueUsd <= 0) continue;
+    data.push({ name, priceUsd, valueUsd });
+  }
+
+  data.sort((a, b) => b.valueUsd - a.valueUsd);
+  const top10 = data.slice(0, 10);
+  const total = top10.reduce((s, h) => s + h.valueUsd, 0);
+
+  return top10.map((h) => ({
+    name: h.name,
+    priceUsd: h.priceUsd,
+    valueAzn: h.valueUsd * USD_TO_AZN,
+    percent: total > 0 ? h.valueUsd / total : 0,
+  }));
+}
+
+export const getHoldings = unstable_cache(
+  async (): Promise<Holding[]> => parseHoldings(),
+  ["irf-holdings"],
   { revalidate: 60, tags: ["sheet"] },
 );
 
