@@ -1,34 +1,15 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getSupabaseServerUser } from "@/lib/supabase/server";
 import {
   getBankAccountByName,
+  simplifyText,
   type BankPaymentScheduleItem,
 } from "@/lib/bank";
+import { requireUser } from "@/lib/auth-guard";
+import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 
 export const dynamic = "force-dynamic";
-
-function displayNameOf(meta: Record<string, unknown> | undefined): string | null {
-  if (!meta) return null;
-
-  return (
-    (meta.full_name as string) ||
-    (meta.name as string) ||
-    (meta.display_name as string) ||
-    null
-  );
-}
-
-function formatBakuDate(d: Date): string {
-  return new Intl.DateTimeFormat("az-AZ", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Asia/Baku",
-  }).format(d);
-}
 
 function formatDisplayDate(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -51,25 +32,23 @@ function formatPercent(value: number | null): string {
   return `${new Intl.NumberFormat("az-AZ", { maximumFractionDigits: 2 }).format(value)}%`;
 }
 
-function simplifyText(value: string): string {
-  return value
-    .replace(/[\u018F\u0259]/g, "e")
-    .replace(/[\u0049\u0130\u0131\u0069]/g, "i")
-    .replace(/[\u00D6\u00F6]/g, "o")
-    .replace(/[\u00DC\u00FC]/g, "u")
-    .replace(/[\u011E\u011F]/g, "g")
-    .replace(/[\u015E\u015F]/g, "s")
-    .replace(/[\u00C7\u00E7]/g, "c");
+function normalizeStatus(status: string | null | undefined): string {
+  return simplifyText(String(status ?? "")).toLocaleLowerCase("en-US");
+}
+
+function isPaid(status: string | null | undefined): boolean {
+  const n = normalizeStatus(status);
+  return n.includes("oden") || n.includes("paid");
 }
 
 function statusStyles(status: string | null | undefined): string {
-  const normalized = simplifyText(String(status ?? "")).toLocaleLowerCase("en-US");
+  const n = normalizeStatus(status);
 
-  if (normalized.includes("oden") || normalized.includes("paid")) {
+  if (n.includes("oden") || n.includes("paid")) {
     return "bg-[#e9f7ee] text-[#128342]";
   }
 
-  if (normalized.includes("gec") || normalized.includes("late")) {
+  if (n.includes("gec") || n.includes("late")) {
     return "bg-[#fdecee] text-[#c74252]";
   }
 
@@ -152,19 +131,7 @@ function PaymentSchedule({ schedule }: { schedule: BankPaymentScheduleItem[] }) 
 }
 
 export default async function BankPage() {
-  const { reason, user } = await getSupabaseServerUser();
-
-  if (reason === "missing_config") {
-    redirect("/welcome?setup=supabase");
-  }
-
-  if (reason === "error") {
-    redirect("/login");
-  }
-
-  if (!user) {
-    redirect("/login?next=/bank");
-  }
+  const user = await requireUser("/bank");
 
   const name = displayNameOf(user.user_metadata);
   const account = await getBankAccountByName(name);
@@ -215,15 +182,7 @@ export default async function BankPage() {
 
   const remainingPayments =
     account.paymentSchedule.length > 0
-      ? account.paymentSchedule.filter(
-          (p) =>
-            !simplifyText(String(p.status ?? ""))
-              .toLocaleLowerCase("en-US")
-              .includes("oden") &&
-            !simplifyText(String(p.status ?? ""))
-              .toLocaleLowerCase("en-US")
-              .includes("paid"),
-        ).length
+      ? account.paymentSchedule.filter((p) => !isPaid(p.status)).length
       : null;
 
   return (

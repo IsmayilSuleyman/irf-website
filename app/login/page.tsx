@@ -21,7 +21,7 @@ export default function LoginPage() {
               href="/welcome"
               className="rounded-xl border border-[rgba(22,163,74,0.2)] bg-white/70 px-4 py-3 text-center text-sm font-medium uppercase tracking-[0.18em] text-black/65 transition hover:-translate-y-0.5 hover:border-brand-green hover:text-brand-green"
             >
-              Geriyə qayt
+              Geriyə qayıt
             </Link>
           </div>
         </div>

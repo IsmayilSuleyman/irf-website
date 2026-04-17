@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { redirect } from "next/navigation";
-import { getSupabaseServerUser } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth-guard";
 import { Logo } from "@/components/Logo";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 
@@ -30,19 +29,7 @@ function PortalOption({
 }
 
 export default async function PortalPage() {
-  const { reason, user } = await getSupabaseServerUser();
-
-  if (reason === "missing_config") {
-    redirect("/welcome?setup=supabase");
-  }
-
-  if (reason === "error") {
-    redirect("/login");
-  }
-
-  if (!user) {
-    redirect("/login");
-  }
+  await requireUser();
 
   return (
     <main className="min-h-screen overflow-hidden px-3 py-3 sm:px-4 sm:py-4">

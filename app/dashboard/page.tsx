@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-import { getSupabaseServerUser } from "@/lib/supabase/server";
 import {
   getFundData,
   getHolderByName,
@@ -14,6 +12,8 @@ import {
   findLatestPriceBeforeDate,
 } from "@/lib/priceHistory";
 import { formatAzn } from "@/lib/portfolio";
+import { requireUser } from "@/lib/auth-guard";
+import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
 import { StatTile } from "@/components/StatTile";
 import { PerformanceChart } from "@/components/PerformanceChart";
@@ -24,39 +24,8 @@ import { MotionSection } from "@/components/MotionSection";
 
 export const dynamic = "force-dynamic";
 
-function displayNameOf(meta: Record<string, unknown> | undefined): string | null {
-  if (!meta) return null;
-  return (
-    (meta.full_name as string) ||
-    (meta.name as string) ||
-    (meta.display_name as string) ||
-    null
-  );
-}
-
-function formatBakuDate(d: Date): string {
-  return new Intl.DateTimeFormat("az-AZ", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Asia/Baku",
-  }).format(d);
-}
-
 export default async function DashboardPage() {
-  const { reason, user } = await getSupabaseServerUser();
-
-  if (reason === "missing_config") {
-    redirect("/welcome?setup=supabase");
-  }
-
-  if (reason === "error") {
-    redirect("/login");
-  }
-
-  if (!user) {
-    redirect("/login");
-  }
+  const user = await requireUser();
 
   const name = displayNameOf(user.user_metadata);
   const [holder, fund, priceHistory, transactions] = await Promise.all([
