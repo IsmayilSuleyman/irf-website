@@ -43,6 +43,7 @@ export type Holding = {
   percent: number; // 0..1 of portfolio total
   isCash: boolean;
   changePct: number | null; // null for Cash or when avg missing
+  sector: string | null; // from Watchlist col K; Cash rows are bucketed as "Cash"
 };
 
 // Official CBAR peg
@@ -149,13 +150,13 @@ export const getTransactions = unstable_cache(
 );
 
 async function parseHoldings(): Promise<Holding[]> {
-  // Watchlist columns (B..J): B=Symbol, D=Stock Name, E=Price USD, I=Value USD,
-  // J=Avg Purchase USD. Row 8 is the header; data lives at B9:J50.
+  // Watchlist columns (B..K): B=Symbol, D=Stock Name, E=Price USD, I=Value USD,
+  // J=Avg Purchase USD, K=Sector. Row 8 is the header; data lives at B9:K50.
   // Some tickers (e.g. IBIT, IREN) have no Google-Finance name in col D — fall
   // back to the ticker symbol so rows are never silently dropped.
   let rows: string[][];
   try {
-    rows = await readTab("Watchlist", "B9:J50");
+    rows = await readTab("Watchlist", "B9:K50");
   } catch (err) {
     console.error("Watchlist tab read error:", err);
     return [];
@@ -170,6 +171,7 @@ async function parseHoldings(): Promise<Holding[]> {
     const priceUsd = parseAzn(row[3]);
     const valueUsd = parseAzn(row[7]);
     const avgPurchaseUsd = parseAzn(row[8]);
+    const sectorRaw = row[9]?.toString().trim() ?? "";
     const isCash =
       /^cash$/i.test(symbol) || /cash/i.test(name) || /nağd/i.test(name);
     const valueAzn = valueUsd * USD_TO_AZN;
@@ -178,6 +180,7 @@ async function parseHoldings(): Promise<Holding[]> {
       isCash || !avgPurchaseUsd
         ? null
         : (priceUsd - avgPurchaseUsd) / avgPurchaseUsd;
+    const sector = isCash ? "Cash" : sectorRaw || null;
     raw.push({
       symbol,
       name: name || symbol,
@@ -187,6 +190,7 @@ async function parseHoldings(): Promise<Holding[]> {
       percent: 0,
       isCash,
       changePct,
+      sector,
     });
   }
   const total = raw.reduce((s, h) => s + h.valueAzn, 0);
