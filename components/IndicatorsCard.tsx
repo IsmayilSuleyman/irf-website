@@ -6,10 +6,11 @@ export function IndicatorsCard({ changes }: { changes: PeriodChanges }) {
       <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
         Göstəricilər
       </div>
-      <div className="grid grid-cols-3 divide-x divide-black/[0.06]">
-        <Indicator change={changes.m1} label="1 ay" sublabel="(aylıq)" />
-        <Indicator change={changes.m3} label="3 ay" sublabel="(rüblük)" />
-        <Indicator change={changes.y1} label="1 il" sublabel="(illik)" />
+      <div className="grid grid-cols-4 divide-x divide-black/[0.06]">
+        <Indicator change={changes.w1} label="1 həftə" sublabel="əvvəl" />
+        <Indicator change={changes.m1} label="1 ay" sublabel="əvvəl" />
+        <Indicator change={changes.m3} label="3 ay" sublabel="əvvəl" />
+        <Indicator change={changes.y1} label="1 il" sublabel="əvvəl" />
       </div>
     </div>
   );
