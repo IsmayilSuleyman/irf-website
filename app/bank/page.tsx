@@ -194,10 +194,10 @@ export default async function BankPage() {
     <main className="min-h-screen">
       <BankHeader dateLabel={dateLabel} />
 
-      <section className="mx-auto max-w-[960px] px-5 py-10 sm:py-14">
+      <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
         <MotionSection>
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
-            Xoş gəlmisən, {account.name}
+            XOŞ GƏLDİN, {account.name}
           </p>
         </MotionSection>
 

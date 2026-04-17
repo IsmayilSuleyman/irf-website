@@ -37,10 +37,12 @@ export function Header({ dateLabel }: { dateLabel: string }) {
           </div>
           <Link
             href="/bank"
+            aria-label="İsmayılBank hesabına keç"
             className="inline-flex items-center gap-2 rounded border border-black/12 bg-white/80 px-2 py-1.5 transition hover:-translate-y-px hover:border-[#2F61D8]/30 hover:shadow-sm sm:px-3 sm:py-2"
           >
+            <span aria-hidden className="text-sm leading-none text-black/55 sm:hidden">→</span>
             <IsmayilBankLogo size={18} />
-            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/55">
+            <span className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/55 sm:inline">
               Hesabına Keç
             </span>
           </Link>

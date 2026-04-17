@@ -178,14 +178,6 @@ export default async function WelcomePage({
         <WelcomeAnimations showSetupNotice={showSetupNotice}>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/78 px-5 py-3 text-sm font-semibold tracking-[-0.02em] text-black/70 shadow-[0_14px_34px_rgba(59,92,72,0.08)] backdrop-blur-md transition duration-300 hover:-translate-y-0.5 hover:border-brand-green hover:text-brand-green"
-          >
-            <span>Daxil ol</span>
-            <ArrowIcon />
-          </Link>
-
-          <Link
-            href="/login"
             className="inline-flex items-center justify-center gap-2 rounded-[1rem] bg-[#1FA447] px-6 py-4 text-base font-semibold tracking-[-0.03em] text-white shadow-[0_16px_36px_rgba(31,164,71,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#19903d]"
           >
             <span>Daxil ol</span>
