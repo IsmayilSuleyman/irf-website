@@ -24,6 +24,7 @@ import { IndicatorsCard } from "@/components/IndicatorsCard";
 import { MotionSection } from "@/components/MotionSection";
 import { AllocationList } from "@/components/AllocationList";
 import { PortfolioPie } from "@/components/PortfolioPie";
+import { SectorBreakdown } from "@/components/SectorBreakdown";
 
 export const dynamic = "force-dynamic";
 
@@ -130,37 +131,57 @@ export default async function DashboardPage() {
         </MotionSection>
 
         {/* Fond portfeli */}
-        {holdings.length > 0 && (
-          <MotionSection delay={0.15} className="hairline pt-10">
-            <div className="glass p-6 flex flex-col gap-6">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-                Fond Portfeli
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                <div className="lg:col-span-2">
-                  <AllocationList
-                    items={holdings.map((h) => ({
-                      name: h.name,
-                      priceUsd: h.priceUsd,
-                      valueAzn: h.valueAzn,
-                      percent: h.percent,
-                      changePct: h.changePct,
-                      isCash: h.isCash,
-                    }))}
-                  />
+        {holdings.length > 0 && (() => {
+          const sectorTotals = new Map<string, number>();
+          for (const h of holdings) {
+            const key = h.sector ?? "Naməlum";
+            sectorTotals.set(key, (sectorTotals.get(key) ?? 0) + h.valueAzn);
+          }
+          const portfolioTotal = holdings.reduce(
+            (s, h) => s + h.valueAzn,
+            0,
+          );
+          const sectorRows = Array.from(sectorTotals.entries())
+            .map(([sector, valueAzn]) => ({
+              sector,
+              valueAzn,
+              percent: portfolioTotal > 0 ? valueAzn / portfolioTotal : 0,
+            }))
+            .sort((a, b) => b.valueAzn - a.valueAzn);
+
+          return (
+            <MotionSection delay={0.15} className="hairline pt-10">
+              <div className="glass p-6 flex flex-col gap-6">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+                  Fond Portfeli
                 </div>
-                <div className="lg:col-span-1">
-                  <PortfolioPie
-                    data={holdings.map((h) => ({
-                      name: h.name,
-                      value: h.valueAzn,
-                    }))}
-                  />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                  <div className="lg:col-span-2">
+                    <AllocationList
+                      items={holdings.map((h) => ({
+                        name: h.name,
+                        priceUsd: h.priceUsd,
+                        valueAzn: h.valueAzn,
+                        percent: h.percent,
+                        changePct: h.changePct,
+                        isCash: h.isCash,
+                      }))}
+                    />
+                  </div>
+                  <div className="lg:col-span-1 flex flex-col gap-6">
+                    <PortfolioPie
+                      data={holdings.map((h) => ({
+                        name: h.name,
+                        value: h.valueAzn,
+                      }))}
+                    />
+                    <SectorBreakdown rows={sectorRows} />
+                  </div>
                 </div>
               </div>
-            </div>
-          </MotionSection>
-        )}
+            </MotionSection>
+          );
+        })()}
       </div>
     </main>
   );
