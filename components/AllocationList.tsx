@@ -31,13 +31,7 @@ function ChangeBadge({ pct }: { pct: number }) {
   );
 }
 
-export function AllocationList({
-  items,
-  showOthers,
-}: {
-  items: Item[];
-  showOthers?: boolean;
-}) {
+export function AllocationList({ items }: { items: Item[] }) {
   if (!items || items.length === 0) {
     return <div className="text-black/40">Məlumat yoxdur.</div>;
   }
@@ -68,9 +62,6 @@ export function AllocationList({
           </div>
         </li>
       ))}
-      {showOthers && (
-        <li className="py-3 text-sm text-black/55">Others</li>
-      )}
     </ul>
   );
 }
