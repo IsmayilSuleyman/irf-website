@@ -29,7 +29,7 @@ function hash(s: string): number {
 export function sectorColor(sector: string | null | undefined): string {
   if (!sector) return UNKNOWN_COLOR;
   const s = sector.trim();
-  if (/^cash$/i.test(s)) return CASH_COLOR;
+  if (/^cash$/i.test(s) || /nağd/i.test(s)) return CASH_COLOR;
   if (/naməlum|unknown/i.test(s)) return UNKNOWN_COLOR;
   return PALETTE[hash(s.toLowerCase()) % PALETTE.length];
 }

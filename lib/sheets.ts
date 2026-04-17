@@ -180,7 +180,7 @@ async function parseHoldings(): Promise<Holding[]> {
       isCash || !avgPurchaseUsd
         ? null
         : (priceUsd - avgPurchaseUsd) / avgPurchaseUsd;
-    const sector = isCash ? "Cash" : sectorRaw || null;
+    const sector = isCash ? "Nağd pul" : sectorRaw || null;
     raw.push({
       symbol,
       name: name || symbol,
