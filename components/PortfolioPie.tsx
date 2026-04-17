@@ -3,22 +3,16 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { formatAzn } from "@/lib/portfolio";
 
-type Slice = { name: string; value: number };
+type Slice = { name: string; value: number; fill: string };
 
-const PALETTE = [
-  "#16a34a",
-  "#22c55e",
-  "#15803d",
-  "#4ade80",
-  "#166534",
-  "#86efac",
-  "#14532d",
-  "#bbf7d0",
-  "#0f3d1f",
-];
-
-export function PortfolioPie({ data }: { data: Slice[] }) {
-  if (!data || data.length === 0) {
+export function PortfolioPie({
+  sectors,
+  stocks,
+}: {
+  sectors: Slice[];
+  stocks: Slice[];
+}) {
+  if (!stocks || stocks.length === 0) {
     return (
       <div className="flex h-72 items-center justify-center text-black/40">
         Məlumat yoxdur.
@@ -31,21 +25,36 @@ export function PortfolioPie({ data }: { data: Slice[] }) {
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
-            data={data}
+            data={sectors}
             dataKey="value"
             nameKey="name"
+            cx="50%"
+            cy="50%"
             innerRadius="0%"
-            outerRadius="92%"
+            outerRadius="58%"
             stroke="#ffffff"
-            strokeWidth={2}
-            paddingAngle={1}
+            strokeWidth={1.5}
             isAnimationActive={false}
           >
-            {data.map((entry, i) => (
-              <Cell
-                key={entry.name}
-                fill={PALETTE[i % PALETTE.length]}
-              />
+            {sectors.map((s) => (
+              <Cell key={`sector-${s.name}`} fill={s.fill} />
+            ))}
+          </Pie>
+          <Pie
+            data={stocks}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            innerRadius="62%"
+            outerRadius="92%"
+            stroke="#ffffff"
+            strokeWidth={1.5}
+            paddingAngle={0.5}
+            isAnimationActive={false}
+          >
+            {stocks.map((s) => (
+              <Cell key={`stock-${s.name}`} fill={s.fill} />
             ))}
           </Pie>
           <Tooltip

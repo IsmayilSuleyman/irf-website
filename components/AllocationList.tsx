@@ -7,6 +7,7 @@ type Item = {
   percent: number;
   changePct?: number | null;
   isCash?: boolean;
+  color?: string;
 };
 
 const usdFmt = new Intl.NumberFormat("en-US", {
@@ -44,6 +45,13 @@ export function AllocationList({ items }: { items: Item[] }) {
           className="flex items-center justify-between gap-4 py-3"
         >
           <div className="flex min-w-0 items-center gap-2">
+            {item.color && (
+              <span
+                aria-hidden
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+            )}
             <span className="truncate text-sm text-black/85">{item.name}</span>
             {item.priceUsd != null && !item.isCash && (
               <span className="num text-xs text-black/40">
