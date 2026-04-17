@@ -24,6 +24,8 @@ import { IndicatorsCard } from "@/components/IndicatorsCard";
 import { MotionSection } from "@/components/MotionSection";
 import { AllocationList } from "@/components/AllocationList";
 import { PortfolioPie } from "@/components/PortfolioPie";
+import { SectorBreakdown } from "@/components/SectorBreakdown";
+import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
 
 export const dynamic = "force-dynamic";
 
@@ -131,16 +133,81 @@ export default async function DashboardPage() {
 
         {/* Fond portfeli */}
         {holdings.length > 0 && (() => {
-          const TOP_N = 8;
-          const top = holdings.slice(0, TOP_N);
-          const rest = holdings.slice(TOP_N);
-          const restTotal = rest.reduce((s, h) => s + h.valueAzn, 0);
-          const pieData = [
-            ...top.map((h) => ({ name: h.name, value: h.valueAzn })),
-            ...(restTotal > 0
-              ? [{ name: "Others", value: restTotal }]
-              : []),
+          // Group by sector, sort sectors by total value desc, stocks within
+          // each sector by value desc. This ordering is shared by the pie
+          // (so stocks sit inside their sector wedge), the list, and the
+          // sector breakdown — colors line up across all three.
+          const groups = new Map<string, typeof holdings>();
+          for (const h of holdings) {
+            const key = h.sector ?? "Naməlum";
+            const arr = groups.get(key);
+            if (arr) arr.push(h);
+            else groups.set(key, [h]);
+          }
+          const sectorEntries = Array.from(groups.entries())
+            .map(([sector, hs]) => {
+              const sorted = [...hs].sort(
+                (a, b) => b.valueAzn - a.valueAzn,
+              );
+              const total = sorted.reduce((s, h) => s + h.valueAzn, 0);
+              return { sector, holdings: sorted, total };
+            })
+            .sort((a, b) => b.total - a.total);
+
+          const portfolioTotal = sectorEntries.reduce(
+            (s, e) => s + e.total,
+            0,
+          );
+
+          const colored: Array<{
+            holding: (typeof holdings)[number];
+            color: string;
+          }> = [];
+          for (const { sector, holdings: hs } of sectorEntries) {
+            const base = sectorColor(sector);
+            hs.forEach((h, idx) => {
+              const shade = mixWithWhite(base, Math.min(idx * 0.14, 0.55));
+              colored.push({ holding: h, color: shade });
+            });
+          }
+
+          const stockSlices = colored.map(({ holding, color }) => ({
+            name: holding.name,
+            value: holding.valueAzn,
+            fill: color,
+          }));
+          const sectorSlices = sectorEntries.map((e) => ({
+            name: e.sector,
+            value: e.total,
+            fill: sectorColor(e.sector),
+          }));
+          // Sectors that should always appear in the breakdown even when
+          // the fund currently holds nothing in them.
+          const ALWAYS_SHOW_SECTORS = [
+            "Səhiyyə",
+            "Zəruri İstehlak",
+            "Q.Zəruri İstehlak",
+            "Enerji",
           ];
+          const presentSectors = new Set(sectorEntries.map((e) => e.sector));
+          const emptySectorRows = ALWAYS_SHOW_SECTORS.filter(
+            (s) => !presentSectors.has(s),
+          ).map((sector) => ({
+            sector,
+            valueAzn: 0,
+            percent: 0,
+            color: sectorColor(sector),
+          }));
+          const sectorRows = [
+            ...sectorEntries.map((e) => ({
+              sector: e.sector,
+              valueAzn: e.total,
+              percent: portfolioTotal > 0 ? e.total / portfolioTotal : 0,
+              color: sectorColor(e.sector),
+            })),
+            ...emptySectorRows,
+          ];
+
           return (
             <MotionSection delay={0.15} className="hairline pt-10">
               <div className="glass p-6 flex flex-col gap-6">
@@ -150,19 +217,27 @@ export default async function DashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                   <div className="lg:col-span-2">
                     <AllocationList
-                      items={top.map((h) => ({
-                        name: h.name,
-                        priceUsd: h.priceUsd,
-                        valueAzn: h.valueAzn,
-                        percent: h.percent,
-                        changePct: h.changePct,
-                        isCash: h.isCash,
-                      }))}
-                      showOthers={rest.length > 0}
+                      items={[...colored]
+                        .sort(
+                          (a, b) => b.holding.valueAzn - a.holding.valueAzn,
+                        )
+                        .map(({ holding, color }) => ({
+                          name: holding.name,
+                          priceUsd: holding.priceUsd,
+                          valueAzn: holding.valueAzn,
+                          percent: holding.percent,
+                          changePct: holding.changePct,
+                          isCash: holding.isCash,
+                          color,
+                        }))}
                     />
                   </div>
-                  <div className="lg:col-span-1">
-                    <PortfolioPie data={pieData} />
+                  <div className="lg:col-span-1 flex flex-col gap-6">
+                    <PortfolioPie
+                      sectors={sectorSlices}
+                      stocks={stockSlices}
+                    />
+                    <SectorBreakdown rows={sectorRows} />
                   </div>
                 </div>
               </div>

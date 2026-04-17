@@ -7,6 +7,7 @@ type Item = {
   percent: number;
   changePct?: number | null;
   isCash?: boolean;
+  color?: string;
 };
 
 const usdFmt = new Intl.NumberFormat("en-US", {
@@ -31,13 +32,7 @@ function ChangeBadge({ pct }: { pct: number }) {
   );
 }
 
-export function AllocationList({
-  items,
-  showOthers,
-}: {
-  items: Item[];
-  showOthers?: boolean;
-}) {
+export function AllocationList({ items }: { items: Item[] }) {
   if (!items || items.length === 0) {
     return <div className="text-black/40">Məlumat yoxdur.</div>;
   }
@@ -50,6 +45,13 @@ export function AllocationList({
           className="flex items-center justify-between gap-4 py-3"
         >
           <div className="flex min-w-0 items-center gap-2">
+            {item.color && (
+              <span
+                aria-hidden
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+            )}
             <span className="truncate text-sm text-black/85">{item.name}</span>
             {item.priceUsd != null && !item.isCash && (
               <span className="num text-xs text-black/40">
@@ -68,9 +70,6 @@ export function AllocationList({
           </div>
         </li>
       ))}
-      {showOthers && (
-        <li className="py-3 text-sm text-black/55">Others</li>
-      )}
     </ul>
   );
 }
