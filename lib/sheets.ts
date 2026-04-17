@@ -149,9 +149,10 @@ export const getTransactions = unstable_cache(
 );
 
 async function parseHoldings(): Promise<Holding[]> {
-  // Watchlist!B9:J50 — row 8 is header, data starts at row 9.
-  // Column offsets (0-based from B): B=0 Symbol, D=2 Name, E=3 Price USD,
-  // I=7 Value USD, J=8 Avg Purchase USD
+  // Watchlist columns (B..J): B=Symbol, D=Stock Name, E=Price USD, I=Value USD,
+  // J=Avg Purchase USD. Row 8 is the header; data lives at B9:J50.
+  // Some tickers (e.g. IBIT, IREN) have no Google-Finance name in col D — fall
+  // back to the ticker symbol so rows are never silently dropped.
   let rows: string[][];
   try {
     rows = await readTab("Watchlist", "B9:J50");
