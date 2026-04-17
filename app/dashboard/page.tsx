@@ -217,15 +217,19 @@ export default async function DashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                   <div className="lg:col-span-2">
                     <AllocationList
-                      items={colored.map(({ holding, color }) => ({
-                        name: holding.name,
-                        priceUsd: holding.priceUsd,
-                        valueAzn: holding.valueAzn,
-                        percent: holding.percent,
-                        changePct: holding.changePct,
-                        isCash: holding.isCash,
-                        color,
-                      }))}
+                      items={[...colored]
+                        .sort(
+                          (a, b) => b.holding.valueAzn - a.holding.valueAzn,
+                        )
+                        .map(({ holding, color }) => ({
+                          name: holding.name,
+                          priceUsd: holding.priceUsd,
+                          valueAzn: holding.valueAzn,
+                          percent: holding.percent,
+                          changePct: holding.changePct,
+                          isCash: holding.isCash,
+                          color,
+                        }))}
                     />
                   </div>
                   <div className="lg:col-span-1 flex flex-col gap-6">
