@@ -172,6 +172,11 @@ export default async function BankPage() {
     );
   }
 
+  const hasNoProducts =
+    account.depositedAzn <= 0 &&
+    account.outstandingLoanAzn <= 0 &&
+    account.paymentSchedule.length === 0;
+
   const maturityEndAmount =
     account.depositedAzn > 0 && account.maturityBonusAzn != null
       ? account.depositedAzn + account.maturityBonusAzn
@@ -191,10 +196,30 @@ export default async function BankPage() {
 
       <section className="mx-auto max-w-[960px] px-5 py-10 sm:py-14">
         <MotionSection>
-          <p className="text-sm font-medium tracking-[-0.01em] text-[#2F61D8]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
             Xoş gəlmisən, {account.name}
           </p>
         </MotionSection>
+
+        {/* ── Empty state ── */}
+        {hasNoProducts ? (
+          <MotionSection delay={0.04}>
+            <div className="mt-16 flex flex-col items-start sm:mt-24">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/38">
+                Hələlik heç nə yoxdur
+              </p>
+              <p className="mt-3 max-w-sm text-sm leading-6 text-black/54">
+                Depozit və ya kredit məhsullarımızla tanış olmaq üçün kalkulyatora keç.
+              </p>
+              <Link
+                href="/ismayilbank"
+                className="mt-6 inline-flex items-center justify-center rounded-xl bg-[#2F61D8] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#2854be]"
+              >
+                Depozit və kredit şərtlərinə bax
+              </Link>
+            </div>
+          </MotionSection>
+        ) : null}
 
         {/* ── Deposits Section ── */}
         {account.depositedAzn > 0 ? (
