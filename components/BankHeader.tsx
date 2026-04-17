@@ -28,9 +28,9 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="border-b border-black/6 bg-white/80 px-5 py-4 backdrop-blur-xl sm:px-8"
+      className="border-b border-black/6 bg-white/80 px-6 py-4 backdrop-blur-xl"
     >
-      <div className="flex items-center justify-between gap-6">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-6">
         <div className="flex items-center gap-3">
           <IsmayilBankLogo size={28} />
           <Link

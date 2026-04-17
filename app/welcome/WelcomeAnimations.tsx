@@ -16,16 +16,12 @@ export function WelcomeAnimations({
   showSetupNotice: boolean;
   children: ReactNode;
 }) {
-  // Children order: loginLink, ctaButton, irfCard, bankCard
+  // Children order: ctaButton, irfCard, bankCard
   const childArray = Array.isArray(children) ? children : [children];
-  const [loginLink, ctaButton, irfCard, bankCard] = childArray;
+  const [ctaButton, irfCard, bankCard] = childArray;
 
   return (
     <div className="relative z-10 flex min-h-[calc(100vh-0.75rem)] flex-col px-6 py-8 sm:px-10 sm:py-12 lg:px-20 lg:py-16">
-      <motion.div {...riseIn(0)} className="flex items-center justify-end">
-        {loginLink}
-      </motion.div>
-
       {showSetupNotice ? (
         <motion.div
           {...riseIn(0.03, 12)}
@@ -48,7 +44,7 @@ export function WelcomeAnimations({
         className="mt-6 max-w-[60rem] rounded-[2.25rem] bg-[linear-gradient(135deg,rgba(255,255,255,0.62),rgba(255,255,255,0.34))] px-5 py-5 shadow-[0_18px_60px_rgba(106,149,121,0.06)] backdrop-blur-[10px] sm:px-8 sm:py-7 lg:px-10"
       >
         <h1 className="text-[clamp(3.5rem,7.2vw,6.1rem)] font-black leading-[0.92] tracking-[-0.08em] text-[#222222]">
-          Ismayıl Maliyyə Xidmətləri
+          İsmayıl Maliyyə Xidmətləri
         </h1>
         <p className="mt-5 max-w-[46rem] text-[clamp(1.35rem,2.3vw,2.2rem)] leading-[1.15] tracking-[-0.05em] text-black/40">
           Portfel idarəetməsi və bank məhsulları, hamısı bir yerdə.
