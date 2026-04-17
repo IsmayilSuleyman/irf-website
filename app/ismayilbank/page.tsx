@@ -2,8 +2,12 @@ import Link from "next/link";
 import { IsmayilBankCalculator } from "@/components/IsmayilBankCalculator";
 import { IsmayilBankDepositCalculator } from "@/components/IsmayilBankDepositCalculator";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
+import { getSupabaseServerUser } from "@/lib/supabase/server";
 
-export default function IsmayilBankPage() {
+export default async function IsmayilBankPage() {
+  const { user } = await getSupabaseServerUser();
+  const backHref = user ? "/bank" : "/welcome";
+  const backLabel = user ? "Hesabıma qayıt" : "Geri qayıt";
   return (
     <main className="px-4 py-6 sm:px-6 sm:py-10">
       <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-[2.4rem] border border-blue-200/70 bg-white/72 p-6 shadow-[0_28px_80px_rgba(68,108,184,0.12)] backdrop-blur-xl sm:p-8 lg:p-12">
@@ -71,10 +75,10 @@ export default function IsmayilBankPage() {
 
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
-              href="/welcome"
+              href={backHref}
               className="inline-flex items-center justify-center rounded-[1rem] border border-black/10 bg-white/80 px-6 py-4 text-base font-semibold tracking-[-0.03em] text-black/65 transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-[#2F61D8]"
             >
-              Geri qayıt
+              {backLabel}
             </Link>
           </div>
         </div>

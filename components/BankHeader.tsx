@@ -47,6 +47,12 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
         </div>
 
         <div className="flex items-center gap-5">
+          <Link
+            href="/portal"
+            className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/42 transition hover:text-[#2F61D8] sm:inline"
+          >
+            Portal
+          </Link>
           <span className="hidden text-xs text-black/42 sm:inline">{dateLabel}</span>
           <button
             onClick={onLogout}

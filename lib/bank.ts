@@ -39,7 +39,7 @@ function normalize(value: string): string {
   return value.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
 }
 
-function simplifyText(value: string): string {
+export function simplifyText(value: string): string {
   return value
     .replace(/[\u018F\u0259]/g, "e")
     .replace(/[\u0049\u0130\u0131\u0069]/g, "i")

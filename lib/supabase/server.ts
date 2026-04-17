@@ -58,7 +58,9 @@ export async function getSupabaseServerUser(): Promise<SupabaseServerUserResult>
     } = await supabase.auth.getUser();
 
     if (error) {
-      console.error("Supabase auth.getUser() failed:", error);
+      if (error.name !== "AuthSessionMissingError") {
+        console.error("Supabase auth.getUser() failed:", error);
+      }
       return { reason: "error", user: null };
     }
 

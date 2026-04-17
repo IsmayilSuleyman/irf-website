@@ -46,6 +46,12 @@ export function Header({ dateLabel }: { dateLabel: string }) {
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-4 sm:gap-6">
+          <Link
+            href="/portal"
+            className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 transition hover:text-brand-green sm:inline"
+          >
+            Portal
+          </Link>
           <span className="hidden text-xs text-black/45 sm:inline">{dateLabel}</span>
           <button
             onClick={onLogout}
