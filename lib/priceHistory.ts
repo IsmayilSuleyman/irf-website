@@ -79,6 +79,7 @@ export type PeriodChange = {
 };
 
 export type PeriodChanges = {
+  w1: PeriodChange;
   m1: PeriodChange;
   m3: PeriodChange;
   y1: PeriodChange;
@@ -102,6 +103,7 @@ export function computePeriodChanges(
   history: NavPoint[],
 ): PeriodChanges {
   return {
+    w1: changeFor(current, history, 7),
     m1: changeFor(current, history, 30),
     m3: changeFor(current, history, 90),
     y1: changeFor(current, history, 365),
