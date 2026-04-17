@@ -1,8 +1,8 @@
 import {
   getFundData,
   getHolderByName,
-  getTransactions,
   getHoldings,
+  getTransactions,
   computeHolderPerformance,
   computeHolderValueHistory,
   computeHoldingDeltaSince,
@@ -23,6 +23,7 @@ import { PriceBadge } from "@/components/PriceBadge";
 import { IndicatorsCard } from "@/components/IndicatorsCard";
 import { MotionSection } from "@/components/MotionSection";
 import { AllocationList } from "@/components/AllocationList";
+import { PortfolioPie } from "@/components/PortfolioPie";
 
 export const dynamic = "force-dynamic";
 
@@ -129,23 +130,45 @@ export default async function DashboardPage() {
         </MotionSection>
 
         {/* Fond portfeli */}
-        {holdings.length > 0 && (
-          <MotionSection delay={0.15} className="hairline pt-10">
-            <div className="glass p-6 flex flex-col gap-6">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-                Fond Portfeli
+        {holdings.length > 0 && (() => {
+          const TOP_N = 8;
+          const top = holdings.slice(0, TOP_N);
+          const rest = holdings.slice(TOP_N);
+          const restTotal = rest.reduce((s, h) => s + h.valueAzn, 0);
+          const pieData = [
+            ...top.map((h) => ({ name: h.name, value: h.valueAzn })),
+            ...(restTotal > 0
+              ? [{ name: "Others", value: restTotal }]
+              : []),
+          ];
+          return (
+            <MotionSection delay={0.15} className="hairline pt-10">
+              <div className="glass p-6 flex flex-col gap-6">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+                  Fond Portfeli
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                  <div className="lg:col-span-2">
+                    <AllocationList
+                      items={top.map((h) => ({
+                        name: h.name,
+                        priceUsd: h.priceUsd,
+                        valueAzn: h.valueAzn,
+                        percent: h.percent,
+                        changePct: h.changePct,
+                        isCash: h.isCash,
+                      }))}
+                      showOthers={rest.length > 0}
+                    />
+                  </div>
+                  <div className="lg:col-span-1">
+                    <PortfolioPie data={pieData} />
+                  </div>
+                </div>
               </div>
-              <AllocationList
-                items={holdings.map((h) => ({
-                  name: h.name,
-                  valueAzn: h.valueAzn,
-                  percent: h.percent,
-                  priceUsd: h.priceUsd,
-                }))}
-              />
-            </div>
-          </MotionSection>
-        )}
+            </MotionSection>
+          );
+        })()}
       </div>
     </main>
   );

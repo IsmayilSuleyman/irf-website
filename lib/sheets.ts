@@ -25,13 +25,6 @@ export type Transaction = {
   price: number;
 };
 
-export type Holding = {
-  name: string;
-  priceUsd: number;
-  valueAzn: number;
-  percent: number; // fraction of top-10 total, 0..1
-};
-
 export type HolderPerformance = {
   totalUnits: number;
   totalInvested: number;
@@ -40,6 +33,20 @@ export type HolderPerformance = {
   pnlAzn: number;
   pnlPct: number;
 };
+
+export type Holding = {
+  symbol: string;
+  name: string;
+  priceUsd: number;
+  avgPurchaseUsd: number | null;
+  valueAzn: number;
+  percent: number; // 0..1 of portfolio total
+  isCash: boolean;
+  changePct: number | null; // null for Cash or when avg missing
+};
+
+// Official CBAR peg
+const USD_TO_AZN = 1.7;
 
 function getAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
@@ -141,48 +148,54 @@ export const getTransactions = unstable_cache(
   { revalidate: 60, tags: ["sheet"] },
 );
 
-const USD_TO_AZN = 1.7;
-
 async function parseHoldings(): Promise<Holding[]> {
-  // Watchlist tab layout (B:I): B=symbol, C=exchange, D=stockName, E=priceUSD,
-  // F=priceChange, G=%change, H=shares, I=valueUSD.
-  // Rows 1-7 are metadata; row 8 is the real header ("Symbol" in col B).
-  // Some tickers (e.g. IBIT, IREN) have no Google-Finance name in col D —
-  // fall back to the ticker symbol in col B so they are never silently dropped.
-  const rows = await readTab("Watchlist", "B1:I1000");
-
-  // Locate the real header row dynamically so metadata rows are never parsed as data.
-  const headerIdx = rows.findIndex(
-    (r) => r[0]?.toString().trim().toLowerCase() === "symbol",
-  );
-  const startIdx = headerIdx >= 0 ? headerIdx + 1 : 1;
-
-  const data: Array<{ name: string; priceUsd: number; valueUsd: number }> = [];
-
-  for (let i = startIdx; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row) continue;
-    const symbol = row[0]?.toString().trim();
-    const stockName = row[2]?.toString().trim();
-    // Prefer the full stock name; fall back to ticker when the name cell is empty.
-    const name = stockName || symbol;
-    if (!name) continue;
-    const priceUsd = parseAzn(row[3]);
-    const valueUsd = parseAzn(row[7]);
-    if (valueUsd <= 0) continue;
-    data.push({ name, priceUsd, valueUsd });
+  // Watchlist columns (B..J): B=Symbol, D=Stock Name, E=Price USD, I=Value USD,
+  // J=Avg Purchase USD. Row 8 is the header; data lives at B9:J50.
+  // Some tickers (e.g. IBIT, IREN) have no Google-Finance name in col D — fall
+  // back to the ticker symbol so rows are never silently dropped.
+  let rows: string[][];
+  try {
+    rows = await readTab("Watchlist", "B9:J50");
+  } catch (err) {
+    console.error("Watchlist tab read error:", err);
+    return [];
   }
 
-  data.sort((a, b) => b.valueUsd - a.valueUsd);
-  const top10 = data.slice(0, 10);
-  const total = top10.reduce((s, h) => s + h.valueUsd, 0);
-
-  return top10.map((h) => ({
-    name: h.name,
-    priceUsd: h.priceUsd,
-    valueAzn: h.valueUsd * USD_TO_AZN,
-    percent: total > 0 ? h.valueUsd / total : 0,
+  const raw: Holding[] = [];
+  for (const row of rows) {
+    if (!row) continue;
+    const symbol = row[0]?.toString().trim() ?? "";
+    const name = row[2]?.toString().trim() ?? "";
+    if (!symbol && !name) continue;
+    const priceUsd = parseAzn(row[3]);
+    const valueUsd = parseAzn(row[7]);
+    const avgPurchaseUsd = parseAzn(row[8]);
+    const isCash =
+      /^cash$/i.test(symbol) || /cash/i.test(name) || /nağd/i.test(name);
+    const valueAzn = valueUsd * USD_TO_AZN;
+    if (valueAzn <= 0 && !isCash) continue;
+    const changePct =
+      isCash || !avgPurchaseUsd
+        ? null
+        : (priceUsd - avgPurchaseUsd) / avgPurchaseUsd;
+    raw.push({
+      symbol,
+      name: name || symbol,
+      priceUsd,
+      avgPurchaseUsd: avgPurchaseUsd || null,
+      valueAzn,
+      percent: 0,
+      isCash,
+      changePct,
+    });
+  }
+  const total = raw.reduce((s, h) => s + h.valueAzn, 0);
+  const withPct = raw.map((h) => ({
+    ...h,
+    percent: total > 0 ? h.valueAzn / total : 0,
   }));
+  withPct.sort((a, b) => b.valueAzn - a.valueAzn);
+  return withPct;
 }
 
 export const getHoldings = unstable_cache(
