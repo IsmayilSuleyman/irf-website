@@ -35,12 +35,14 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
           <IsmayilBankLogo size={28} />
           <Link
             href="/dashboard"
+            aria-label="İRF hesabına keç"
             className="inline-flex items-center gap-2 rounded border border-black/12 bg-white/80 px-2 py-1.5 transition hover:-translate-y-px hover:border-[#16a34a]/30 hover:shadow-sm sm:px-3 sm:py-2"
           >
+            <span aria-hidden className="text-sm leading-none text-black/55 sm:hidden">→</span>
             <div className="w-[80px]">
               <Logo width={80} />
             </div>
-            <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/55">
+            <span className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/55 sm:inline">
               Hesabına Keç
             </span>
           </Link>
