@@ -1,6 +1,6 @@
 import { formatAzn } from "@/lib/portfolio";
 
-type Item = { name: string; valueAzn: number; percent: number };
+type Item = { name: string; valueAzn: number; percent: number; priceUsd?: number };
 
 export function AllocationList({ items }: { items: Item[] }) {
   if (!items || items.length === 0) {
@@ -14,12 +14,19 @@ export function AllocationList({ items }: { items: Item[] }) {
       {items.map((item) => (
         <li key={item.name} className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between gap-4">
-            <span className="text-sm text-white/80">{item.name}</span>
-            <span className="num text-sm text-white/60">
-              {formatAzn(item.valueAzn)}
-              <span className="ml-2 text-white/40">
-                {(item.percent * 100).toFixed(1)}%
+            <span className="text-sm text-black/75">{item.name}</span>
+            <span className="flex flex-col items-end gap-0.5">
+              <span className="num text-sm text-black/55">
+                {formatAzn(item.valueAzn)}
+                <span className="ml-2 text-black/40">
+                  {(item.percent * 100).toFixed(1)}%
+                </span>
               </span>
+              {item.priceUsd != null && item.priceUsd > 0 && (
+                <span className="num text-[11px] text-black/35">
+                  ${item.priceUsd.toFixed(2)}
+                </span>
+              )}
             </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
