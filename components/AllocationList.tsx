@@ -1,35 +1,76 @@
 import { formatAzn } from "@/lib/portfolio";
 
-type Item = { name: string; valueAzn: number; percent: number };
+type Item = {
+  name: string;
+  priceUsd?: number;
+  valueAzn: number;
+  percent: number;
+  changePct?: number | null;
+  isCash?: boolean;
+};
 
-export function AllocationList({ items }: { items: Item[] }) {
+const usdFmt = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 2,
+});
+
+function ChangeBadge({ pct }: { pct: number }) {
+  const up = pct >= 0;
+  const cls = up
+    ? "bg-brand-green/15 text-brand-green"
+    : "bg-brand-red/15 text-brand-red";
+  const sign = up ? "+" : "";
+  return (
+    <span
+      className={`num rounded-md px-1.5 py-0.5 text-[11px] font-medium ${cls}`}
+    >
+      {sign}
+      {(pct * 100).toFixed(1)}%
+    </span>
+  );
+}
+
+export function AllocationList({
+  items,
+  showOthers,
+}: {
+  items: Item[];
+  showOthers?: boolean;
+}) {
   if (!items || items.length === 0) {
-    return <div className="text-white/40">Məlumat yoxdur.</div>;
+    return <div className="text-black/40">Məlumat yoxdur.</div>;
   }
 
-  const max = Math.max(...items.map((i) => i.percent), 0.0001);
-
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
       {items.map((item) => (
-        <li key={item.name} className="flex flex-col gap-1.5">
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="text-sm text-white/80">{item.name}</span>
-            <span className="num text-sm text-white/60">
-              {formatAzn(item.valueAzn)}
-              <span className="ml-2 text-white/40">
-                {(item.percent * 100).toFixed(1)}%
+        <li
+          key={item.name}
+          className="flex items-center justify-between gap-4 py-3"
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm text-black/85">{item.name}</span>
+            {item.priceUsd != null && !item.isCash && (
+              <span className="num text-xs text-black/40">
+                {usdFmt.format(item.priceUsd)}
               </span>
-            </span>
+            )}
+            {item.changePct != null && !item.isCash && (
+              <ChangeBadge pct={item.changePct} />
+            )}
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-brand-green to-brand-green-deep"
-              style={{ width: `${(item.percent / max) * 100}%` }}
-            />
+          <div className="num shrink-0 text-sm text-black/75">
+            {formatAzn(item.valueAzn)}
+            <span className="ml-2 text-black/45">
+              {(item.percent * 100).toFixed(1)}%
+            </span>
           </div>
         </li>
       ))}
+      {showOthers && (
+        <li className="py-3 text-sm text-black/55">Others</li>
+      )}
     </ul>
   );
 }

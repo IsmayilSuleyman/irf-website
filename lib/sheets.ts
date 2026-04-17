@@ -34,6 +34,20 @@ export type HolderPerformance = {
   pnlPct: number;
 };
 
+export type Holding = {
+  symbol: string;
+  name: string;
+  priceUsd: number;
+  avgPurchaseUsd: number | null;
+  valueAzn: number;
+  percent: number; // 0..1 of portfolio total
+  isCash: boolean;
+  changePct: number | null; // null for Cash or when avg missing
+};
+
+// Official CBAR peg
+const USD_TO_AZN = 1.7;
+
 function getAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON env var is missing");
@@ -131,6 +145,61 @@ async function parseTransactions(): Promise<Transaction[]> {
 export const getTransactions = unstable_cache(
   async (): Promise<Transaction[]> => parseTransactions(),
   ["irf-transactions"],
+  { revalidate: 60, tags: ["sheet"] },
+);
+
+async function parseHoldings(): Promise<Holding[]> {
+  // Watchlist!B9:J50 — row 8 is header, data starts at row 9.
+  // Column offsets (0-based from B): B=0 Symbol, D=2 Name, E=3 Price USD,
+  // I=7 Value USD, J=8 Avg Purchase USD
+  let rows: string[][];
+  try {
+    rows = await readTab("Watchlist", "B9:J50");
+  } catch (err) {
+    console.error("Watchlist tab read error:", err);
+    return [];
+  }
+
+  const raw: Holding[] = [];
+  for (const row of rows) {
+    if (!row) continue;
+    const symbol = row[0]?.toString().trim() ?? "";
+    const name = row[2]?.toString().trim() ?? "";
+    if (!symbol && !name) continue;
+    const priceUsd = parseAzn(row[3]);
+    const valueUsd = parseAzn(row[7]);
+    const avgPurchaseUsd = parseAzn(row[8]);
+    const isCash =
+      /^cash$/i.test(symbol) || /cash/i.test(name) || /nağd/i.test(name);
+    const valueAzn = valueUsd * USD_TO_AZN;
+    if (valueAzn <= 0 && !isCash) continue;
+    const changePct =
+      isCash || !avgPurchaseUsd
+        ? null
+        : (priceUsd - avgPurchaseUsd) / avgPurchaseUsd;
+    raw.push({
+      symbol,
+      name: name || symbol,
+      priceUsd,
+      avgPurchaseUsd: avgPurchaseUsd || null,
+      valueAzn,
+      percent: 0,
+      isCash,
+      changePct,
+    });
+  }
+  const total = raw.reduce((s, h) => s + h.valueAzn, 0);
+  const withPct = raw.map((h) => ({
+    ...h,
+    percent: total > 0 ? h.valueAzn / total : 0,
+  }));
+  withPct.sort((a, b) => b.valueAzn - a.valueAzn);
+  return withPct;
+}
+
+export const getHoldings = unstable_cache(
+  async (): Promise<Holding[]> => parseHoldings(),
+  ["irf-holdings"],
   { revalidate: 60, tags: ["sheet"] },
 );
 
