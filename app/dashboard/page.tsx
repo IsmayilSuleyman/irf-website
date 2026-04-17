@@ -181,12 +181,32 @@ export default async function DashboardPage() {
             value: e.total,
             fill: sectorColor(e.sector),
           }));
-          const sectorRows = sectorEntries.map((e) => ({
-            sector: e.sector,
-            valueAzn: e.total,
-            percent: portfolioTotal > 0 ? e.total / portfolioTotal : 0,
-            color: sectorColor(e.sector),
+          // Sectors that should always appear in the breakdown even when
+          // the fund currently holds nothing in them.
+          const ALWAYS_SHOW_SECTORS = [
+            "Səhiyyə",
+            "Zəruri İstehlak",
+            "Q.Zəruri İstehlak",
+            "Enerji",
+          ];
+          const presentSectors = new Set(sectorEntries.map((e) => e.sector));
+          const emptySectorRows = ALWAYS_SHOW_SECTORS.filter(
+            (s) => !presentSectors.has(s),
+          ).map((sector) => ({
+            sector,
+            valueAzn: 0,
+            percent: 0,
+            color: sectorColor(sector),
           }));
+          const sectorRows = [
+            ...sectorEntries.map((e) => ({
+              sector: e.sector,
+              valueAzn: e.total,
+              percent: portfolioTotal > 0 ? e.total / portfolioTotal : 0,
+              color: sectorColor(e.sector),
+            })),
+            ...emptySectorRows,
+          ];
 
           return (
             <MotionSection delay={0.15} className="hairline pt-10">
