@@ -36,19 +36,19 @@ function Indicator({
 
   return (
     <div className="flex flex-col items-start gap-2 px-4 first:pl-0 last:pr-0">
-      <div className="text-[10px] uppercase tracking-[0.22em] text-black/40">
+      <div className="text-[10px] uppercase tracking-[0.12em] whitespace-nowrap text-black/40">
         {label}
       </div>
 
-      <div className={`num flex items-baseline gap-1 ${toneText}`}>
+      <div className={`num flex items-baseline gap-0.5 ${toneText}`}>
         {isNull ? (
-          <span className="text-[28px] font-semibold leading-none">—</span>
+          <span className="text-xl font-semibold leading-none">—</span>
         ) : (
           <>
-            <span className="text-sm leading-none">
+            <span className="text-xs leading-none">
               {isPositive ? "↑" : "↓"}
             </span>
-            <span className="text-[28px] font-semibold leading-none tracking-tight">
+            <span className="text-xl font-semibold leading-none tracking-tight">
               {Math.abs(pct * 100).toFixed(0)}%
             </span>
           </>
