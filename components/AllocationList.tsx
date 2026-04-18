@@ -127,68 +127,100 @@ export function AllocationList({ items }: { items: Item[] }) {
       </div>
 
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
-        {items.map((item) => (
-          <li
-            key={item.name}
-            className="flex items-center justify-between gap-4 py-3"
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              {item.color && (
-                <span
-                  aria-hidden
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
+        {items.map((item) => {
+          const metaCluster = (
+            <AnimatePresence initial={false}>
+              {visible.price && item.priceUsd != null && !item.isCash && (
+                <AnimatedFigure keyName="price">
+                  <span className="num text-xs text-black/40">
+                    {usdFmt.format(item.priceUsd)}
+                  </span>
+                </AnimatedFigure>
               )}
-              <span className="truncate text-sm text-black/85">
-                {item.name}
-              </span>
-              <AnimatePresence initial={false}>
-                {visible.price && item.priceUsd != null && !item.isCash && (
-                  <AnimatedFigure keyName="price">
-                    <span className="num text-xs text-black/40">
-                      {usdFmt.format(item.priceUsd)}
-                    </span>
+              {visible.totalChange &&
+                item.changePct != null &&
+                !item.isCash && (
+                  <AnimatedFigure keyName="totalChange">
+                    <ChangeBadge pct={item.changePct} />
                   </AnimatedFigure>
                 )}
-                {visible.totalChange &&
-                  item.changePct != null &&
-                  !item.isCash && (
-                    <AnimatedFigure keyName="totalChange">
-                      <ChangeBadge pct={item.changePct} />
-                    </AnimatedFigure>
-                  )}
-                {visible.dayChange &&
-                  item.dayChangePct != null &&
-                  !item.isCash && (
-                    <AnimatedFigure keyName="dayChange">
-                      <ChangeBadge pct={item.dayChangePct} variant="outlined" />
-                    </AnimatedFigure>
-                  )}
-              </AnimatePresence>
-            </div>
-            {(visible.value || visible.percent) && (
-              <div className="num shrink-0 text-sm text-black/75">
-                <AnimatePresence initial={false} mode="popLayout">
-                  {visible.value && (
-                    <AnimatedFigure keyName="value" inline>
-                      {formatAzn(item.valueAzn)}
-                    </AnimatedFigure>
-                  )}
-                  {visible.percent && (
-                    <AnimatedFigure keyName="percent" inline>
-                      <span
-                        className={`text-black/45 ${visible.value ? "ml-2" : ""}`}
-                      >
-                        {(item.percent * 100).toFixed(1)}%
-                      </span>
-                    </AnimatedFigure>
-                  )}
-                </AnimatePresence>
+              {visible.dayChange &&
+                item.dayChangePct != null &&
+                !item.isCash && (
+                  <AnimatedFigure keyName="dayChange">
+                    <ChangeBadge pct={item.dayChangePct} variant="outlined" />
+                  </AnimatedFigure>
+                )}
+            </AnimatePresence>
+          );
+          const valueCluster = (
+            <AnimatePresence initial={false} mode="popLayout">
+              {visible.value && (
+                <AnimatedFigure keyName="value" inline>
+                  {formatAzn(item.valueAzn)}
+                </AnimatedFigure>
+              )}
+              {visible.percent && (
+                <AnimatedFigure keyName="percent" inline>
+                  <span
+                    className={`text-black/45 ${visible.value ? "ml-2" : ""}`}
+                  >
+                    {(item.percent * 100).toFixed(1)}%
+                  </span>
+                </AnimatedFigure>
+              )}
+            </AnimatePresence>
+          );
+          const hasMeta =
+            !item.isCash &&
+            ((visible.price && item.priceUsd != null) ||
+              (visible.totalChange && item.changePct != null) ||
+              (visible.dayChange && item.dayChangePct != null));
+          const hasValueCluster = visible.value || visible.percent;
+
+          return (
+            <li
+              key={item.name}
+              className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+            >
+              {/* Line 1: color + name (+ desktop meta) + mobile value cluster */}
+              <div className="flex min-w-0 items-center gap-2">
+                {item.color && (
+                  <span
+                    aria-hidden
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: item.color }}
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate text-sm text-black/85 sm:flex-none">
+                  {item.name}
+                </span>
+                <div className="hidden items-center gap-2 sm:flex">
+                  {metaCluster}
+                </div>
+                {hasValueCluster && (
+                  <div className="num ml-auto shrink-0 text-sm text-black/75 sm:hidden">
+                    {valueCluster}
+                  </div>
+                )}
               </div>
-            )}
-          </li>
-        ))}
+
+              {/* Line 2 (mobile only): price + badges indented under the name */}
+              {hasMeta && (
+                <div className="flex items-center gap-2 pl-[18px] sm:hidden">
+                  {metaCluster}
+                </div>
+              )}
+
+              {/* Desktop-only right cluster */}
+              {hasValueCluster && (
+                <div className="num hidden shrink-0 text-sm text-black/75 sm:block">
+                  {valueCluster}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
