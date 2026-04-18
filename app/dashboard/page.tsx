@@ -227,6 +227,7 @@ export default async function DashboardPage() {
                           valueAzn: holding.valueAzn,
                           percent: holding.percent,
                           changePct: holding.changePct,
+                          dayChangePct: holding.dayChangePct,
                           isCash: holding.isCash,
                           color,
                         }))}

@@ -43,6 +43,7 @@ export type Holding = {
   percent: number; // 0..1 of portfolio total
   isCash: boolean;
   changePct: number | null; // null for Cash or when avg missing
+  dayChangePct: number | null; // daily % change from Watchlist col G; null for Cash
   sector: string | null; // from Watchlist col K; Cash rows are bucketed as "Cash"
 };
 
@@ -169,6 +170,7 @@ async function parseHoldings(): Promise<Holding[]> {
     const name = row[2]?.toString().trim() ?? "";
     if (!symbol && !name) continue;
     const priceUsd = parseAzn(row[3]);
+    const dayChangeRaw = row[5]?.toString().trim() ?? "";
     const valueUsd = parseAzn(row[7]);
     const avgPurchaseUsd = parseAzn(row[8]);
     const sectorRaw = row[9]?.toString().trim() ?? "";
@@ -180,6 +182,15 @@ async function parseHoldings(): Promise<Holding[]> {
       isCash || !avgPurchaseUsd
         ? null
         : (priceUsd - avgPurchaseUsd) / avgPurchaseUsd;
+    // Col G may be formatted as "2.3%" or a raw number like 2.3 (percent form).
+    const hasPercentSign = /%/.test(dayChangeRaw);
+    const dayChangeNum = Number(dayChangeRaw.replace(/[^\d.\-]/g, ""));
+    const dayChangePct =
+      isCash || !dayChangeRaw || !Number.isFinite(dayChangeNum)
+        ? null
+        : hasPercentSign || Math.abs(dayChangeNum) > 1
+          ? dayChangeNum / 100
+          : dayChangeNum;
     const sector = isCash ? "Nağd pul" : sectorRaw || null;
     raw.push({
       symbol,
@@ -190,6 +201,7 @@ async function parseHoldings(): Promise<Holding[]> {
       percent: 0,
       isCash,
       changePct,
+      dayChangePct,
       sector,
     });
   }
