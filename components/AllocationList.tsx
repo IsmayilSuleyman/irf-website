@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { formatAzn } from "@/lib/portfolio";
 
 type Item = {
@@ -34,6 +35,30 @@ const usdFmt = new Intl.NumberFormat("en-US", {
   currency: "USD",
   maximumFractionDigits: 2,
 });
+
+function AnimatedFigure({
+  keyName,
+  inline = false,
+  children,
+}: {
+  keyName: string;
+  inline?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.span
+      key={keyName}
+      layout
+      initial={{ opacity: 0, y: -4, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -4, scale: 0.92 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
+      style={{ display: inline ? "inline-block" : "inline-flex" }}
+    >
+      {children}
+    </motion.span>
+  );
+}
 
 function ChangeBadge({
   pct,
@@ -118,30 +143,48 @@ export function AllocationList({ items }: { items: Item[] }) {
               <span className="truncate text-sm text-black/85">
                 {item.name}
               </span>
-              {visible.price && item.priceUsd != null && !item.isCash && (
-                <span className="num text-xs text-black/40">
-                  {usdFmt.format(item.priceUsd)}
-                </span>
-              )}
-              {visible.totalChange &&
-                item.changePct != null &&
-                !item.isCash && <ChangeBadge pct={item.changePct} />}
-              {visible.dayChange &&
-                item.dayChangePct != null &&
-                !item.isCash && (
-                  <ChangeBadge pct={item.dayChangePct} variant="outlined" />
+              <AnimatePresence initial={false}>
+                {visible.price && item.priceUsd != null && !item.isCash && (
+                  <AnimatedFigure keyName="price">
+                    <span className="num text-xs text-black/40">
+                      {usdFmt.format(item.priceUsd)}
+                    </span>
+                  </AnimatedFigure>
                 )}
+                {visible.totalChange &&
+                  item.changePct != null &&
+                  !item.isCash && (
+                    <AnimatedFigure keyName="totalChange">
+                      <ChangeBadge pct={item.changePct} />
+                    </AnimatedFigure>
+                  )}
+                {visible.dayChange &&
+                  item.dayChangePct != null &&
+                  !item.isCash && (
+                    <AnimatedFigure keyName="dayChange">
+                      <ChangeBadge pct={item.dayChangePct} variant="outlined" />
+                    </AnimatedFigure>
+                  )}
+              </AnimatePresence>
             </div>
             {(visible.value || visible.percent) && (
               <div className="num shrink-0 text-sm text-black/75">
-                {visible.value && formatAzn(item.valueAzn)}
-                {visible.percent && (
-                  <span
-                    className={`text-black/45 ${visible.value ? "ml-2" : ""}`}
-                  >
-                    {(item.percent * 100).toFixed(1)}%
-                  </span>
-                )}
+                <AnimatePresence initial={false} mode="popLayout">
+                  {visible.value && (
+                    <AnimatedFigure keyName="value" inline>
+                      {formatAzn(item.valueAzn)}
+                    </AnimatedFigure>
+                  )}
+                  {visible.percent && (
+                    <AnimatedFigure keyName="percent" inline>
+                      <span
+                        className={`text-black/45 ${visible.value ? "ml-2" : ""}`}
+                      >
+                        {(item.percent * 100).toFixed(1)}%
+                      </span>
+                    </AnimatedFigure>
+                  )}
+                </AnimatePresence>
               </div>
             )}
           </li>
