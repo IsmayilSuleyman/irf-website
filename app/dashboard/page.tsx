@@ -21,7 +21,9 @@ import { PerformanceChart } from "@/components/PerformanceChart";
 import { HeroPrice } from "@/components/HeroPrice";
 import { PriceBadge } from "@/components/PriceBadge";
 import { IndicatorsCard } from "@/components/IndicatorsCard";
+import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
+import { getStrategyStatement, isOwnerEmail } from "@/lib/fundSettings";
 import { AllocationList } from "@/components/AllocationList";
 import { PortfolioPie } from "@/components/PortfolioPie";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
@@ -33,13 +35,16 @@ export default async function DashboardPage() {
   const user = await requireUser();
 
   const name = displayNameOf(user.user_metadata);
-  const [holder, fund, priceHistory, transactions, holdings] = await Promise.all([
-    getHolderByName(name),
-    getFundData(),
-    getPriceHistory(),
-    getTransactions(),
-    getHoldings(),
-  ]);
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement] =
+    await Promise.all([
+      getHolderByName(name),
+      getFundData(),
+      getPriceHistory(),
+      getTransactions(),
+      getHoldings(),
+      getStrategyStatement(),
+    ]);
+  const canEditStrategy = isOwnerEmail(user.email);
 
   const dateLabel = formatBakuDate(new Date());
 
@@ -130,6 +135,16 @@ export default async function DashboardPage() {
             <IndicatorsCard changes={periodChanges} />
           </div>
         </MotionSection>
+
+        {/* Strategy statement */}
+        {(canEditStrategy || strategyStatement.trim().length > 0) && (
+          <MotionSection delay={0.12}>
+            <StrategyStatementCard
+              initialValue={strategyStatement}
+              canEdit={canEditStrategy}
+            />
+          </MotionSection>
+        )}
 
         {/* Fond portfeli */}
         {holdings.length > 0 && (() => {
