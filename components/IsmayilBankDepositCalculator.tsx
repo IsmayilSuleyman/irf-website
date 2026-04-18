@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
 const MIN_AMOUNT = 50;
 const MAX_AMOUNT = 2000;
@@ -38,15 +38,41 @@ function AmountField({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const [inputValue, setInputValue] = useState(String(value));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) setInputValue(String(value));
+  }, [value, isFocused]);
+
   const progress = `${((value - MIN_AMOUNT) / (MAX_AMOUNT - MIN_AMOUNT)) * 100}%`;
 
   return (
     <div className="space-y-3">
       <div className="flex items-end justify-between gap-4">
         <p className="text-[1.1rem] tracking-[-0.03em] text-black/56">Məbləğ</p>
-        <p className="num text-[2rem] font-semibold tracking-[-0.06em] text-[#111827]">
-          {formatAmount(value)}
-        </p>
+        <div className="flex items-center gap-0.5">
+          <input
+            type="number"
+            value={inputValue}
+            min={MIN_AMOUNT}
+            max={MAX_AMOUNT}
+            onFocus={() => setIsFocused(true)}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              const n = Number(e.target.value);
+              if (e.target.value !== "" && n >= MIN_AMOUNT && n <= MAX_AMOUNT) onChange(n);
+            }}
+            onBlur={() => {
+              setIsFocused(false);
+              const n = Math.min(MAX_AMOUNT, Math.max(MIN_AMOUNT, Number(inputValue) || MIN_AMOUNT));
+              onChange(n);
+              setInputValue(String(n));
+            }}
+            className="num w-[5ch] bg-transparent text-right text-[2rem] font-semibold tracking-[-0.06em] text-[#111827] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-b-2 focus:border-blue-500"
+          />
+          <span className="num text-[2rem] font-semibold tracking-[-0.06em] text-[#111827]">₼</span>
+        </div>
       </div>
 
       <input
