@@ -6,7 +6,7 @@ export function IndicatorsCard({ changes }: { changes: PeriodChanges }) {
       <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
         Göstəricilər
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-black/[0.06]">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4 md:gap-x-0 md:gap-y-0 md:divide-x md:divide-black/[0.06]">
         <Indicator change={changes.w1} label="1 həftə" />
         <Indicator change={changes.m1} label="1 ay" />
         <Indicator change={changes.m3} label="3 ay" />
@@ -35,7 +35,7 @@ function Indicator({
       : "text-brand-red";
 
   return (
-    <div className="flex flex-col items-start gap-2 px-4 first:pl-0 last:pr-0">
+    <div className="flex flex-col items-start gap-2 md:px-4 md:first:pl-0 md:last:pr-0">
       <div className="text-[10px] uppercase tracking-[0.12em] whitespace-nowrap text-black/40">
         {label}
       </div>
