@@ -14,9 +14,11 @@ export function StrategyStatementCard({
   const [draft, setDraft] = useState(initialValue);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const hasValue = value.trim().length > 0;
+  const showContent = canEdit || expanded;
 
   function onCancel() {
     setDraft(value);
@@ -50,6 +52,15 @@ export function StrategyStatementCard({
             className="text-[11px] uppercase tracking-[0.18em] text-brand-green hover:text-brand-green-deep transition-colors"
           >
             {hasValue ? "Redaktə et" : "Yaz"}
+          </button>
+        )}
+        {!canEdit && hasValue && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-[11px] uppercase tracking-[0.18em] text-brand-green hover:text-brand-green-deep transition-colors"
+          >
+            {expanded ? "Gizlət" : "Göstər"}
           </button>
         )}
       </div>
@@ -86,9 +97,11 @@ export function StrategyStatementCard({
           </div>
         </div>
       ) : hasValue ? (
-        <p className="whitespace-pre-line text-sm leading-relaxed text-black/75">
-          {value}
-        </p>
+        showContent && (
+          <p className="whitespace-pre-line text-sm leading-relaxed text-black/75">
+            {value}
+          </p>
+        )
       ) : (
         <p className="text-sm text-black/35">
           {canEdit
