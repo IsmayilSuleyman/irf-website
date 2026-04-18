@@ -42,13 +42,13 @@ function Indicator({
 
       <div className={`num flex items-baseline gap-0.5 ${toneText}`}>
         {isNull ? (
-          <span className="text-xl font-semibold leading-none">—</span>
+          <span className="text-base font-semibold leading-none">—</span>
         ) : (
           <>
             <span className="text-xs leading-none">
               {isPositive ? "↑" : "↓"}
             </span>
-            <span className="text-xl font-semibold leading-none tracking-tight">
+            <span className="text-base font-semibold leading-none tracking-tight">
               {Math.abs(pct * 100).toFixed(0)}%
             </span>
           </>
