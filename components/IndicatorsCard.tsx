@@ -2,15 +2,15 @@ import type { PeriodChange, PeriodChanges } from "@/lib/priceHistory";
 
 export function IndicatorsCard({ changes }: { changes: PeriodChanges }) {
   return (
-    <div className="glass flex flex-col gap-5 p-6">
+    <div className="glass flex flex-col gap-6 p-6">
       <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
         Göstəricilər
       </div>
-      <div className="grid grid-cols-4 divide-x divide-black/[0.06]">
-        <Indicator change={changes.w1} label="1 həftə" sublabel="əvvəl" />
-        <Indicator change={changes.m1} label="1 ay" sublabel="əvvəl" />
-        <Indicator change={changes.m3} label="3 ay" sublabel="əvvəl" />
-        <Indicator change={changes.y1} label="1 il" sublabel="əvvəl" />
+      <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-black/[0.06]">
+        <Indicator change={changes.w1} label="1 həftə" />
+        <Indicator change={changes.m1} label="1 ay" />
+        <Indicator change={changes.m3} label="3 ay" />
+        <Indicator change={changes.y1} label="1 il" />
       </div>
     </div>
   );
@@ -19,53 +19,44 @@ export function IndicatorsCard({ changes }: { changes: PeriodChanges }) {
 function Indicator({
   change,
   label,
-  sublabel,
 }: {
   change: PeriodChange;
   label: string;
-  sublabel: string;
 }) {
   const { pct, pastPrice } = change;
 
   const isNull = pct == null;
   const isPositive = !isNull && pct >= 0;
 
-  const toneBg = isNull
-    ? "bg-black/5"
-    : isPositive
-      ? "bg-brand-green/10"
-      : "bg-brand-red/10";
-
   const toneText = isNull
-    ? "text-black/40"
+    ? "text-black/30"
     : isPositive
       ? "text-brand-green"
       : "text-brand-red";
 
-  const pctText = isNull
-    ? "—"
-    : `${isPositive ? "+" : ""}${(pct * 100).toFixed(0)}%`;
-
   return (
     <div className="flex flex-col items-start gap-2 px-4 first:pl-0 last:pr-0">
-      {/* pill badge — larger text */}
-      <span
-        className={`inline-flex items-center rounded-full px-3 py-1 text-lg font-bold ${toneBg} ${toneText}`}
-      >
-        {pctText}
-      </span>
-
-      {/* past price */}
-      <div className="num text-xs font-medium text-black/55">
-        {pastPrice != null ? `${pastPrice.toFixed(2)} ₼` : "—"}
+      <div className="text-[10px] uppercase tracking-[0.22em] text-black/40">
+        {label}
       </div>
 
-      {/* period label + bracket clarification */}
-      <div className="text-[10px] uppercase tracking-[0.18em] text-black/35">
-        {label}{" "}
-        <span className="normal-case tracking-normal text-black/25">
-          {sublabel}
-        </span>
+      <div className={`num flex items-baseline gap-1 ${toneText}`}>
+        {isNull ? (
+          <span className="text-[28px] font-semibold leading-none">—</span>
+        ) : (
+          <>
+            <span className="text-sm leading-none">
+              {isPositive ? "↑" : "↓"}
+            </span>
+            <span className="text-[28px] font-semibold leading-none tracking-tight">
+              {Math.abs(pct * 100).toFixed(0)}%
+            </span>
+          </>
+        )}
+      </div>
+
+      <div className="num text-xs text-black/45">
+        {pastPrice != null ? `${pastPrice.toFixed(2)} ₼ əvvəl` : "—"}
       </div>
     </div>
   );
