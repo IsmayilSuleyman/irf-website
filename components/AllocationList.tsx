@@ -6,6 +6,7 @@ type Item = {
   valueAzn: number;
   percent: number;
   changePct?: number | null;
+  dayChangePct?: number | null;
   isCash?: boolean;
   color?: string;
 };
@@ -16,11 +17,22 @@ const usdFmt = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
-function ChangeBadge({ pct }: { pct: number }) {
+function ChangeBadge({
+  pct,
+  variant = "filled",
+}: {
+  pct: number;
+  variant?: "filled" | "outlined";
+}) {
   const up = pct >= 0;
-  const cls = up
-    ? "bg-brand-green/15 text-brand-green"
-    : "bg-brand-red/15 text-brand-red";
+  const cls =
+    variant === "filled"
+      ? up
+        ? "bg-brand-green/15 text-brand-green"
+        : "bg-brand-red/15 text-brand-red"
+      : up
+        ? "border border-brand-green/40 text-brand-green"
+        : "border border-brand-red/40 text-brand-red";
   const sign = up ? "+" : "";
   return (
     <span
@@ -60,6 +72,9 @@ export function AllocationList({ items }: { items: Item[] }) {
             )}
             {item.changePct != null && !item.isCash && (
               <ChangeBadge pct={item.changePct} />
+            )}
+            {item.dayChangePct != null && !item.isCash && (
+              <ChangeBadge pct={item.dayChangePct} variant="outlined" />
             )}
           </div>
           <div className="num shrink-0 text-sm text-black/75">
