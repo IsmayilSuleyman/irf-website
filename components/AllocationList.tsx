@@ -122,6 +122,42 @@ function ChangeBadge({
   );
 }
 
+// Yesterday's value is derived from today's price move, assuming unit counts
+// didn't change overnight. A buy/sell that day will show up as a rank shift,
+// which is acceptable for the lightweight ranking badge.
+function yesterdayValueOf(item: Item): number {
+  const dp = item.dayChangePct;
+  if (dp == null || !Number.isFinite(dp) || 1 + dp === 0) return item.valueAzn;
+  return item.valueAzn / (1 + dp);
+}
+
+function RankBadge({ rank, delta }: { rank: number; delta: number }) {
+  return (
+    <div className="num flex w-9 shrink-0 items-center gap-1 text-xs text-black/55">
+      <span className="w-3 text-right tabular-nums">{rank}</span>
+      {delta > 0 ? (
+        <svg
+          aria-label={`${delta} yer qalxıb`}
+          viewBox="0 0 10 10"
+          className="h-2.5 w-2.5 fill-brand-green"
+        >
+          <path d="M5 1.5 L9 8 L1 8 Z" />
+        </svg>
+      ) : delta < 0 ? (
+        <svg
+          aria-label={`${-delta} yer düşüb`}
+          viewBox="0 0 10 10"
+          className="h-2.5 w-2.5 fill-brand-red"
+        >
+          <path d="M5 8.5 L1 2 L9 2 Z" />
+        </svg>
+      ) : (
+        <span aria-label="dəyişiklik yoxdur" className="h-2.5 w-2.5" />
+      )}
+    </div>
+  );
+}
+
 export function AllocationList({ items }: { items: Item[] }) {
   const [visible, setVisible] = useState<Record<ColumnKey, boolean>>({
     dayChange: true,
@@ -141,6 +177,15 @@ export function AllocationList({ items }: { items: Item[] }) {
   if (!items || items.length === 0) {
     return <div className="text-black/40">Məlumat yoxdur.</div>;
   }
+
+  const todayRanked = [...items].sort((a, b) => b.valueAzn - a.valueAzn);
+  const todayRank = new Map(todayRanked.map((it, i) => [it.name, i + 1]));
+  const yesterdayRanked = [...items].sort(
+    (a, b) => yesterdayValueOf(b) - yesterdayValueOf(a),
+  );
+  const yesterdayRank = new Map(
+    yesterdayRanked.map((it, i) => [it.name, i + 1]),
+  );
 
   const toggle = (key: ColumnKey) =>
     setVisible((v) => ({ ...v, [key]: !v[key] }));
@@ -243,6 +288,13 @@ export function AllocationList({ items }: { items: Item[] }) {
             >
               {/* Line 1: color + name (+ desktop meta) + mobile value cluster */}
               <div className="flex min-w-0 items-center gap-2">
+                <RankBadge
+                  rank={todayRank.get(item.name) ?? 0}
+                  delta={
+                    (yesterdayRank.get(item.name) ?? 0) -
+                    (todayRank.get(item.name) ?? 0)
+                  }
+                />
                 {item.color && (
                   <span
                     aria-hidden
