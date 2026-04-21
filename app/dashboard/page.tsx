@@ -243,6 +243,8 @@ export default async function DashboardPage() {
                           percent: holding.percent,
                           changePct: holding.changePct,
                           dayChangePct: holding.dayChangePct,
+                          dayChangeAzn: holding.dayChangeUsd,
+                          totalPnlAzn: holding.totalPnlUsd,
                           isCash: holding.isCash,
                           color,
                         }))}

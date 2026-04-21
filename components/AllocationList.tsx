@@ -11,6 +11,8 @@ type Item = {
   percent: number;
   changePct?: number | null;
   dayChangePct?: number | null;
+  dayChangeAzn?: number | null;
+  totalPnlAzn?: number | null;
   isCash?: boolean;
   color?: string;
 };
@@ -60,14 +62,28 @@ function AnimatedFigure({
   );
 }
 
+function formatSignedAzn(v: number): string {
+  const sign = v > 0 ? "+" : v < 0 ? "-" : "";
+  return `${sign}${formatAzn(Math.abs(v))}`;
+}
+
 function ChangeBadge({
   pct,
+  amountAzn,
+  mode,
+  onToggle,
   variant = "filled",
 }: {
   pct: number;
+  amountAzn?: number | null;
+  mode: "pct" | "amount";
+  onToggle?: () => void;
   variant?: "filled" | "outlined";
 }) {
-  const up = pct >= 0;
+  const hasAmount = amountAzn != null && Number.isFinite(amountAzn);
+  const showAmount = mode === "amount" && hasAmount;
+  const ref = showAmount ? (amountAzn as number) : pct;
+  const up = ref >= 0;
   const cls =
     variant === "filled"
       ? up
@@ -76,14 +92,33 @@ function ChangeBadge({
       : up
         ? "border border-brand-green/40 text-brand-green"
         : "border border-brand-red/40 text-brand-red";
-  const sign = up ? "+" : "";
+  const label = showAmount
+    ? formatSignedAzn(amountAzn as number)
+    : `${up ? "+" : ""}${(pct * 100).toFixed(1)}%`;
+  const base = `num rounded-md px-1.5 py-0.5 text-[11px] font-medium ${cls}`;
+  if (!onToggle || !hasAmount) {
+    return <span className={base}>{label}</span>;
+  }
   return (
-    <span
-      className={`num rounded-md px-1.5 py-0.5 text-[11px] font-medium ${cls}`}
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={showAmount}
+      className={`${base} cursor-pointer transition hover:brightness-95`}
     >
-      {sign}
-      {(pct * 100).toFixed(1)}%
-    </span>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={showAmount ? "amount" : "pct"}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className="inline-block whitespace-nowrap"
+        >
+          {label}
+        </motion.span>
+      </AnimatePresence>
+    </button>
   );
 }
 
@@ -95,6 +130,13 @@ export function AllocationList({ items }: { items: Item[] }) {
     value: true,
     percent: true,
   });
+  // Per-row mode for the two change badges: "pct" (default) vs "amount" (AZN).
+  // Clicking a badge flips just that row's view so you can compare holdings
+  // side-by-side in either unit without affecting the others.
+  const [dayMode, setDayMode] = useState<Record<string, "pct" | "amount">>({});
+  const [totalMode, setTotalMode] = useState<Record<string, "pct" | "amount">>(
+    {},
+  );
 
   if (!items || items.length === 0) {
     return <div className="text-black/40">Məlumat yoxdur.</div>;
@@ -102,6 +144,11 @@ export function AllocationList({ items }: { items: Item[] }) {
 
   const toggle = (key: ColumnKey) =>
     setVisible((v) => ({ ...v, [key]: !v[key] }));
+  const flipMode = (
+    setter: typeof setDayMode,
+    name: string,
+  ) =>
+    setter((m) => ({ ...m, [name]: m[name] === "amount" ? "pct" : "amount" }));
 
   return (
     <div className="flex flex-col gap-3">
@@ -141,14 +188,25 @@ export function AllocationList({ items }: { items: Item[] }) {
                 item.changePct != null &&
                 !item.isCash && (
                   <AnimatedFigure keyName="totalChange">
-                    <ChangeBadge pct={item.changePct} />
+                    <ChangeBadge
+                      pct={item.changePct}
+                      amountAzn={item.totalPnlAzn}
+                      mode={totalMode[item.name] ?? "pct"}
+                      onToggle={() => flipMode(setTotalMode, item.name)}
+                    />
                   </AnimatedFigure>
                 )}
               {visible.dayChange &&
                 item.dayChangePct != null &&
                 !item.isCash && (
                   <AnimatedFigure keyName="dayChange">
-                    <ChangeBadge pct={item.dayChangePct} variant="outlined" />
+                    <ChangeBadge
+                      pct={item.dayChangePct}
+                      amountAzn={item.dayChangeAzn}
+                      mode={dayMode[item.name] ?? "pct"}
+                      onToggle={() => flipMode(setDayMode, item.name)}
+                      variant="outlined"
+                    />
                   </AnimatedFigure>
                 )}
             </AnimatePresence>
