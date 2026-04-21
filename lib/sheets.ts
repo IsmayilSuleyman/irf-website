@@ -39,6 +39,8 @@ export type Holding = {
   name: string;
   priceUsd: number;
   avgPurchaseUsd: number | null;
+  sharesHeld: number;
+  costBasisAzn: number;
   valueAzn: number;
   percent: number; // 0..1 of portfolio total
   isCash: boolean;
@@ -171,6 +173,7 @@ async function parseHoldings(): Promise<Holding[]> {
     if (!symbol && !name) continue;
     const priceUsd = parseAzn(row[3]);
     const dayChangeRaw = row[5]?.toString().trim() ?? "";
+    const sharesHeld = parseAzn(row[6]);
     const valueUsd = parseAzn(row[7]);
     const avgPurchaseUsd = parseAzn(row[8]);
     const sectorRaw = row[9]?.toString().trim() ?? "";
@@ -192,11 +195,17 @@ async function parseHoldings(): Promise<Holding[]> {
           ? dayChangeNum / 100
           : dayChangeNum;
     const sector = isCash ? "Nağd pul" : sectorRaw || null;
+    const costBasisAzn =
+      isCash || !avgPurchaseUsd || !sharesHeld
+        ? 0
+        : avgPurchaseUsd * sharesHeld * USD_TO_AZN;
     raw.push({
       symbol,
       name: name || symbol,
       priceUsd,
       avgPurchaseUsd: avgPurchaseUsd || null,
+      sharesHeld,
+      costBasisAzn,
       valueAzn,
       percent: 0,
       isCash,
