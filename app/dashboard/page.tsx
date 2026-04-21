@@ -141,6 +141,13 @@ export default async function DashboardPage() {
                   valueAzn: h.valueAzn,
                   percent: h.percent,
                   priceUsd: h.priceUsd,
+                  dailyPriceChangeUsd: h.dailyPriceChangeUsd,
+                  dailyChangePct: h.dailyChangePct,
+                  shares: h.shares,
+                  avgBuyPriceUsd: h.avgBuyPriceUsd,
+                  dayValueChangeUsd: h.dayValueChangeUsd,
+                  overallChangePct: h.overallChangePct,
+                  totalProfitLossUsd: h.totalProfitLossUsd,
                 }))}
               />
             </div>

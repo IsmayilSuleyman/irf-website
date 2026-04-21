@@ -28,6 +28,13 @@ export type Transaction = {
 export type Holding = {
   name: string;
   priceUsd: number;
+  dailyPriceChangeUsd: number | null;
+  dailyChangePct: number | null;
+  shares: number;
+  avgBuyPriceUsd: number | null;
+  dayValueChangeUsd: number | null;
+  overallChangePct: number | null;
+  totalProfitLossUsd: number | null;
   valueAzn: number;
   percent: number; // fraction of top-10 total, 0..1
 };
@@ -56,6 +63,17 @@ const parseAzn = (v: unknown): number => {
   const cleaned = String(v).replace(/[₼\s,]/g, "");
   const n = Number(cleaned.replace(/[^\d.\-]/g, ""));
   return Number.isFinite(n) ? n : 0;
+};
+
+const parsePercent = (v: unknown): number | null => {
+  if (v == null) return null;
+  const raw = String(v).trim();
+  if (!raw) return null;
+
+  const n = Number(raw.replace(/[^\d.\-]/g, ""));
+  if (!Number.isFinite(n)) return null;
+
+  return raw.includes("%") || Math.abs(n) > 1 ? n / 100 : n;
 };
 
 async function readTab(tabName: string, range: string): Promise<string[][]> {
@@ -144,12 +162,13 @@ export const getTransactions = unstable_cache(
 const USD_TO_AZN = 1.7;
 
 async function parseHoldings(): Promise<Holding[]> {
-  // Watchlist tab layout (B:I): B=symbol, C=exchange, D=stockName, E=priceUSD,
-  // F=priceChange, G=%change, H=shares, I=valueUSD.
+  // Watchlist tab layout (B:J): B=symbol, C=exchange, D=stockName, E=priceUSD,
+  // F=dailyPriceChangeUSD, G=dailyChangePct, H=shares, I=valueUSD,
+  // J=averagePurchasePriceUSD.
   // Rows 1-7 are metadata; row 8 is the real header ("Symbol" in col B).
   // Some tickers (e.g. IBIT, IREN) have no Google-Finance name in col D —
   // fall back to the ticker symbol in col B so they are never silently dropped.
-  const rows = await readTab("Watchlist", "B1:I1000");
+  const rows = await readTab("Watchlist", "B1:J1000");
 
   // Locate the real header row dynamically so metadata rows are never parsed as data.
   const headerIdx = rows.findIndex(
@@ -157,7 +176,18 @@ async function parseHoldings(): Promise<Holding[]> {
   );
   const startIdx = headerIdx >= 0 ? headerIdx + 1 : 1;
 
-  const data: Array<{ name: string; priceUsd: number; valueUsd: number }> = [];
+  const data: Array<{
+    name: string;
+    priceUsd: number;
+    dailyPriceChangeUsd: number | null;
+    dailyChangePct: number | null;
+    shares: number;
+    avgBuyPriceUsd: number | null;
+    dayValueChangeUsd: number | null;
+    overallChangePct: number | null;
+    totalProfitLossUsd: number | null;
+    valueUsd: number;
+  }> = [];
 
   for (let i = startIdx; i < rows.length; i++) {
     const row = rows[i];
@@ -168,9 +198,41 @@ async function parseHoldings(): Promise<Holding[]> {
     const name = stockName || symbol;
     if (!name) continue;
     const priceUsd = parseAzn(row[3]);
+    const dailyPriceChangeUsd = row[4] != null ? parseAzn(row[4]) : null;
+    const inferredDailyChangePct =
+      dailyPriceChangeUsd != null && priceUsd - dailyPriceChangeUsd !== 0
+        ? dailyPriceChangeUsd / (priceUsd - dailyPriceChangeUsd)
+        : null;
+    const dailyChangePct = parsePercent(row[5]) ?? inferredDailyChangePct;
+    const shares = parseAzn(row[6]);
     const valueUsd = parseAzn(row[7]);
+    const avgBuyPriceRaw = parseAzn(row[8]);
+    const avgBuyPriceUsd = avgBuyPriceRaw > 0 ? avgBuyPriceRaw : null;
+    const dayValueChangeUsd =
+      dailyPriceChangeUsd != null && shares > 0
+        ? dailyPriceChangeUsd * shares
+        : null;
+    const overallChangePct =
+      avgBuyPriceUsd != null && avgBuyPriceUsd !== 0
+        ? (priceUsd - avgBuyPriceUsd) / avgBuyPriceUsd
+        : null;
+    const totalProfitLossUsd =
+      avgBuyPriceUsd != null && shares > 0
+        ? shares * (priceUsd - avgBuyPriceUsd)
+        : null;
     if (valueUsd <= 0) continue;
-    data.push({ name, priceUsd, valueUsd });
+    data.push({
+      name,
+      priceUsd,
+      dailyPriceChangeUsd,
+      dailyChangePct,
+      shares,
+      avgBuyPriceUsd,
+      dayValueChangeUsd,
+      overallChangePct,
+      totalProfitLossUsd,
+      valueUsd,
+    });
   }
 
   data.sort((a, b) => b.valueUsd - a.valueUsd);
@@ -180,6 +242,13 @@ async function parseHoldings(): Promise<Holding[]> {
   return top10.map((h) => ({
     name: h.name,
     priceUsd: h.priceUsd,
+    dailyPriceChangeUsd: h.dailyPriceChangeUsd,
+    dailyChangePct: h.dailyChangePct,
+    shares: h.shares,
+    avgBuyPriceUsd: h.avgBuyPriceUsd,
+    dayValueChangeUsd: h.dayValueChangeUsd,
+    overallChangePct: h.overallChangePct,
+    totalProfitLossUsd: h.totalProfitLossUsd,
     valueAzn: h.valueUsd * USD_TO_AZN,
     percent: total > 0 ? h.valueUsd / total : 0,
   }));
