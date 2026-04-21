@@ -12,7 +12,7 @@ import {
   computePeriodChanges,
   findLatestPriceBeforeDate,
 } from "@/lib/priceHistory";
-import { formatAzn } from "@/lib/portfolio";
+import { formatAzn, formatPct } from "@/lib/portfolio";
 import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
@@ -123,10 +123,41 @@ export default async function DashboardPage() {
         {/* Fund info */}
         <MotionSection delay={0.1} className="hairline pt-10">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatTile
-              label="Ümumi dəyəri"
-              value={formatAzn(fund.totalCapital)}
-            />
+            {(() => {
+              const totalCostBasis = holdings.reduce(
+                (s, h) => s + h.costBasisAzn,
+                0,
+              );
+              const cbChange = fund.totalCapital - totalCostBasis;
+              const cbChangePct =
+                totalCostBasis > 0 ? cbChange / totalCostBasis : 0;
+              const cbTone =
+                cbChange > 0
+                  ? "text-brand-green"
+                  : cbChange < 0
+                    ? "text-brand-red"
+                    : "text-black/55";
+              const sign = cbChange > 0 ? "+" : "";
+              return (
+                <StatTile label="Ümumi dəyəri">
+                  <div className="num text-4xl md:text-5xl font-bold text-black">
+                    {formatAzn(fund.totalCapital)}
+                  </div>
+                  {totalCostBasis > 0 && (
+                    <div className="flex flex-col gap-0.5 text-xs text-black/55">
+                      <div>
+                        Maya dəyəri: {formatAzn(totalCostBasis)}
+                      </div>
+                      <div className={cbTone}>
+                        {sign}
+                        {formatAzn(cbChange)} ({sign}
+                        {formatPct(cbChangePct)})
+                      </div>
+                    </div>
+                  )}
+                </StatTile>
+              );
+            })()}
             <StatTile
               label="Xalis dəyəri"
               value={formatAzn(fund.netCapital)}
