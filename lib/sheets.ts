@@ -46,6 +46,11 @@ export type Holding = {
   isCash: boolean;
   changePct: number | null; // null for Cash or when avg missing
   dayChangePct: number | null; // daily % change from Watchlist col G; null for Cash
+  // Dollar-denominated companions to the percent changes, derived from shares
+  // (col H) and daily price change (col F). Null when the underlying cells
+  // are missing or zero.
+  dayChangeUsd: number | null;
+  totalPnlUsd: number | null;
   sector: string | null; // from Watchlist col K; Cash rows are bucketed as "Cash"
 };
 
@@ -172,8 +177,9 @@ async function parseHoldings(): Promise<Holding[]> {
     const name = row[2]?.toString().trim() ?? "";
     if (!symbol && !name) continue;
     const priceUsd = parseAzn(row[3]);
+    const dayPriceDeltaUsd = parseAzn(row[4]); // col F: daily $ price move
     const dayChangeRaw = row[5]?.toString().trim() ?? "";
-    const sharesHeld = parseAzn(row[6]);
+    const sharesHeld = parseAzn(row[6]); // col H
     const valueUsd = parseAzn(row[7]);
     const avgPurchaseUsd = parseAzn(row[8]);
     const sectorRaw = row[9]?.toString().trim() ?? "";
@@ -195,6 +201,14 @@ async function parseHoldings(): Promise<Holding[]> {
           ? dayChangeNum / 100
           : dayChangeNum;
     const sector = isCash ? "Nağd pul" : sectorRaw || null;
+    const dayChangeUsd =
+      isCash || !sharesHeld || !Number.isFinite(dayPriceDeltaUsd)
+        ? null
+        : dayPriceDeltaUsd * sharesHeld * USD_TO_AZN;
+    const totalPnlUsd =
+      isCash || !avgPurchaseUsd || !sharesHeld
+        ? null
+        : (priceUsd - avgPurchaseUsd) * sharesHeld * USD_TO_AZN;
     const costBasisAzn =
       isCash || !avgPurchaseUsd || !sharesHeld
         ? 0
@@ -211,6 +225,8 @@ async function parseHoldings(): Promise<Holding[]> {
       isCash,
       changePct,
       dayChangePct,
+      dayChangeUsd,
+      totalPnlUsd,
       sector,
     });
   }
