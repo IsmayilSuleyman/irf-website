@@ -3,6 +3,7 @@ import {
   getHolderByName,
   getHoldings,
   getTransactions,
+  getDebts,
   computeHolderPerformance,
   computeHolderValueHistory,
   computeHoldingDeltaSince,
@@ -27,7 +28,9 @@ import { getStrategyStatement, isOwnerEmail } from "@/lib/fundSettings";
 import { AllocationList } from "@/components/AllocationList";
 import { PortfolioPie } from "@/components/PortfolioPie";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
+import { DebtPanel } from "@/components/DebtPanel";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
+import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +38,8 @@ export default async function DashboardPage() {
   const user = await requireUser();
 
   const name = displayNameOf(user.user_metadata);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement] =
+  const isAdmin = isOwnerEmail(user.email);
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -43,8 +47,9 @@ export default async function DashboardPage() {
       getTransactions(),
       getHoldings(),
       getStrategyStatement(),
+      isAdmin ? getDebts() : Promise.resolve([]),
     ]);
-  const canEditStrategy = isOwnerEmail(user.email);
+  const canEditStrategy = isAdmin;
 
   const dateLabel = formatBakuDate(new Date());
 
@@ -173,6 +178,16 @@ export default async function DashboardPage() {
             <StrategyStatementCard
               initialValue={strategyStatement}
               canEdit={canEditStrategy}
+            />
+          </MotionSection>
+        )}
+
+        {/* Debt panel — admin only */}
+        {isAdmin && debts.length > 0 && (
+          <MotionSection delay={0.13} className="hairline pt-10">
+            <DebtPanel
+              projections={computeDebtProjections(debts)}
+              schedule={computeDebtSchedule(debts)}
             />
           </MotionSection>
         )}
