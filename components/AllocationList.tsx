@@ -95,7 +95,7 @@ function ChangeBadge({
   const label = showAmount
     ? formatSignedAzn(amountAzn as number)
     : `${up ? "+" : ""}${(pct * 100).toFixed(1)}%`;
-  const base = `num rounded-md px-1.5 py-0.5 text-[11px] font-medium ${cls}`;
+  const base = `num rounded-md px-1.5 py-0.5 text-[8px] sm:text-[11px] font-medium ${cls}`;
   if (!onToggle || !hasAmount) {
     return <span className={base}>{label}</span>;
   }
@@ -226,7 +226,7 @@ export function AllocationList({ items }: { items: Item[] }) {
             <AnimatePresence initial={false}>
               {visible.price && item.priceUsd != null && !item.isCash && (
                 <AnimatedFigure keyName="price">
-                  <span className="num text-xs text-black/40">
+                  <span className="num text-[8px] sm:text-xs text-black/40">
                     {usdFmt.format(item.priceUsd)}
                   </span>
                 </AnimatedFigure>
@@ -300,18 +300,18 @@ export function AllocationList({ items }: { items: Item[] }) {
                 {item.color && (
                   <span
                     aria-hidden
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    className="h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: item.color }}
                   />
                 )}
-                <span className="min-w-0 flex-1 truncate text-sm text-black/85 sm:flex-none">
+                <span className="min-w-0 flex-1 truncate text-[10px] sm:text-sm text-black/85 sm:flex-none">
                   {item.name}
                 </span>
                 <div className="hidden items-center gap-2 sm:flex">
                   {metaCluster}
                 </div>
                 {hasValueCluster && (
-                  <div className="num ml-auto shrink-0 text-sm text-black/75 sm:hidden">
+                  <div className="num ml-auto shrink-0 text-[10px] sm:text-sm text-black/75 sm:hidden">
                     {valueCluster}
                   </div>
                 )}
