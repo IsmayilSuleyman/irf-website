@@ -133,8 +133,8 @@ function yesterdayValueOf(item: Item): number {
 
 function RankBadge({ rank, delta }: { rank: number; delta: number }) {
   return (
-    <div className="num flex w-10 shrink-0 items-center text-xs text-black/55">
-      <span className="w-4 text-right tabular-nums">{rank}</span>
+    <div className="num flex w-7 shrink-0 items-center text-xs text-black/55">
+      <span className="w-3 text-right tabular-nums">{rank}</span>
       <span className="flex flex-1 items-center justify-center">
         {delta > 0 ? (
           <svg
