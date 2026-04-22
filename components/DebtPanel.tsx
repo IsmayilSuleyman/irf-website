@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -9,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { motion, AnimatePresence } from "framer-motion";
 import { formatAzn } from "@/lib/portfolio";
 import type { DebtProjection, DebtSchedulePoint } from "@/lib/debtSchedule";
 
@@ -41,20 +43,46 @@ export function DebtPanel({
   projections: DebtProjection[];
   schedule: DebtSchedulePoint[];
 }) {
+  const [open, setOpen] = useState(false);
   const totalRemaining = projections.reduce((s, d) => s + d.remainingAzn, 0);
   const totalOriginal = projections.reduce((s, d) => s + d.originalAzn, 0);
   const totalMonthly = projections.reduce((s, d) => s + d.monthlyPaymentAzn, 0);
 
   return (
     <div className="glass p-6 flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between w-full text-left"
+      >
         <div className="text-[10px] uppercase tracking-[0.22em] text-brand-red/80">
           Borclar
         </div>
-        <div className="num text-xs text-black/40">
-          {formatAzn(totalMonthly)} / ay
+        <div className="flex items-center gap-3">
+          <div className="num text-xs text-black/40">
+            {formatAzn(totalMonthly)} / ay
+          </div>
+          <svg
+            viewBox="0 0 10 10"
+            className="h-3 w-3 text-black/35 transition-transform duration-200"
+            style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+            aria-hidden
+          >
+            <path d="M1 3.5 L5 7 L9 3.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
-      </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="debt-body"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="overflow-hidden flex flex-col gap-6"
+          >
 
       {/* Summary row */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -163,6 +191,9 @@ export function DebtPanel({
           </ul>
         </div>
       )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
