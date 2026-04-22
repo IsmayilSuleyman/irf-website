@@ -133,14 +133,14 @@ function yesterdayValueOf(item: Item): number {
 
 function RankBadge({ rank, delta }: { rank: number; delta: number }) {
   return (
-    <div className="num flex w-7 shrink-0 items-center text-xs text-black/55">
+    <div className="num flex w-6 shrink-0 items-center text-[8px] sm:text-xs text-black/55">
       <span className="w-3 text-right tabular-nums">{rank}</span>
       <span className="flex flex-1 items-center justify-center">
         {delta > 0 ? (
           <svg
             aria-label={`${delta} yer qalxıb`}
             viewBox="0 0 10 10"
-            className="h-2.5 w-2.5 fill-brand-green"
+            className="h-2 w-2 sm:h-2.5 sm:w-2.5 fill-brand-green"
           >
             <path d="M5 1.5 L9 8 L1 8 Z" />
           </svg>
@@ -148,7 +148,7 @@ function RankBadge({ rank, delta }: { rank: number; delta: number }) {
           <svg
             aria-label={`${-delta} yer düşüb`}
             viewBox="0 0 10 10"
-            className="h-2.5 w-2.5 fill-brand-red"
+            className="h-2 w-2 sm:h-2.5 sm:w-2.5 fill-brand-red"
           >
             <path d="M5 8.5 L1 2 L9 2 Z" />
           </svg>
