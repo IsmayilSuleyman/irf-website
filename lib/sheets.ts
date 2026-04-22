@@ -245,6 +245,41 @@ export const getHoldings = unstable_cache(
   { revalidate: 60, tags: ["sheet"] },
 );
 
+export type Debt = {
+  name: string;
+  originalAzn: number;
+  remainingAzn: number;
+  monthlyPaymentAzn: number;
+  annualInterestRate: number; // 0..1, e.g. 0.12 for 12%
+};
+
+async function parseDebts(): Promise<Debt[]> {
+  let rows: string[][];
+  try {
+    rows = await readTab("Debts", "A2:E50");
+  } catch (err) {
+    console.error("Debts tab read error:", err);
+    return [];
+  }
+  const out: Debt[] = [];
+  for (const row of rows) {
+    const name = row[0]?.toString().trim();
+    if (!name) continue;
+    const originalAzn = parseAzn(row[1]);
+    const remainingAzn = parseAzn(row[2]);
+    const monthlyPaymentAzn = parseAzn(row[3]);
+    const annualInterestRate = parseAzn(row[4]) / 100;
+    out.push({ name, originalAzn, remainingAzn, monthlyPaymentAzn, annualInterestRate });
+  }
+  return out;
+}
+
+export const getDebts = unstable_cache(
+  async (): Promise<Debt[]> => parseDebts(),
+  ["irf-debts"],
+  { revalidate: 60, tags: ["sheet"] },
+);
+
 const norm = (s: string) =>
   s.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
 
