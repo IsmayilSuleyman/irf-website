@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { formatUnits } from "@/lib/portfolio";
 import type { BookLevel, MarketStatus } from "@/lib/market";
 
@@ -6,29 +9,18 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n
 const GREEN = "#16a34a";
 const RED = "#dc2626";
 
-type Level = {
-  price: number;
-  units: number;
-  count: number;
-  names: string[];
-  side: "buy" | "sell";
-};
+type Order = { units: number; holderName: string };
+type Level = { price: number; units: number; side: "buy" | "sell"; orders: Order[] };
 
 function aggregate(levels: BookLevel[], side: "buy" | "sell"): Level[] {
   const m = new Map<number, Level>();
   for (const l of levels) {
-    const e = m.get(l.price) ?? { price: l.price, units: 0, count: 0, names: [], side };
+    const e = m.get(l.price) ?? { price: l.price, units: 0, side, orders: [] };
     e.units += l.units;
-    e.count += 1;
-    if (l.holderName) e.names.push(l.holderName);
+    e.orders.push({ units: l.units, holderName: l.holderName });
     m.set(l.price, e);
   }
   return [...m.values()];
-}
-
-function tooltip(l: Level): string {
-  const head = `${l.side === "buy" ? "Alış" : "Satış"} · ${price2(l.price)} · ${formatUnits(l.units)} pay · ${l.count} sifariş`;
-  return l.names.length ? `${head}\n${l.names.join(", ")}` : head;
 }
 
 export function OrderBook({
@@ -38,18 +30,26 @@ export function OrderBook({
   book: BookLevel[];
   status: MarketStatus;
 }) {
+  const [selected, setSelected] = useState<Level | null>(null);
+
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelected(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected]);
+
   const levels = [
     ...aggregate(book.filter((b) => b.side === "buy"), "buy"),
     ...aggregate(book.filter((b) => b.side === "sell"), "sell"),
   ].sort((a, b) => a.price - b.price);
 
   const fundSellActive = status.fund_sell_capacity > 0;
-  const bid = status.satis; // fund buyback (green "Alış")
-  const ask = fundSellActive ? status.alis : null; // fund offer (red "Satış")
+  const bid = status.satis; // fund buyback — you sell to the fund here
+  const ask = fundSellActive ? status.alis : null; // fund offer — you buy from the fund here
   const current = status.unit_price;
-
-  const spread = ask != null ? ask - bid : null;
-  const spreadPct = spread != null && current > 0 ? (spread / current) * 100 : null;
 
   // Price axis spans the fund quotes, current price and every participant order.
   const prices = [bid, current, ...(ask != null ? [ask] : []), ...levels.map((l) => l.price)];
@@ -77,7 +77,7 @@ export function OrderBook({
       {/* Fund quotes + current price (also the legend for the dashed lines) */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-green/10 px-2.5 py-1">
-          <span className="font-semibold text-brand-green">Alış</span>
+          <span className="font-semibold text-brand-green">Fonda satış</span>
           <span className="num text-brand-green">{price2(bid)}</span>
           <span className="text-black/40">· limitsiz</span>
         </span>
@@ -87,18 +87,18 @@ export function OrderBook({
         </span>
         {ask != null ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-red/10 px-2.5 py-1">
-            <span className="font-semibold text-brand-red">Satış</span>
+            <span className="font-semibold text-brand-red">Fonddan alış</span>
             <span className="num text-brand-red">{price2(ask)}</span>
             <span className="text-black/40">· {formatUnits(status.fund_sell_capacity)}</span>
           </span>
         ) : (
           <span className="inline-flex items-center rounded-full bg-black/[0.04] px-2.5 py-1 text-black/35">
-            Satış — fond satmır
+            Fond hazırda satmır
           </span>
         )}
       </div>
 
-      {/* Participant orders: volume-at-price histogram */}
+      {/* Participant orders: volume-at-price histogram (bars are clickable) */}
       {levels.length > 0 ? (
         <div className="flex flex-col gap-1">
           <div className="relative h-44">
@@ -110,20 +110,23 @@ export function OrderBook({
             <div className="absolute inset-x-0 bottom-0 h-px bg-black/15" />
             {/* bars */}
             {levels.map((l, i) => (
-              <div
+              <button
                 key={i}
-                title={tooltip(l)}
-                className="group absolute bottom-0 flex -translate-x-1/2 justify-center"
-                style={{ left: `${pos(l.price)}%`, height: `${(l.units / maxUnits) * 100}%`, minHeight: "4px" }}
+                type="button"
+                onClick={() => setSelected(l)}
+                aria-label={`${price2(l.price)} — ${formatUnits(l.units)} pay, ${l.orders.length} sifariş`}
+                className="group absolute bottom-0 w-4 -translate-x-1/2 cursor-pointer rounded-t shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
+                style={{
+                  left: `${pos(l.price)}%`,
+                  height: `${(l.units / maxUnits) * 100}%`,
+                  minHeight: "6px",
+                  background: l.side === "buy" ? GREEN : RED,
+                }}
               >
-                <div
-                  className="w-2.5 rounded-t transition-opacity group-hover:opacity-80"
-                  style={{ height: "100%", background: l.side === "buy" ? GREEN : RED }}
-                />
-                <span className="num pointer-events-none absolute -top-4 text-[9px] text-black/50">
+                <span className="num pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-black/55">
                   {formatUnits(l.units)}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
           {/* price axis */}
@@ -143,14 +146,6 @@ export function OrderBook({
         <div className="py-8 text-center text-xs text-black/35">Hələ iştirakçı sifarişi yoxdur</div>
       )}
 
-      {spread != null && (
-        <div className="text-center text-[11px] text-black/45">
-          Fərq{" "}
-          <span className="num font-semibold text-black/70">{price2(spread)}</span>
-          {spreadPct != null && <> · {spreadPct.toFixed(1)}%</>}
-        </div>
-      )}
-
       <p className="text-[10px] leading-relaxed text-black/45">
         Fond həmişə <span className="num text-brand-green">{price2(status.satis)}</span> qiymətinə
         geri alır
@@ -161,8 +156,59 @@ export function OrderBook({
           </>
         ) : null}
         .
-        {levels.length > 0 && " Sütunlar digər iştirakçıların sifarişləridir (üzərinə gələrək sahibini görün)."}
+        {levels.length > 0 && " Sütunlar digər iştirakçıların sifarişləridir (ətraflı üçün üzərinə klikləyin)."}
       </p>
+
+      {selected && <OrderPopup level={selected} onClose={() => setSelected(null)} />}
+    </div>
+  );
+}
+
+function OrderPopup({ level, onClose }: { level: Level; onClose: () => void }) {
+  const isBuy = level.side === "buy";
+  const color = isBuy ? "text-brand-green" : "text-brand-red";
+  const orders = [...level.orders].sort((a, b) => b.units - a.units);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+      <div
+        className="glass-strong relative w-full max-w-[260px] rounded-2xl p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Bağla"
+          className="absolute right-3 top-3 text-black/40 transition hover:text-black/70"
+        >
+          ✕
+        </button>
+
+        <div className={`text-[11px] font-semibold ${color}`}>
+          {isBuy ? "Alış sifarişi" : "Satış sifarişi"}
+        </div>
+        <div className="mt-1 flex items-baseline gap-2">
+          <span className={`num text-2xl font-bold ${color}`}>{price2(level.price)}</span>
+        </div>
+        <div className="mt-1 text-[11px] text-black/50">
+          Cəmi <span className="num text-black/70">{formatUnits(level.units)}</span> pay ·{" "}
+          {level.orders.length} sifariş
+        </div>
+
+        <div className="mt-4 flex flex-col gap-1.5 border-t border-black/10 pt-3">
+          {orders.map((o, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 text-xs">
+              <span className="truncate text-black/70">{o.holderName || "Naməlum"}</span>
+              <span className="num shrink-0 text-black/50">{formatUnits(o.units)} pay</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
