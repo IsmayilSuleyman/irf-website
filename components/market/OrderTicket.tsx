@@ -30,11 +30,17 @@ export function OrderTicket({
   const total = validU && validP ? u * p : 0;
   const fundSellActive = status.fund_sell_capacity > 0;
 
+  // Neither side makes sense below the Fund buyback (Satış): the Fund itself
+  // bids that price, so a lower order could never fill.
+  const belowFloor = validP && p < status.satis;
   let hint: string | null = null;
-  if (side === "sell") {
-    if (validP && p < status.satis) hint = `Satış qiyməti ən az ${price2(status.satis)} olmalıdır.`;
-    else if (validU && u > availableToSell)
-      hint = `Sata biləcəyiniz maksimum: ${formatUnits(availableToSell)} pay.`;
+  if (belowFloor) {
+    hint =
+      side === "sell"
+        ? `Satış qiyməti ən az ${price2(status.satis)} olmalıdır.`
+        : `Alış qiyməti ən az ${price2(status.satis)} olmalıdır — Fond payları bu qiymətə geri alır.`;
+  } else if (side === "sell" && validU && u > availableToSell) {
+    hint = `Sata biləcəyiniz maksimum: ${formatUnits(availableToSell)} pay.`;
   }
 
   const onSubmit = async (e: FormEvent) => {
@@ -43,6 +49,10 @@ export function OrderTicket({
     setSuccess(null);
     if (!validU || !validP) {
       setError("Pay sayı və qiymət düzgün daxil edilməlidir.");
+      return;
+    }
+    if (belowFloor) {
+      setError(`Qiymət ən az ${price2(status.satis)} olmalıdır.`);
       return;
     }
     setLoading(true);
@@ -143,7 +153,7 @@ export function OrderTicket({
 
         <motion.button
           type="submit"
-          disabled={loading}
+          disabled={loading || belowFloor}
           whileTap={{ scale: 0.98 }}
           className={`mt-1 rounded-xl px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-white transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 ${
             side === "sell" ? "bg-brand-red" : "bg-brand-green"
