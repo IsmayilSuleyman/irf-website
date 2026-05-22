@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   getFundData,
   getHolderByName,
@@ -13,6 +14,7 @@ import {
   findLatestPriceBeforeDate,
 } from "@/lib/priceHistory";
 import { formatAzn } from "@/lib/portfolio";
+import { getHolderMarketState } from "@/lib/holdings";
 import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
@@ -30,13 +32,15 @@ export default async function DashboardPage() {
   const user = await requireUser();
 
   const name = displayNameOf(user.user_metadata);
-  const [holder, fund, priceHistory, transactions, holdings] = await Promise.all([
-    getHolderByName(name),
-    getFundData(),
-    getPriceHistory(),
-    getTransactions(),
-    getHoldings(),
-  ]);
+  const [holder, fund, priceHistory, transactions, holdings, marketState] =
+    await Promise.all([
+      getHolderByName(name),
+      getFundData(),
+      getPriceHistory(),
+      getTransactions(),
+      getHoldings(),
+      getHolderMarketState(name),
+    ]);
 
   const dateLabel = formatBakuDate(new Date());
 
@@ -56,22 +60,26 @@ export default async function DashboardPage() {
     );
   }
 
+  // Live balance = Google Sheet opening units + net settled market trades.
+  const effectiveUnits = marketState.effectiveUnits;
+  const mergedTransactions = [...transactions, ...marketState.marketTransactions];
+
   const perf = computeHolderPerformance(
     holder.name,
-    transactions,
+    mergedTransactions,
     fund.unitPrice,
-    holder.units,
+    effectiveUnits,
   );
   const periodChanges = computePeriodChanges(fund.unitPrice, priceHistory);
   const previousPricePoint = findLatestPriceBeforeDate(priceHistory, new Date());
-  const holdingValue = fund.unitPrice * holder.units;
+  const holdingValue = fund.unitPrice * effectiveUnits;
   const holdingPnl =
     perf.avgBuyPrice != null ? perf.pnlAzn : null;
   const dayChange = previousPricePoint
     ? computeHoldingDeltaSince(
         holder.name,
-        transactions,
-        holder.units,
+        mergedTransactions,
+        effectiveUnits,
         fund.unitPrice,
         previousPricePoint.price,
         new Date(previousPricePoint.recordedAt),
@@ -81,7 +89,7 @@ export default async function DashboardPage() {
   // Per-user holding value over time: units_held_at_T × unit_price_at_T
   const chartData = computeHolderValueHistory(
     holder.name,
-    transactions,
+    mergedTransactions,
     priceHistory,
   );
 
@@ -98,12 +106,19 @@ export default async function DashboardPage() {
               holdingValue={holdingValue}
               holdingPnl={holdingPnl}
               dayChange={dayChange}
-              units={holder.units}
+              units={effectiveUnits}
               avgBuyPrice={perf.avgBuyPrice}
             />
           </div>
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 flex flex-col gap-3">
             <PriceBadge current={fund.unitPrice} />
+            <Link
+              href="/market"
+              className="group flex items-center justify-between rounded-2xl border border-[rgba(22,163,74,0.18)] bg-brand-green/5 px-5 py-3 text-sm font-medium text-brand-green transition hover:bg-brand-green/10"
+            >
+              <span>Bazar — payları al və sat</span>
+              <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
+            </Link>
           </div>
         </MotionSection>
 

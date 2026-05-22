@@ -32,9 +32,9 @@ export function Header({ dateLabel }: { dateLabel: string }) {
     >
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 py-5">
         <div className="flex items-center gap-4">
-          <div className="w-[150px] sm:w-[190px]">
+          <Link href="/dashboard" aria-label="İRF portfelinə keç" className="w-[150px] sm:w-[190px]">
             <Logo width={190} priority />
-          </div>
+          </Link>
           <Link
             href="/bank"
             className="inline-flex items-center gap-2 rounded border border-black/12 bg-white/80 px-2 py-1.5 transition hover:-translate-y-px hover:border-[#2F61D8]/30 hover:shadow-sm sm:px-3 sm:py-2"
@@ -46,6 +46,12 @@ export function Header({ dateLabel }: { dateLabel: string }) {
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-4 sm:gap-6">
+          <Link
+            href="/market"
+            className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 transition hover:text-brand-green"
+          >
+            Bazar
+          </Link>
           <Link
             href="/portal"
             className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 transition hover:text-brand-green sm:inline"

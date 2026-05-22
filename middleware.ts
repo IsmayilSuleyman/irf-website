@@ -8,6 +8,7 @@ export async function middleware(request: NextRequest) {
   const isProtected =
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/bank") ||
+    pathname.startsWith("/market") ||
     pathname.startsWith("/portal");
   const isAuthPage = pathname.startsWith("/login");
   const config = getSupabaseConfig();
