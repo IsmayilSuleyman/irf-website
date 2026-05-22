@@ -29,7 +29,7 @@ export function OrderBook({
           <Row price={status.alis} qty={formatUnits(status.fund_sell_capacity)} tone="red" fund />
         )}
         {asks.map((b, i) => (
-          <Row key={`a${i}`} price={b.price} qty={formatUnits(b.units)} tone="red" />
+          <Row key={`a${i}`} price={b.price} qty={formatUnits(b.units)} tone="red" name={b.holderName} />
         ))}
         {asks.length === 0 && !fundSellActive && <Empty text="Satış sifarişi yoxdur" />}
       </Section>
@@ -45,7 +45,7 @@ export function OrderBook({
       {/* Buy orders — the participant sells to these */}
       <Section title="Alış sifarişləri" hint="satmaq üçün" titleColor="text-brand-green">
         {bids.map((b, i) => (
-          <Row key={`b${i}`} price={b.price} qty={formatUnits(b.units)} tone="green" />
+          <Row key={`b${i}`} price={b.price} qty={formatUnits(b.units)} tone="green" name={b.holderName} />
         ))}
         <Row price={status.satis} qty="limitsiz" tone="green" fund />
       </Section>
@@ -97,17 +97,24 @@ function Row({
   qty,
   tone,
   fund,
+  name,
 }: {
   price: number;
   qty: string;
   tone: "red" | "green";
   fund?: boolean;
+  name?: string;
 }) {
   const color = tone === "red" ? "text-brand-red" : "text-brand-green";
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className={`num ${color}`}>{price2(price)}</span>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-baseline gap-2">
+        <span className={`num shrink-0 ${color}`}>{price2(price)}</span>
+        {!fund && name ? (
+          <span className="truncate text-[11px] text-black/45">{name}</span>
+        ) : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
         {fund && (
           <span className="rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-black/45">
             Fond
