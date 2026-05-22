@@ -31,6 +31,7 @@ import { AllocationList } from "@/components/AllocationList";
 import { PortfolioPie } from "@/components/PortfolioPie";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
+import { MarketHoursBadge } from "@/components/MarketHoursBadge";
 import { DebtPanel } from "@/components/DebtPanel";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
 import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule";
@@ -287,9 +288,12 @@ export default async function DashboardPage() {
           return (
             <MotionSection delay={0.15} className="hairline pt-10">
               <div className="glass p-6 flex flex-col gap-6">
-                <div className="flex items-center justify-between">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-                    Fond Portfeli
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+                      Fond Portfeli
+                    </div>
+                    <MarketHoursBadge />
                   </div>
                   <RefreshButton />
                 </div>
