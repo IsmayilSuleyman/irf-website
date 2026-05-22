@@ -22,7 +22,7 @@ export type BookLevel = {
   side: "buy" | "sell";
   price: number;
   units: number;
-  order_count: number;
+  holderName: string;
 };
 
 export type OrderRow = {
@@ -128,7 +128,7 @@ export async function getMarketData(): Promise<MarketData | null> {
     side: b.side as "buy" | "sell",
     price: num(b.price),
     units: num(b.units),
-    order_count: num(b.order_count),
+    holderName: (b.holder_name as string) ?? "",
   }));
 
   const allOrders = (ordersRes.data ?? []) as OrderRow[];
