@@ -25,7 +25,7 @@ export function MarketHoursBadge() {
         className={`h-1.5 w-1.5 rounded-full ${open ? "animate-pulse bg-brand-green" : "bg-black/30"}`}
       />
       <span className={open ? "text-brand-green" : "text-black/45"}>
-        {open ? "ABŞ bazarları açıq" : "ABŞ bazarları bağlı"}
+        {open ? "ABŞ bazarları açıqdır" : "ABŞ bazarları bağlıdır"}
       </span>
     </span>
   );
