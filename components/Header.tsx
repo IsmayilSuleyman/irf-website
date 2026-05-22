@@ -39,9 +39,9 @@ export function Header({ dateLabel }: { dateLabel: string }) {
           <Link
             href="/bank"
             aria-label="İsmayılBank hesabına keç"
-            className="inline-flex items-center gap-2 rounded border border-black/12 bg-white/80 px-2 py-1.5 transition hover:-translate-y-px hover:border-[#2F61D8]/30 hover:shadow-sm sm:px-3 sm:py-2"
+            className="inline-flex items-center gap-2 rounded-lg border border-black/12 bg-white/80 px-3 py-2 transition hover:-translate-y-px hover:border-[#2F61D8]/30 hover:shadow-sm"
           >
-            <IsmayilBankLogo size={18} />
+            <IsmayilBankLogo size={24} />
             <span className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/55 sm:inline">
               Hesabına Keç
             </span>
@@ -49,12 +49,6 @@ export function Header({ dateLabel }: { dateLabel: string }) {
         </div>
         <div className="flex shrink-0 items-center gap-4 sm:gap-6">
           <NotificationsBell />
-          <Link
-            href="/market"
-            className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 transition hover:text-brand-green"
-          >
-            Bazar
-          </Link>
           <Link
             href="/portal"
             className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 transition hover:text-brand-green sm:inline"
