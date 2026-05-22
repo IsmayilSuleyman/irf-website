@@ -6,17 +6,29 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n
 const GREEN = "#16a34a";
 const RED = "#dc2626";
 
-type Level = { price: number; units: number; count: number; side: "buy" | "sell" };
+type Level = {
+  price: number;
+  units: number;
+  count: number;
+  names: string[];
+  side: "buy" | "sell";
+};
 
 function aggregate(levels: BookLevel[], side: "buy" | "sell"): Level[] {
   const m = new Map<number, Level>();
   for (const l of levels) {
-    const e = m.get(l.price) ?? { price: l.price, units: 0, count: 0, side };
+    const e = m.get(l.price) ?? { price: l.price, units: 0, count: 0, names: [], side };
     e.units += l.units;
-    e.count += l.order_count > 0 ? l.order_count : 1;
+    e.count += 1;
+    if (l.holderName) e.names.push(l.holderName);
     m.set(l.price, e);
   }
   return [...m.values()];
+}
+
+function tooltip(l: Level): string {
+  const head = `${l.side === "buy" ? "Alış" : "Satış"} · ${price2(l.price)} · ${formatUnits(l.units)} pay · ${l.count} sifariş`;
+  return l.names.length ? `${head}\n${l.names.join(", ")}` : head;
 }
 
 export function OrderBook({
@@ -100,7 +112,7 @@ export function OrderBook({
             {levels.map((l, i) => (
               <div
                 key={i}
-                title={`${l.side === "buy" ? "Alış" : "Satış"} · ${price2(l.price)} · ${formatUnits(l.units)} pay · ${l.count} sifariş`}
+                title={tooltip(l)}
                 className="group absolute bottom-0 flex -translate-x-1/2 justify-center"
                 style={{ left: `${pos(l.price)}%`, height: `${(l.units / maxUnits) * 100}%`, minHeight: "4px" }}
               >
@@ -149,7 +161,7 @@ export function OrderBook({
           </>
         ) : null}
         .
-        {levels.length > 0 && " Sütunlar digər iştirakçıların sifarişləridir."}
+        {levels.length > 0 && " Sütunlar digər iştirakçıların sifarişləridir (üzərinə gələrək sahibini görün)."}
       </p>
     </div>
   );
