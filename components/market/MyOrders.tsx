@@ -67,9 +67,9 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
             const active = o.status === "open" || o.status === "partial";
             return (
               <div key={o.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] ${
                       o.side === "sell"
                         ? "bg-brand-red/10 text-brand-red"
                         : "bg-brand-green/10 text-brand-green"
@@ -77,11 +77,11 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
                   >
                     {o.side === "sell" ? "Sat" : "Al"}
                   </span>
-                  <div className="flex flex-col">
-                    <span className="num text-sm text-black">
+                  <div className="flex min-w-0 flex-col">
+                    <span className="num truncate text-sm text-black">
                       {formatUnits(o.remaining_units)} / {formatUnits(o.units)} pay
                     </span>
-                    <span className="text-[11px] text-black/45">
+                    <span className="truncate text-[11px] text-black/45">
                       {price2(o.price)} · {STATUS_LABEL[o.status]}
                     </span>
                   </div>
@@ -90,7 +90,7 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
                   <button
                     onClick={() => cancel(o.id)}
                     disabled={busy === o.id}
-                    className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                    className="shrink-0 rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
                   >
                     {busy === o.id ? "..." : "Ləğv et"}
                   </button>
@@ -99,7 +99,7 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
                     onClick={() => remove(o.id)}
                     disabled={busy === o.id}
                     aria-label="Sifarişi sil"
-                    className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/45 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                    className="shrink-0 rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
                   >
                     {busy === o.id ? "..." : "Sil"}
                   </button>
