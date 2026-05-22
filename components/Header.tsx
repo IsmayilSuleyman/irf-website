@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
+import { NotificationsBell } from "@/components/NotificationsBell";
 
 export function Header({ dateLabel }: { dateLabel: string }) {
   const router = useRouter();
@@ -48,6 +49,7 @@ export function Header({ dateLabel }: { dateLabel: string }) {
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-4 sm:gap-6">
+          <NotificationsBell />
           <Link
             href="/market"
             className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 transition hover:text-brand-green"
