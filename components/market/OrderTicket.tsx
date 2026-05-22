@@ -31,14 +31,19 @@ export function OrderTicket({
   const fundSellActive = status.fund_sell_capacity > 0;
 
   // Neither side makes sense below the Fund buyback (Satış): the Fund itself
-  // bids that price, so a lower order could never fill.
+  // bids that price, so a lower order could never fill. Sell offers are also
+  // capped at 1.5x the Fund offer (Fonddan alış) as an upper sanity bound.
+  const maxSell = Number((status.alis * 1.5).toFixed(2));
   const belowFloor = validP && p < status.satis;
+  const aboveCap = side === "sell" && validP && p > maxSell;
   let hint: string | null = null;
   if (belowFloor) {
     hint =
       side === "sell"
         ? `Satış qiyməti ən az ${price2(status.satis)} olmalıdır.`
         : `Alış qiyməti ən az ${price2(status.satis)} olmalıdır — Fond payları bu qiymətə geri alır.`;
+  } else if (aboveCap) {
+    hint = `Satış qiyməti ən çox ${price2(maxSell)} ola bilər (Fonddan alış qiymətinin 1.5 misli).`;
   } else if (side === "sell" && validU && u > availableToSell) {
     hint = `Sata biləcəyiniz maksimum: ${formatUnits(availableToSell)} pay.`;
   }
@@ -53,6 +58,10 @@ export function OrderTicket({
     }
     if (belowFloor) {
       setError(`Qiymət ən az ${price2(status.satis)} olmalıdır.`);
+      return;
+    }
+    if (aboveCap) {
+      setError(`Satış qiyməti ən çox ${price2(maxSell)} ola bilər.`);
       return;
     }
     setLoading(true);
@@ -153,7 +162,7 @@ export function OrderTicket({
 
         <motion.button
           type="submit"
-          disabled={loading || belowFloor}
+          disabled={loading || belowFloor || aboveCap}
           whileTap={{ scale: 0.98 }}
           className={`mt-1 rounded-xl px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-white transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 ${
             side === "sell" ? "bg-brand-red" : "bg-brand-green"

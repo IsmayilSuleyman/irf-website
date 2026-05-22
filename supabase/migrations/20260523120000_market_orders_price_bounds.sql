@@ -1,9 +1,11 @@
 -- ============================================================
--- A buy order priced below the Fund buyback (Satış / v_satis) can never fill:
--- the Fund itself bids that price (unlimited), so any seller prefers the Fund
--- over a lower P2P buyer. Reject such orders, mirroring the existing sell floor.
--- (No upper cap on buys: bidding above the Fund offer is legitimate once the
--- Fund's sell capacity is exhausted, when a P2P seller is the only source.)
+-- Sanity bounds on order prices, enforced in place_order:
+--   * BUY  >= Satış (v_satis): a buy below the Fund buyback can never fill —
+--     the Fund itself bids that price (unlimited), so sellers prefer the Fund.
+--   * SELL <= 1.5 x Fonddan alış (v_alis): an upper sanity cap so sell offers
+--     can't be listed at absurd prices. (Sells already had the v_satis floor.)
+-- No upper cap on buys: bidding above the Fund offer is legitimate once the
+-- Fund's sell capacity is exhausted, when a P2P seller is the only source.
 -- Rebuilds place_order on top of the hidden-guard version.
 -- ============================================================
 create or replace function public.place_order(p_side text, p_units numeric, p_price numeric)
@@ -17,6 +19,7 @@ declare
   v_commission   numeric;
   v_satis        numeric;
   v_alis         numeric;
+  v_max_sell     numeric;
   v_order_id     uuid;
   v_remaining    numeric;
   v_avail        numeric;
@@ -44,11 +47,15 @@ begin
   end if;
   v_satis := round(v_unit_price * (1 - v_commission), 4);
   v_alis  := round(v_unit_price * (1 + v_commission), 4);
+  v_max_sell := round(v_alis * 1.5, 2);
   v_is_principal := public.norm(v_holder) = public.norm(v_principal);
 
   if p_side = 'sell' then
     if p_price < v_satis then
       raise exception 'sell price %.4f is below the Satış floor %.4f', p_price, v_satis;
+    end if;
+    if p_price > v_max_sell then
+      raise exception 'sell price %.4f exceeds the cap %.4f (1.5x Fonddan alış)', p_price, v_max_sell;
     end if;
     v_avail := public.available_to_sell(v_holder);
     if p_units > v_avail then
