@@ -1,8 +1,35 @@
-import type { ReactNode } from "react";
 import { formatUnits } from "@/lib/portfolio";
 import type { BookLevel, MarketStatus } from "@/lib/market";
 
 const price2 = (n: number) => `${n.toFixed(2)} ₼`;
+const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
+const GREEN = "#16a34a";
+const RED = "#dc2626";
+
+type Level = {
+  price: number;
+  units: number;
+  count: number;
+  names: string[];
+  side: "buy" | "sell";
+};
+
+function aggregate(levels: BookLevel[], side: "buy" | "sell"): Level[] {
+  const m = new Map<number, Level>();
+  for (const l of levels) {
+    const e = m.get(l.price) ?? { price: l.price, units: 0, count: 0, names: [], side };
+    e.units += l.units;
+    e.count += 1;
+    if (l.holderName) e.names.push(l.holderName);
+    m.set(l.price, e);
+  }
+  return [...m.values()];
+}
+
+function tooltip(l: Level): string {
+  const head = `${l.side === "buy" ? "Alış" : "Satış"} · ${price2(l.price)} · ${formatUnits(l.units)} pay · ${l.count} sifariş`;
+  return l.names.length ? `${head}\n${l.names.join(", ")}` : head;
+}
 
 export function OrderBook({
   book,
@@ -11,121 +38,148 @@ export function OrderBook({
   book: BookLevel[];
   status: MarketStatus;
 }) {
-  // Sell orders (you buy from these) — best/lowest sits nearest the current price.
-  const asks = book.filter((b) => b.side === "sell").sort((a, b) => b.price - a.price);
-  // Buy orders (you sell to these) — best/highest sits nearest the current price.
-  const bids = book.filter((b) => b.side === "buy").sort((a, b) => b.price - a.price);
+  const levels = [
+    ...aggregate(book.filter((b) => b.side === "buy"), "buy"),
+    ...aggregate(book.filter((b) => b.side === "sell"), "sell"),
+  ].sort((a, b) => a.price - b.price);
+
   const fundSellActive = status.fund_sell_capacity > 0;
+  const bid = status.satis; // fund buyback (green "Alış")
+  const ask = fundSellActive ? status.alis : null; // fund offer (red "Satış")
+  const current = status.unit_price;
+
+  const spread = ask != null ? ask - bid : null;
+  const spreadPct = spread != null && current > 0 ? (spread / current) * 100 : null;
+
+  // Price axis spans the fund quotes, current price and every participant order.
+  const prices = [bid, current, ...(ask != null ? [ask] : []), ...levels.map((l) => l.price)];
+  let lo = Math.min(...prices);
+  let hi = Math.max(...prices);
+  if (hi <= lo) {
+    hi = lo + 1;
+    lo = Math.max(0, lo - 1);
+  }
+  const pad = (hi - lo) * 0.12;
+  const domLo = lo - pad;
+  const domHi = hi + pad;
+  const span = domHi - domLo;
+  const pos = (p: number) => clamp(((p - domLo) / span) * 100, 0, 100);
+
+  const maxUnits = Math.max(1, ...levels.map((l) => l.units));
+  const ticks = Array.from({ length: 5 }, (_, i) => domLo + (span * (i + 0.5)) / 5);
 
   return (
     <div className="glass flex flex-col gap-5 p-6">
       <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-        Bazar dərinliyi
+        Sifarişlər Kitabçası
       </div>
 
-      {/* Sell orders — the participant buys from these */}
-      <Section title="Satış sifarişləri" hint="almaq üçün" titleColor="text-brand-red">
-        {fundSellActive && (
-          <Row price={status.alis} qty={formatUnits(status.fund_sell_capacity)} tone="red" fund />
-        )}
-        {asks.map((b, i) => (
-          <Row key={`a${i}`} price={b.price} qty={formatUnits(b.units)} tone="red" name={b.holderName} />
-        ))}
-        {asks.length === 0 && !fundSellActive && <Empty text="Satış sifarişi yoxdur" />}
-      </Section>
-
-      {/* Current price */}
-      <div className="flex items-baseline justify-between rounded-lg bg-black/[0.03] px-3 py-2">
-        <span className="text-[10px] uppercase tracking-[0.22em] text-black/50">
-          Hazırki qiymət
+      {/* Fund quotes + current price (also the legend for the dashed lines) */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-green/10 px-2.5 py-1">
+          <span className="font-semibold text-brand-green">Alış</span>
+          <span className="num text-brand-green">{price2(bid)}</span>
+          <span className="text-black/40">· limitsiz</span>
         </span>
-        <span className="num text-base font-bold text-black">{price2(status.unit_price)}</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.04] px-2.5 py-1">
+          <span className="text-[9px] uppercase tracking-[0.14em] text-black/45">Hazırki</span>
+          <span className="num font-semibold text-black">{price2(current)}</span>
+        </span>
+        {ask != null ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-red/10 px-2.5 py-1">
+            <span className="font-semibold text-brand-red">Satış</span>
+            <span className="num text-brand-red">{price2(ask)}</span>
+            <span className="text-black/40">· {formatUnits(status.fund_sell_capacity)}</span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center rounded-full bg-black/[0.04] px-2.5 py-1 text-black/35">
+            Satış — fond satmır
+          </span>
+        )}
       </div>
 
-      {/* Buy orders — the participant sells to these */}
-      <Section title="Alış sifarişləri" hint="satmaq üçün" titleColor="text-brand-green">
-        {bids.map((b, i) => (
-          <Row key={`b${i}`} price={b.price} qty={formatUnits(b.units)} tone="green" name={b.holderName} />
-        ))}
-        <Row price={status.satis} qty="limitsiz" tone="green" fund />
-      </Section>
+      {/* Participant orders: volume-at-price histogram */}
+      {levels.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <div className="relative h-44">
+            {/* fund / current reference lines */}
+            <RefLine left={pos(bid)} tone="green" />
+            <RefLine left={pos(current)} tone="dark" />
+            {ask != null && <RefLine left={pos(ask)} tone="red" />}
+            {/* baseline */}
+            <div className="absolute inset-x-0 bottom-0 h-px bg-black/15" />
+            {/* bars */}
+            {levels.map((l, i) => (
+              <div
+                key={i}
+                title={tooltip(l)}
+                className="group absolute bottom-0 flex -translate-x-1/2 justify-center"
+                style={{ left: `${pos(l.price)}%`, height: `${(l.units / maxUnits) * 100}%`, minHeight: "4px" }}
+              >
+                <div
+                  className="w-2.5 rounded-t transition-opacity group-hover:opacity-80"
+                  style={{ height: "100%", background: l.side === "buy" ? GREEN : RED }}
+                />
+                <span className="num pointer-events-none absolute -top-4 text-[9px] text-black/50">
+                  {formatUnits(l.units)}
+                </span>
+              </div>
+            ))}
+          </div>
+          {/* price axis */}
+          <div className="relative h-4">
+            {ticks.map((t, i) => (
+              <span
+                key={i}
+                className="num absolute -translate-x-1/2 text-[9px] text-black/40"
+                style={{ left: `${pos(t)}%` }}
+              >
+                {t.toFixed(2)}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="py-8 text-center text-xs text-black/35">Hələ iştirakçı sifarişi yoxdur</div>
+      )}
+
+      {spread != null && (
+        <div className="text-center text-[11px] text-black/45">
+          Fərq{" "}
+          <span className="num font-semibold text-black/70">{price2(spread)}</span>
+          {spreadPct != null && <> · {spreadPct.toFixed(1)}%</>}
+        </div>
+      )}
 
       <p className="text-[10px] leading-relaxed text-black/45">
-        Yuxarıdakı qiymətlərə pay <span className="text-brand-red">ala</span>, aşağıdakılara{" "}
-        <span className="text-brand-green">sata</span> bilərsiniz. Fond həmişə{" "}
-        <span className="num">{price2(status.satis)}</span> qiymətinə geri alır
+        Fond həmişə <span className="num text-brand-green">{price2(status.satis)}</span> qiymətinə
+        geri alır
         {fundSellActive ? (
           <>
             {" "}
-            və <span className="num">{price2(status.alis)}</span> qiymətinə satır
+            və <span className="num text-brand-red">{price2(status.alis)}</span> qiymətinə satır
           </>
         ) : null}
         .
+        {levels.length > 0 && " Sütunlar digər iştirakçıların sifarişləridir (üzərinə gələrək sahibini görün)."}
       </p>
     </div>
   );
 }
 
-function Section({
-  title,
-  hint,
-  titleColor,
-  children,
-}: {
-  title: string;
-  hint: string;
-  titleColor: string;
-  children: ReactNode;
-}) {
+function RefLine({ left, tone }: { left: number; tone: "green" | "red" | "dark" }) {
+  const color = tone === "green" ? GREEN : tone === "red" ? RED : "rgba(0,0,0,0.5)";
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between">
-        <span className={`text-[11px] font-semibold ${titleColor}`}>{title}</span>
-        <span className="text-[10px] text-black/40">{hint}</span>
-      </div>
-      <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.16em] text-black/30">
-        <span>Qiymət</span>
-        <span>Pay sayı</span>
-      </div>
-      <div className="flex flex-col gap-1.5 text-sm">{children}</div>
-    </div>
+    <div
+      className="absolute bottom-0 top-0 w-px -translate-x-1/2"
+      style={{
+        left: `${left}%`,
+        backgroundImage:
+          tone === "dark"
+            ? `linear-gradient(${color}, ${color})`
+            : `repeating-linear-gradient(${color} 0 4px, transparent 4px 7px)`,
+        opacity: tone === "dark" ? 0.55 : 0.7,
+      }}
+    />
   );
-}
-
-function Row({
-  price,
-  qty,
-  tone,
-  fund,
-  name,
-}: {
-  price: number;
-  qty: string;
-  tone: "red" | "green";
-  fund?: boolean;
-  name?: string;
-}) {
-  const color = tone === "red" ? "text-brand-red" : "text-brand-green";
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-baseline gap-2">
-        <span className={`num shrink-0 ${color}`}>{price2(price)}</span>
-        {!fund && name ? (
-          <span className="truncate text-[11px] text-black/45">{name}</span>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        {fund && (
-          <span className="rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-black/45">
-            Fond
-          </span>
-        )}
-        <span className="num text-black/70">{qty}</span>
-      </div>
-    </div>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return <div className="py-1 text-center text-xs text-black/35">{text}</div>;
 }
