@@ -38,23 +38,29 @@ export async function POST(req: Request) {
   return NextResponse.json({ result: data });
 }
 
-// Cancel an open/partial order.
+// Cancel an open/partial order (mode "cancel", default) or remove a finished
+// order from the user's list (mode "delete" -> soft hide).
 export async function DELETE(req: Request) {
   const ctx = await getAuthedContext();
   if (ctx instanceof NextResponse) return ctx;
 
   let orderId: string | null = null;
+  let mode = "cancel";
   try {
     const body = await req.json();
     orderId = body?.orderId ?? null;
+    if (body?.mode === "delete") mode = "delete";
   } catch {
-    orderId = new URL(req.url).searchParams.get("orderId");
+    const url = new URL(req.url);
+    orderId = url.searchParams.get("orderId");
+    if (url.searchParams.get("mode") === "delete") mode = "delete";
   }
   if (!orderId) {
     return NextResponse.json({ error: "orderId is required" }, { status: 400 });
   }
 
-  const { data, error } = await ctx.supabase.rpc("cancel_order", { p_order_id: orderId });
+  const fn = mode === "delete" ? "delete_order" : "cancel_order";
+  const { data, error } = await ctx.supabase.rpc(fn, { p_order_id: orderId });
   if (error) return rpcErrorResponse(error);
   return NextResponse.json({ result: data });
 }

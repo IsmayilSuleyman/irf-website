@@ -99,6 +99,7 @@ export async function getMarketData(): Promise<MarketData | null> {
     supabase
       .from("orders")
       .select("id, user_id, side, units, remaining_units, price, status, created_at")
+      .eq("hidden", false)
       .order("created_at", { ascending: false }),
     supabase
       .from("trades")

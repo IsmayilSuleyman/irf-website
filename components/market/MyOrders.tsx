@@ -36,6 +36,23 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
     router.refresh();
   };
 
+  const remove = async (id: string) => {
+    setBusy(id);
+    setError(null);
+    const res = await fetch("/api/orders", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId: id, mode: "delete" }),
+    });
+    const json = await res.json();
+    setBusy(null);
+    if (!res.ok) {
+      setError(json.error ?? "Silinmədi.");
+      return;
+    }
+    router.refresh();
+  };
+
   return (
     <div className="glass flex flex-col gap-4 p-6">
       <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
@@ -69,13 +86,22 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
                     </span>
                   </div>
                 </div>
-                {active && (
+                {active ? (
                   <button
                     onClick={() => cancel(o.id)}
                     disabled={busy === o.id}
                     className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
                   >
                     {busy === o.id ? "..." : "Ləğv et"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => remove(o.id)}
+                    disabled={busy === o.id}
+                    aria-label="Sifarişi sil"
+                    className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/45 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                  >
+                    {busy === o.id ? "..." : "Sil"}
                   </button>
                 )}
               </div>
