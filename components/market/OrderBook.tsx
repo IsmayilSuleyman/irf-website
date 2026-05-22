@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatUnits } from "@/lib/portfolio";
 import type { BookLevel, MarketStatus } from "@/lib/market";
 
@@ -10,80 +11,110 @@ export function OrderBook({
   book: BookLevel[];
   status: MarketStatus;
 }) {
-  // Asks (sells) high → low so the best (lowest) ask sits next to the mid.
+  // Sell orders (you buy from these) — best/lowest sits nearest the current price.
   const asks = book.filter((b) => b.side === "sell").sort((a, b) => b.price - a.price);
-  // Bids (buys) high → low so the best (highest) bid sits next to the mid.
+  // Buy orders (you sell to these) — best/highest sits nearest the current price.
   const bids = book.filter((b) => b.side === "buy").sort((a, b) => b.price - a.price);
   const fundSellActive = status.fund_sell_capacity > 0;
 
   return (
-    <div className="glass flex flex-col gap-4 p-6">
-      <div className="flex items-center justify-between">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-          Bazar dərinliyi
-        </div>
-        <div className="text-[10px] text-black/40">
-          İştirakçı payı: {(status.public_float_pct * 100).toFixed(1)}% / {(status.float_cap_pct * 100).toFixed(0)}%
-        </div>
+    <div className="glass flex flex-col gap-5 p-6">
+      <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+        Bazar dərinliyi
       </div>
 
-      <div className="flex flex-col gap-1 text-sm">
-        {/* Fund standing ask at Alış */}
-        <Row
-          label="Fond (Alış)"
-          price={status.alis}
-          units={fundSellActive ? formatUnits(status.fund_sell_capacity) : "—"}
-          tone="red"
-          muted={!fundSellActive}
-        />
-        {asks.length === 0 ? (
-          <Empty text="Satış sifarişi yoxdur" />
-        ) : (
-          asks.map((b, i) => (
-            <Row key={`a${i}`} price={b.price} units={formatUnits(b.units)} tone="red" />
-          ))
+      {/* Sell orders — the participant buys from these */}
+      <Section title="Satış sifarişləri" hint="almaq üçün" titleColor="text-brand-red">
+        {fundSellActive && (
+          <Row price={status.alis} qty={formatUnits(status.fund_sell_capacity)} tone="red" fund />
         )}
+        {asks.map((b, i) => (
+          <Row key={`a${i}`} price={b.price} qty={formatUnits(b.units)} tone="red" />
+        ))}
+        {asks.length === 0 && !fundSellActive && <Empty text="Satış sifarişi yoxdur" />}
+      </Section>
 
-        <div className="my-2 flex items-baseline justify-between border-y border-[rgba(22,163,74,0.18)] py-2">
-          <span className="text-[10px] uppercase tracking-[0.22em] text-black/45">Hazırki</span>
-          <span className="num font-bold text-black">{price2(status.unit_price)}</span>
-        </div>
-
-        {bids.length === 0 ? (
-          <Empty text="Alış sifarişi yoxdur" />
-        ) : (
-          bids.map((b, i) => (
-            <Row key={`b${i}`} price={b.price} units={formatUnits(b.units)} tone="green" />
-          ))
-        )}
-        {/* Fund standing bid at Satış (always available) */}
-        <Row label="Fond (Satış)" price={status.satis} units="∞" tone="green" />
+      {/* Current price */}
+      <div className="flex items-baseline justify-between rounded-lg bg-black/[0.03] px-3 py-2">
+        <span className="text-[10px] uppercase tracking-[0.22em] text-black/50">
+          Hazırki qiymət
+        </span>
+        <span className="num text-base font-bold text-black">{price2(status.unit_price)}</span>
       </div>
+
+      {/* Buy orders — the participant sells to these */}
+      <Section title="Alış sifarişləri" hint="satmaq üçün" titleColor="text-brand-green">
+        {bids.map((b, i) => (
+          <Row key={`b${i}`} price={b.price} qty={formatUnits(b.units)} tone="green" />
+        ))}
+        <Row price={status.satis} qty="limitsiz" tone="green" fund />
+      </Section>
+
+      <p className="text-[10px] leading-relaxed text-black/45">
+        Yuxarıdakı qiymətlərə pay <span className="text-brand-red">ala</span>, aşağıdakılara{" "}
+        <span className="text-brand-green">sata</span> bilərsiniz. Fond həmişə{" "}
+        <span className="num">{price2(status.satis)}</span> qiymətinə geri alır
+        {fundSellActive ? (
+          <>
+            {" "}
+            və <span className="num">{price2(status.alis)}</span> qiymətinə satır
+          </>
+        ) : null}
+        .
+      </p>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  hint,
+  titleColor,
+  children,
+}: {
+  title: string;
+  hint: string;
+  titleColor: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between">
+        <span className={`text-[11px] font-semibold ${titleColor}`}>{title}</span>
+        <span className="text-[10px] text-black/40">{hint}</span>
+      </div>
+      <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.16em] text-black/30">
+        <span>Qiymət</span>
+        <span>Pay sayı</span>
+      </div>
+      <div className="flex flex-col gap-1.5 text-sm">{children}</div>
     </div>
   );
 }
 
 function Row({
-  label,
   price,
-  units,
+  qty,
   tone,
-  muted,
+  fund,
 }: {
-  label?: string;
   price: number;
-  units: string;
+  qty: string;
   tone: "red" | "green";
-  muted?: boolean;
+  fund?: boolean;
 }) {
-  const color = muted ? "text-black/35" : tone === "red" ? "text-brand-red" : "text-brand-green";
+  const color = tone === "red" ? "text-brand-red" : "text-brand-green";
   return (
-    <div className="flex items-baseline justify-between gap-4">
+    <div className="flex items-center justify-between gap-3">
       <span className={`num ${color}`}>{price2(price)}</span>
-      <span className="flex items-center gap-2 text-black/55">
-        {label && <span className="text-[10px] uppercase tracking-[0.16em] text-black/35">{label}</span>}
-        <span className="num">{units}</span>
-      </span>
+      <div className="flex items-center gap-2">
+        {fund && (
+          <span className="rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.14em] text-black/45">
+            Fond
+          </span>
+        )}
+        <span className="num text-black/70">{qty}</span>
+      </div>
     </div>
   );
 }
