@@ -5,7 +5,6 @@ import { formatUnits } from "@/lib/portfolio";
 import type { BookLevel, MarketStatus } from "@/lib/market";
 
 const price2 = (n: number) => `${n.toFixed(2)} ₼`;
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 const GREEN = "#16a34a";
 const RED = "#dc2626";
 
@@ -51,22 +50,19 @@ export function OrderBook({
   const ask = fundSellActive ? status.alis : null; // fund offer — you buy from the fund here
   const current = status.unit_price;
 
-  // Price axis spans the fund quotes, current price and every participant order.
-  const prices = [bid, current, ...(ask != null ? [ask] : []), ...levels.map((l) => l.price)];
-  let lo = Math.min(...prices);
-  let hi = Math.max(...prices);
-  if (hi <= lo) {
-    hi = lo + 1;
-    lo = Math.max(0, lo - 1);
-  }
-  const pad = (hi - lo) * 0.12;
-  const domLo = lo - pad;
-  const domHi = hi + pad;
-  const span = domHi - domLo;
-  const pos = (p: number) => clamp(((p - domLo) / span) * 100, 0, 100);
+  // Ordinal axis: each distinct quoted price gets an equal-width slot, so a far
+  // outlier can't compress the cluster. Bars keep their real price label below.
+  const axisPrices = Array.from(
+    new Set([bid, current, ...(ask != null ? [ask] : []), ...levels.map((l) => l.price)]),
+  ).sort((a, b) => a - b);
+  const slotCount = Math.max(1, axisPrices.length);
+  const slotOf = new Map(axisPrices.map((p, i): [number, number] => [p, i]));
+  const pos = (p: number) => {
+    const i = slotOf.get(p) ?? axisPrices.filter((x) => x < p).length;
+    return ((i + 0.5) / slotCount) * 100;
+  };
 
   const maxUnits = Math.max(1, ...levels.map((l) => l.units));
-  const ticks = Array.from({ length: 5 }, (_, i) => domLo + (span * (i + 0.5)) / 5);
 
   return (
     <div className="glass flex flex-col gap-5 p-6">
@@ -129,15 +125,15 @@ export function OrderBook({
               </button>
             ))}
           </div>
-          {/* price axis */}
+          {/* price axis: one label per order */}
           <div className="relative h-4">
-            {ticks.map((t, i) => (
+            {levels.map((l, i) => (
               <span
                 key={i}
-                className="num absolute -translate-x-1/2 text-[9px] text-black/40"
-                style={{ left: `${pos(t)}%` }}
+                className="num absolute -translate-x-1/2 text-[9px] text-black/45"
+                style={{ left: `${pos(l.price)}%` }}
               >
-                {t.toFixed(2)}
+                {l.price.toFixed(2)}
               </span>
             ))}
           </div>
