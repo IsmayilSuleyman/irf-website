@@ -19,7 +19,9 @@ export function IsmayilBankLogo({
       width={IMAGE_WIDTH}
       height={IMAGE_HEIGHT}
       className={className}
-      style={{ width, height: size }}
+      // Width caps at `width`; height stays proportional so the wordmark never
+      // gets squished when the flex row is tight on small screens.
+      style={{ width, height: "auto", maxWidth: "100%" }}
       priority
     />
   );
