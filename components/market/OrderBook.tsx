@@ -1,34 +1,37 @@
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
 import { formatUnits } from "@/lib/portfolio";
 import type { BookLevel, MarketStatus } from "@/lib/market";
 
 const price2 = (n: number) => `${n.toFixed(2)} ₼`;
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 const GREEN = "#16a34a";
 const RED = "#dc2626";
 
-type Level = {
+type Order = { units: number; holderName: string };
+type Bar = {
   price: number;
-  units: number;
-  count: number;
-  names: string[];
   side: "buy" | "sell";
+  fund: boolean;
+  units: number | null; // null = unlimited (fund buyback)
+  orders: Order[];
 };
 
-function aggregate(levels: BookLevel[], side: "buy" | "sell"): Level[] {
-  const m = new Map<number, Level>();
+function aggregate(levels: BookLevel[], side: "buy" | "sell"): Bar[] {
+  const m = new Map<number, Bar>();
   for (const l of levels) {
-    const e = m.get(l.price) ?? { price: l.price, units: 0, count: 0, names: [], side };
-    e.units += l.units;
-    e.count += 1;
-    if (l.holderName) e.names.push(l.holderName);
+    const e = m.get(l.price) ?? { price: l.price, side, fund: false, units: 0, orders: [] };
+    e.units = (e.units ?? 0) + l.units;
+    e.orders.push({ units: l.units, holderName: l.holderName });
     m.set(l.price, e);
   }
   return [...m.values()];
 }
 
-function tooltip(l: Level): string {
-  const head = `${l.side === "buy" ? "Alış" : "Satış"} · ${price2(l.price)} · ${formatUnits(l.units)} pay · ${l.count} sifariş`;
-  return l.names.length ? `${head}\n${l.names.join(", ")}` : head;
+function barBackground(side: "buy" | "sell", fund: boolean) {
+  const color = side === "buy" ? GREEN : RED;
+  // Fund bars are striped so they read as standing market-maker liquidity.
+  return fund ? `repeating-linear-gradient(45deg, ${color} 0 5px, ${color}80 5px 10px)` : color;
 }
 
 export function OrderBook({
@@ -38,35 +41,53 @@ export function OrderBook({
   book: BookLevel[];
   status: MarketStatus;
 }) {
-  const levels = [
-    ...aggregate(book.filter((b) => b.side === "buy"), "buy"),
-    ...aggregate(book.filter((b) => b.side === "sell"), "sell"),
-  ].sort((a, b) => a.price - b.price);
+  const [selected, setSelected] = useState<Bar | null>(null);
+
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelected(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected]);
 
   const fundSellActive = status.fund_sell_capacity > 0;
-  const bid = status.satis; // fund buyback (green "Alış")
-  const ask = fundSellActive ? status.alis : null; // fund offer (red "Satış")
+  const bid = status.satis; // fund buyback — you sell to the fund here
+  const ask = fundSellActive ? status.alis : null; // fund offer — you buy from the fund here
   const current = status.unit_price;
 
-  const spread = ask != null ? ask - bid : null;
-  const spreadPct = spread != null && current > 0 ? (spread / current) * 100 : null;
+  const participants = [
+    ...aggregate(book.filter((b) => b.side === "buy"), "buy"),
+    ...aggregate(book.filter((b) => b.side === "sell"), "sell"),
+  ];
 
-  // Price axis spans the fund quotes, current price and every participant order.
-  const prices = [bid, current, ...(ask != null ? [ask] : []), ...levels.map((l) => l.price)];
-  let lo = Math.min(...prices);
-  let hi = Math.max(...prices);
-  if (hi <= lo) {
-    hi = lo + 1;
-    lo = Math.max(0, lo - 1);
-  }
-  const pad = (hi - lo) * 0.12;
-  const domLo = lo - pad;
-  const domHi = hi + pad;
-  const span = domHi - domLo;
-  const pos = (p: number) => clamp(((p - domLo) / span) * 100, 0, 100);
+  // The Fund is always-on liquidity, so show its quotes as bars too.
+  const fundBars: Bar[] = [
+    { price: bid, side: "buy", fund: true, units: null, orders: [] },
+    ...(ask != null
+      ? [{ price: ask, side: "sell", fund: true, units: status.fund_sell_capacity, orders: [] } as Bar]
+      : []),
+  ];
 
-  const maxUnits = Math.max(1, ...levels.map((l) => l.units));
-  const ticks = Array.from({ length: 5 }, (_, i) => domLo + (span * (i + 0.5)) / 5);
+  const bars = [...fundBars, ...participants].sort((a, b) => a.price - b.price);
+
+  // Ordinal axis: one equal-width slot per distinct price (outliers can't crush it).
+  const axisPrices = Array.from(new Set([current, ...bars.map((b) => b.price)])).sort((a, b) => a - b);
+  const slotCount = Math.max(1, axisPrices.length);
+  const slotOf = new Map(axisPrices.map((p, i): [number, number] => [p, i]));
+  const pos = (p: number) => {
+    const i = slotOf.get(p) ?? axisPrices.filter((x) => x < p).length;
+    return ((i + 0.5) / slotCount) * 100;
+  };
+
+  const maxUnits = Math.max(
+    1,
+    ...(ask != null ? [status.fund_sell_capacity] : []),
+    ...participants.map((b) => b.units ?? 0),
+  );
+  const heightPct = (b: Bar) => (b.units == null ? 100 : (b.units / maxUnits) * 100);
+  const topLabel = (b: Bar) => (b.units == null ? "∞" : formatUnits(b.units));
 
   return (
     <div className="glass flex flex-col gap-5 p-6">
@@ -74,10 +95,10 @@ export function OrderBook({
         Sifarişlər Kitabçası
       </div>
 
-      {/* Fund quotes + current price (also the legend for the dashed lines) */}
+      {/* Fund quotes + current price (legend for the bars below) */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-green/10 px-2.5 py-1">
-          <span className="font-semibold text-brand-green">Alış</span>
+          <span className="font-semibold text-brand-green">Fonda satış</span>
           <span className="num text-brand-green">{price2(bid)}</span>
           <span className="text-black/40">· limitsiz</span>
         </span>
@@ -87,99 +108,152 @@ export function OrderBook({
         </span>
         {ask != null ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-red/10 px-2.5 py-1">
-            <span className="font-semibold text-brand-red">Satış</span>
+            <span className="font-semibold text-brand-red">Fonddan alış</span>
             <span className="num text-brand-red">{price2(ask)}</span>
             <span className="text-black/40">· {formatUnits(status.fund_sell_capacity)}</span>
           </span>
         ) : (
           <span className="inline-flex items-center rounded-full bg-black/[0.04] px-2.5 py-1 text-black/35">
-            Satış — fond satmır
+            Fond hazırda satmır
           </span>
         )}
       </div>
 
-      {/* Participant orders: volume-at-price histogram */}
-      {levels.length > 0 ? (
-        <div className="flex flex-col gap-1">
-          <div className="relative h-44">
-            {/* fund / current reference lines */}
-            <RefLine left={pos(bid)} tone="green" />
-            <RefLine left={pos(current)} tone="dark" />
-            {ask != null && <RefLine left={pos(ask)} tone="red" />}
-            {/* baseline */}
-            <div className="absolute inset-x-0 bottom-0 h-px bg-black/15" />
-            {/* bars */}
-            {levels.map((l, i) => (
-              <div
-                key={i}
-                title={tooltip(l)}
-                className="group absolute bottom-0 flex -translate-x-1/2 justify-center"
-                style={{ left: `${pos(l.price)}%`, height: `${(l.units / maxUnits) * 100}%`, minHeight: "4px" }}
-              >
-                <div
-                  className="w-2.5 rounded-t transition-opacity group-hover:opacity-80"
-                  style={{ height: "100%", background: l.side === "buy" ? GREEN : RED }}
-                />
-                <span className="num pointer-events-none absolute -top-4 text-[9px] text-black/50">
-                  {formatUnits(l.units)}
-                </span>
-              </div>
-            ))}
-          </div>
-          {/* price axis */}
-          <div className="relative h-4">
-            {ticks.map((t, i) => (
-              <span
-                key={i}
-                className="num absolute -translate-x-1/2 text-[9px] text-black/40"
-                style={{ left: `${pos(t)}%` }}
-              >
-                {t.toFixed(2)}
+      {/* Histogram: fund + participant orders by price (bars are clickable) */}
+      <div className="flex flex-col gap-1">
+        <div className="relative h-44">
+          {/* current price marker */}
+          <div
+            className="absolute bottom-0 top-0 w-px -translate-x-1/2 bg-black/40"
+            style={{ left: `${pos(current)}%` }}
+          />
+          {/* baseline */}
+          <div className="absolute inset-x-0 bottom-0 h-px bg-black/15" />
+          {/* bars */}
+          {bars.map((b, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setSelected(b)}
+              aria-label={
+                b.fund
+                  ? `${b.side === "buy" ? "Fonda satış" : "Fonddan alış"} ${price2(b.price)}`
+                  : `${price2(b.price)} — ${formatUnits(b.units ?? 0)} pay, ${b.orders.length} sifariş`
+              }
+              className="group absolute bottom-0 w-4 -translate-x-1/2 cursor-pointer rounded-t shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/40"
+              style={{
+                left: `${pos(b.price)}%`,
+                height: `${heightPct(b)}%`,
+                minHeight: "6px",
+                background: barBackground(b.side, b.fund),
+              }}
+            >
+              <span className="num pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-black/55">
+                {topLabel(b)}
               </span>
-            ))}
-          </div>
+            </button>
+          ))}
         </div>
-      ) : (
-        <div className="py-8 text-center text-xs text-black/35">Hələ iştirakçı sifarişi yoxdur</div>
-      )}
-
-      {spread != null && (
-        <div className="text-center text-[11px] text-black/45">
-          Fərq{" "}
-          <span className="num font-semibold text-black/70">{price2(spread)}</span>
-          {spreadPct != null && <> · {spreadPct.toFixed(1)}%</>}
+        {/* price axis: one label per slot */}
+        <div className="relative h-4">
+          {axisPrices.map((p, i) => (
+            <span
+              key={i}
+              className="num absolute -translate-x-1/2 text-[9px] text-black/45"
+              style={{ left: `${pos(p)}%` }}
+            >
+              {p.toFixed(2)}
+            </span>
+          ))}
         </div>
-      )}
+      </div>
 
       <p className="text-[10px] leading-relaxed text-black/45">
-        Fond həmişə <span className="num text-brand-green">{price2(status.satis)}</span> qiymətinə
-        geri alır
-        {fundSellActive ? (
-          <>
-            {" "}
-            və <span className="num text-brand-red">{price2(status.alis)}</span> qiymətinə satır
-          </>
-        ) : null}
-        .
-        {levels.length > 0 && " Sütunlar digər iştirakçıların sifarişləridir (üzərinə gələrək sahibini görün)."}
+        Zolaqlı sütunlar Fondun daimi qiymətləridir, dolu sütunlar isə digər iştirakçıların
+        sifarişləri — ətraflı üçün üzərinə klikləyin.
+        {participants.length === 0 && " Hələ iştirakçı sifarişi yoxdur."}
       </p>
+
+      {selected && <OrderPopup bar={selected} status={status} onClose={() => setSelected(null)} />}
     </div>
   );
 }
 
-function RefLine({ left, tone }: { left: number; tone: "green" | "red" | "dark" }) {
-  const color = tone === "green" ? GREEN : tone === "red" ? RED : "rgba(0,0,0,0.5)";
+function OrderPopup({
+  bar,
+  status,
+  onClose,
+}: {
+  bar: Bar;
+  status: MarketStatus;
+  onClose: () => void;
+}) {
+  const isBuy = bar.side === "buy";
+  const color = isBuy ? "text-brand-green" : "text-brand-red";
+
+  let title: string;
+  let meta: ReactNode;
+  let body: ReactNode = null;
+
+  if (bar.fund) {
+    title = isBuy ? "Fonda satış" : "Fonddan alış";
+    meta = <>Fond · {bar.units == null ? "limitsiz" : `${formatUnits(bar.units)} pay`}</>;
+    body = (
+      <p className="mt-3 border-t border-black/10 pt-3 text-xs leading-relaxed text-black/60">
+        {isBuy
+          ? "Fond payları bu qiymətə həmişə geri alır — istənilən vaxt limitsiz sata bilərsiniz."
+          : `Fond bu qiymətə ${formatUnits(status.fund_sell_capacity)} paya qədər satır.`}
+      </p>
+    );
+  } else {
+    title = isBuy ? "Alış sifarişi" : "Satış sifarişi";
+    meta = (
+      <>
+        Cəmi <span className="num text-black/70">{formatUnits(bar.units ?? 0)}</span> pay ·{" "}
+        {bar.orders.length} sifariş
+      </>
+    );
+    const orders = [...bar.orders].sort((a, b) => b.units - a.units);
+    body = (
+      <div className="mt-4 flex flex-col gap-1.5 border-t border-black/10 pt-3">
+        {orders.map((o, i) => (
+          <div key={i} className="flex items-center justify-between gap-3 text-xs">
+            <span className="truncate text-black/70">{o.holderName || "Naməlum"}</span>
+            <span className="num shrink-0 text-black/50">{formatUnits(o.units)} pay</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div
-      className="absolute bottom-0 top-0 w-px -translate-x-1/2"
-      style={{
-        left: `${left}%`,
-        backgroundImage:
-          tone === "dark"
-            ? `linear-gradient(${color}, ${color})`
-            : `repeating-linear-gradient(${color} 0 4px, transparent 4px 7px)`,
-        opacity: tone === "dark" ? 0.55 : 0.7,
-      }}
-    />
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+      <div
+        className="glass-strong relative w-full max-w-[260px] rounded-2xl p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Bağla"
+          className="absolute right-3 top-3 text-black/40 transition hover:text-black/70"
+        >
+          ✕
+        </button>
+
+        <div className={`text-[11px] font-semibold ${color}`}>{title}</div>
+        <div className="mt-1">
+          <span className={`num text-2xl font-bold ${color}`}>{price2(bar.price)}</span>
+        </div>
+        <div className="mt-1 text-[11px] text-black/50">{meta}</div>
+        {body}
+      </div>
+    </div>
   );
 }
