@@ -32,6 +32,7 @@ import { PortfolioPie } from "@/components/PortfolioPie";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
 import { MarketHoursBadge } from "@/components/MarketHoursBadge";
+import { MarketCountdown } from "@/components/MarketCountdown";
 import { DebtPanel } from "@/components/DebtPanel";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
 import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule";
@@ -114,7 +115,7 @@ export default async function DashboardPage() {
       <div className="mx-auto flex max-w-5xl flex-col gap-16">
         {/* Hero */}
         <MotionSection className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-end">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 flex flex-col gap-5">
             <HeroPrice
               holderName={holder.name}
               holdingValue={holdingValue}
@@ -123,6 +124,9 @@ export default async function DashboardPage() {
               units={effectiveUnits}
               avgBuyPrice={perf.avgBuyPrice}
             />
+            <div>
+              <MarketCountdown />
+            </div>
           </div>
           <div className="lg:col-span-1 flex flex-col gap-3">
             <PriceBadge current={fund.unitPrice} />
