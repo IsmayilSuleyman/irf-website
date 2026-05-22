@@ -50,12 +50,6 @@ export function Header({ dateLabel }: { dateLabel: string }) {
         <div className="flex shrink-0 items-center gap-4 sm:gap-6">
           <NotificationsBell />
           <Link
-            href="/market"
-            className="text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 transition hover:text-brand-green"
-          >
-            Bazar
-          </Link>
-          <Link
             href="/portal"
             className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 transition hover:text-brand-green sm:inline"
           >
