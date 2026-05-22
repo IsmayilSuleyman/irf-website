@@ -94,7 +94,7 @@ export function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-9 z-50 w-72 max-w-[85vw] overflow-hidden rounded-xl border border-black/10 bg-white/95 shadow-[0_18px_50px_rgba(48,94,63,0.18)] backdrop-blur-md">
+        <div className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-xl border border-black/10 bg-white/95 shadow-[0_18px_50px_rgba(48,94,63,0.18)] backdrop-blur-md sm:absolute sm:inset-x-auto sm:right-0 sm:top-9 sm:w-72 sm:max-w-[85vw]">
           <div className="border-b border-black/[0.07] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-green/80">
             Bildirişlər
           </div>
