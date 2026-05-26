@@ -31,6 +31,7 @@ import { AllocationList } from "@/components/AllocationList";
 import { PortfolioPie } from "@/components/PortfolioPie";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { MarketHoursBadge } from "@/components/MarketHoursBadge";
 import { MarketCountdown } from "@/components/MarketCountdown";
 import { DebtPanel } from "@/components/DebtPanel";
@@ -110,6 +111,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="px-6 pb-24">
+      <AutoRefresh />
       <Header dateLabel={dateLabel} />
 
       <div className="mx-auto flex max-w-5xl flex-col gap-16">
