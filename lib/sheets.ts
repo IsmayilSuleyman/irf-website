@@ -74,16 +74,62 @@ const parseAzn = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-async function readTab(tabName: string, range: string): Promise<string[][]> {
+// One Google Sheets API call covers every range the app needs. This keeps
+// quota usage to a single read per cache miss instead of one per tab, which
+// lets the dashboard auto-refresh on a tight cadence without brushing the
+// 60-reads/minute/user limit.
+type SheetSnapshot = {
+  irf: string[][];
+  sahiblik: string[][];
+  transactions: string[][];
+  watchlist: string[][];
+  debts: string[][];
+};
+
+const EMPTY_SNAPSHOT: SheetSnapshot = {
+  irf: [],
+  sahiblik: [],
+  transactions: [],
+  watchlist: [],
+  debts: [],
+};
+
+const SHEET_RANGES = [
+  "'IRF'!A1:D20",
+  "'Sahiblik'!A1:C20",
+  "'Transactions'!A1:D1000",
+  "'Watchlist'!B9:K50",
+  "'Debts'!A2:E50",
+] as const;
+
+async function fetchSheetSnapshot(): Promise<SheetSnapshot> {
   const sheetId = process.env.SHEET_ID;
   if (!sheetId) throw new Error("SHEET_ID env var is missing");
   const sheets = google.sheets({ version: "v4", auth: getAuth() });
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: sheetId,
-    range: `'${tabName}'!${range}`,
-  });
-  return (res.data.values ?? []) as string[][];
+  try {
+    const res = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId: sheetId,
+      ranges: SHEET_RANGES as unknown as string[],
+    });
+    const vr = res.data.valueRanges ?? [];
+    return {
+      irf: (vr[0]?.values ?? []) as string[][],
+      sahiblik: (vr[1]?.values ?? []) as string[][],
+      transactions: (vr[2]?.values ?? []) as string[][],
+      watchlist: (vr[3]?.values ?? []) as string[][],
+      debts: (vr[4]?.values ?? []) as string[][],
+    };
+  } catch (err) {
+    console.error("Sheets batchGet failed:", err);
+    return EMPTY_SNAPSHOT;
+  }
 }
+
+const getSheetSnapshot = unstable_cache(
+  async (): Promise<SheetSnapshot> => fetchSheetSnapshot(),
+  ["irf-sheet-snapshot"],
+  { revalidate: 60, tags: ["sheet"] },
+);
 
 function findRowByPrefix(rows: string[][], prefix: string): number {
   return rows.findIndex((r) =>
@@ -91,10 +137,8 @@ function findRowByPrefix(rows: string[][], prefix: string): number {
   );
 }
 
-async function parseFundData(): Promise<FundData> {
+function parseFundData(irfRows: string[][], sahiblikRows: string[][]): FundData {
   // Fund totals come from the IRF tab — labels in col A, values in col D (index 3)
-  const irfRows = await readTab("IRF", "A1:D20");
-
   const cellAt = (label: string) => {
     const idx = findRowByPrefix(irfRows, label);
     return idx >= 0 ? irfRows[idx]?.[3] : undefined;
@@ -107,9 +151,7 @@ async function parseFundData(): Promise<FundData> {
   const unitPrice = parseAzn(cellAt("1 payın qiyməti"));
 
   // Holders come from the Sahiblik tab — col A: name, col B: value, col C: units
-  const sahiblikRows = await readTab("Sahiblik", "A1:C20");
   const holders: Holder[] = [];
-
   for (let i = 1; i < sahiblikRows.length; i++) { // skip header row
     const name = sahiblikRows[i]?.[0]?.toString().trim();
     if (!name) break;
@@ -122,20 +164,12 @@ async function parseFundData(): Promise<FundData> {
   return { totalCapital, debtCapital, netCapital, totalUnits, unitPrice, holders };
 }
 
-export const getFundData = unstable_cache(
-  async (): Promise<FundData> => parseFundData(),
-  ["irf-fund-data"],
-  { revalidate: 60, tags: ["sheet"] },
-);
+export async function getFundData(): Promise<FundData> {
+  const snap = await getSheetSnapshot();
+  return parseFundData(snap.irf, snap.sahiblik);
+}
 
-async function parseTransactions(): Promise<Transaction[]> {
-  let rows: string[][];
-  try {
-    rows = await readTab("Transactions", "A1:D1000");
-  } catch (err) {
-    console.error("Transactions tab read error:", err);
-    return [];
-  }
+function parseTransactions(rows: string[][]): Transaction[] {
   const out: Transaction[] = [];
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -151,25 +185,16 @@ async function parseTransactions(): Promise<Transaction[]> {
   return out;
 }
 
-export const getTransactions = unstable_cache(
-  async (): Promise<Transaction[]> => parseTransactions(),
-  ["irf-transactions"],
-  { revalidate: 60, tags: ["sheet"] },
-);
+export async function getTransactions(): Promise<Transaction[]> {
+  const snap = await getSheetSnapshot();
+  return parseTransactions(snap.transactions);
+}
 
-async function parseHoldings(): Promise<Holding[]> {
+function parseHoldings(rows: string[][]): Holding[] {
   // Watchlist columns (B..K): B=Symbol, D=Stock Name, E=Price USD, I=Value USD,
   // J=Avg Purchase USD, K=Sector. Row 8 is the header; data lives at B9:K50.
   // Some tickers (e.g. IBIT, IREN) have no Google-Finance name in col D — fall
   // back to the ticker symbol so rows are never silently dropped.
-  let rows: string[][];
-  try {
-    rows = await readTab("Watchlist", "B9:K50");
-  } catch (err) {
-    console.error("Watchlist tab read error:", err);
-    return [];
-  }
-
   const raw: Holding[] = [];
   for (const row of rows) {
     if (!row) continue;
@@ -239,11 +264,10 @@ async function parseHoldings(): Promise<Holding[]> {
   return withPct;
 }
 
-export const getHoldings = unstable_cache(
-  async (): Promise<Holding[]> => parseHoldings(),
-  ["irf-holdings"],
-  { revalidate: 60, tags: ["sheet"] },
-);
+export async function getHoldings(): Promise<Holding[]> {
+  const snap = await getSheetSnapshot();
+  return parseHoldings(snap.watchlist);
+}
 
 export type Debt = {
   name: string;
@@ -253,14 +277,7 @@ export type Debt = {
   annualInterestRate: number; // 0..1, e.g. 0.12 for 12%
 };
 
-async function parseDebts(): Promise<Debt[]> {
-  let rows: string[][];
-  try {
-    rows = await readTab("Debts", "A2:E50");
-  } catch (err) {
-    console.error("Debts tab read error:", err);
-    return [];
-  }
+function parseDebts(rows: string[][]): Debt[] {
   const out: Debt[] = [];
   for (const row of rows) {
     const name = row[0]?.toString().trim();
@@ -274,11 +291,10 @@ async function parseDebts(): Promise<Debt[]> {
   return out;
 }
 
-export const getDebts = unstable_cache(
-  async (): Promise<Debt[]> => parseDebts(),
-  ["irf-debts"],
-  { revalidate: 60, tags: ["sheet"] },
-);
+export async function getDebts(): Promise<Debt[]> {
+  const snap = await getSheetSnapshot();
+  return parseDebts(snap.debts);
+}
 
 const norm = (s: string) =>
   s.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
