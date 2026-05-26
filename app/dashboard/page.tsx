@@ -31,7 +31,7 @@ import { AllocationList } from "@/components/AllocationList";
 import { PortfolioPie } from "@/components/PortfolioPie";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
-import { AutoRefresh } from "@/components/AutoRefresh";
+import { RefreshTimer } from "@/components/RefreshTimer";
 import { MarketHoursBadge } from "@/components/MarketHoursBadge";
 import { MarketCountdown } from "@/components/MarketCountdown";
 import { DebtPanel } from "@/components/DebtPanel";
@@ -111,7 +111,6 @@ export default async function DashboardPage() {
 
   return (
     <main className="px-6 pb-24">
-      <AutoRefresh />
       <Header dateLabel={dateLabel} />
 
       <div className="mx-auto flex max-w-5xl flex-col gap-16">
@@ -126,8 +125,9 @@ export default async function DashboardPage() {
               units={effectiveUnits}
               avgBuyPrice={perf.avgBuyPrice}
             />
-            <div>
+            <div className="flex items-center gap-2">
               <MarketCountdown />
+              <RefreshTimer />
             </div>
           </div>
           <div className="lg:col-span-1 flex flex-col gap-3">
