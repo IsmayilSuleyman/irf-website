@@ -1,4 +1,5 @@
 import { formatAzn, formatUnits } from "@/lib/portfolio";
+import { Odometer } from "@/components/Odometer";
 
 export function HeroPrice({
   holderName,
@@ -49,7 +50,7 @@ export function HeroPrice({
           className="num font-black leading-none tracking-tight"
           style={{ fontSize: "clamp(3rem, 9vw, 6.5rem)" }}
         >
-          {holdingValue.toFixed(2)}₼
+          <Odometer value={holdingValue} fractionDigits={2} suffix="₼" />
         </div>
         <div
           className={`num pb-2 text-xl font-semibold md:text-2xl ${overallChangeTone}`}
