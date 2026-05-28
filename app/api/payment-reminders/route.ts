@@ -123,6 +123,16 @@ export async function GET(req: Request) {
   const todayISO = bakuTodayISO();
   const supabase = createClient(url, anon);
 
+  // ?dryRun=1 runs the full pipeline (live Sheet read + bucketing + message
+  // composition) but skips every write — used to preview what would be sent.
+  const dryRun = new URL(req.url).searchParams.get("dryRun") === "1";
+  const preview: Array<{
+    name: string;
+    date: string;
+    bucket: Bucket;
+    title: string;
+    body: string;
+  }> = [];
   let attempted = 0;
   let inserted = 0;
   let skipped = 0;
@@ -140,6 +150,11 @@ export async function GET(req: Request) {
 
       const { title, body } = composeMessage(bucket, item);
       attempted += 1;
+
+      if (dryRun) {
+        preview.push({ name: account.name, date: item.date, bucket, title, body });
+        continue;
+      }
 
       const { data, error } = await supabase.rpc("create_payment_notification", {
         p_name: account.name,
@@ -167,5 +182,6 @@ export async function GET(req: Request) {
     inserted,
     skipped,
     errors,
+    ...(dryRun ? { dryRun: true, preview } : {}),
   });
 }
