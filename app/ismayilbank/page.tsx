@@ -4,8 +4,7 @@ import { IsmayilBankDepositCalculator } from "@/components/IsmayilBankDepositCal
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 import { getSupabaseServerUser } from "@/lib/supabase/server";
 import { getBankAccounts } from "@/lib/bank";
-
-const fmt = new Intl.NumberFormat("az-AZ", { maximumFractionDigits: 0 });
+import { formatGrouped } from "@/lib/portfolio";
 
 function liquidityTileColor(pct: number): string {
   if (pct >= 60) return "text-[#128342]";
@@ -67,19 +66,19 @@ export default async function IsmayilBankPage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">Ümumi depozit</p>
-                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-[#111111]">{fmt.format(totalDeposits)} ₼</p>
+                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-[#111111]">{formatGrouped(totalDeposits, 0)} ₼</p>
                 </div>
                 <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">Cəmi kredit</p>
-                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalLoans > 0 ? "text-[#c74252]" : "text-[#111111]"}`}>{fmt.format(totalLoans)} ₼</p>
+                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalLoans > 0 ? "text-[#c74252]" : "text-[#111111]"}`}>{formatGrouped(totalLoans, 0)} ₼</p>
                 </div>
                 <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">Xalis likvidlik</p>
-                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-[#128342]">{fmt.format(netLiquidity)} ₼</p>
+                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-[#128342]">{formatGrouped(netLiquidity, 0)} ₼</p>
                 </div>
                 <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">Likvidlik nisbəti</p>
-                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalDeposits > 0 ? liquidityTileColor(liquidityPct) : "text-[#111111]"}`}>{totalDeposits > 0 ? `${fmt.format(liquidityPct)}%` : "—"}</p>
+                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalDeposits > 0 ? liquidityTileColor(liquidityPct) : "text-[#111111]"}`}>{totalDeposits > 0 ? `${formatGrouped(liquidityPct, 0)}%` : "—"}</p>
                 </div>
               </div>
               <div className="space-y-1.5">

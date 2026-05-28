@@ -325,6 +325,7 @@ export default async function DashboardPage() {
                           (a, b) => b.holding.valueAzn - a.holding.valueAzn,
                         )
                         .map(({ holding, color }) => ({
+                          symbol: holding.symbol,
                           name: holding.name,
                           priceUsd: holding.priceUsd,
                           valueAzn: holding.valueAzn,

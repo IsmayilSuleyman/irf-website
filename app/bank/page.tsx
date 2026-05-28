@@ -6,6 +6,7 @@ import {
 } from "@/lib/bank";
 import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
+import { formatGrouped, formatGroupedTrim } from "@/lib/portfolio";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 
@@ -20,16 +21,12 @@ function formatDisplayDate(value: string | null | undefined): string | null {
 
 function formatAmount(value: number): string {
   const hasFraction = Math.abs(value % 1) > 0.001;
-
-  return new Intl.NumberFormat("az-AZ", {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: hasFraction ? 2 : 0,
-  }).format(value);
+  return formatGrouped(value, hasFraction ? 2 : 0);
 }
 
 function formatPercent(value: number | null): string {
   if (value == null) return "—";
-  return `${new Intl.NumberFormat("az-AZ", { maximumFractionDigits: 2 }).format(value)}%`;
+  return `${formatGroupedTrim(value, 2)}%`;
 }
 
 function normalizeStatus(status: string | null | undefined): string {
