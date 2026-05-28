@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { formatAzn, formatGrouped, formatGroupedTrim, NBSP } from "@/lib/portfolio";
 
 const MIN_AMOUNT = 50;
 const MAX_AMOUNT = 2000;
@@ -23,23 +24,13 @@ const RATE_BY_PERIOD: Record<number, number> = {
 };
 
 function formatAmount(value: number) {
-  return `${new Intl.NumberFormat("az-AZ", {
-    maximumFractionDigits: 0,
-  }).format(value)} ₼`;
+  return `${formatGrouped(value, 0)}${NBSP}₼`;
 }
 
-function formatMoney(value: number) {
-  return `${new Intl.NumberFormat("az-AZ", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)} ₼`;
-}
+const formatMoney = formatAzn;
 
 function formatRate(rate: number) {
-  return `${new Intl.NumberFormat("az-AZ", {
-    minimumFractionDigits: Number.isInteger(rate) ? 0 : rate * 10 === Math.trunc(rate * 10) ? 1 : 2,
-    maximumFractionDigits: 2,
-  }).format(rate)} %`;
+  return `${formatGroupedTrim(rate, 2)} %`;
 }
 
 function calculateMonthlyPayment(amount: number, period: number, annualRate: number) {

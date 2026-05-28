@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { formatAzn } from "@/lib/portfolio";
 
 type Item = {
+  symbol?: string;
   name: string;
   priceUsd?: number;
   valueAzn: number;
@@ -18,17 +19,17 @@ type Item = {
 };
 
 type ColumnKey =
-  | "dayChange"
-  | "totalChange"
-  | "price"
   | "value"
+  | "price"
+  | "totalChange"
+  | "dayChange"
   | "percent";
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
-  { key: "dayChange", label: "Günlük Dəyişim" },
-  { key: "totalChange", label: "Ümumi Dəyişim" },
-  { key: "price", label: "Hazırki Qiymət" },
   { key: "value", label: "Ümumi Dəyəri" },
+  { key: "price", label: "Hazırki Qiymət" },
+  { key: "totalChange", label: "Ümumi Dəyişim" },
+  { key: "dayChange", label: "Günlük Dəyişim" },
   { key: "percent", label: "Faizlə Dəyəri" },
 ];
 
@@ -162,10 +163,10 @@ function RankBadge({ rank, delta }: { rank: number; delta: number }) {
 
 export function AllocationList({ items }: { items: Item[] }) {
   const [visible, setVisible] = useState<Record<ColumnKey, boolean>>({
-    dayChange: true,
-    totalChange: true,
-    price: true,
     value: true,
+    price: true,
+    totalChange: true,
+    dayChange: true,
     percent: true,
   });
   // Per-row mode for the two change badges: "pct" (default) vs "amount" (AZN).
@@ -191,10 +192,7 @@ export function AllocationList({ items }: { items: Item[] }) {
 
   const toggle = (key: ColumnKey) =>
     setVisible((v) => ({ ...v, [key]: !v[key] }));
-  const flipMode = (
-    setter: typeof setDayMode,
-    name: string,
-  ) =>
+  const flipMode = (setter: typeof setDayMode, name: string) =>
     setter((m) => ({ ...m, [name]: m[name] === "amount" ? "pct" : "amount" }));
 
   return (
@@ -222,74 +220,27 @@ export function AllocationList({ items }: { items: Item[] }) {
 
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
         {items.map((item) => {
-          const metaCluster = (
-            <AnimatePresence initial={false}>
-              {visible.price && item.priceUsd != null && !item.isCash && (
-                <AnimatedFigure keyName="price">
-                  <span className="num text-xs text-black/40">
-                    {usdFmt.format(item.priceUsd)}
-                  </span>
-                </AnimatedFigure>
-              )}
-              {visible.totalChange &&
-                item.changePct != null &&
-                !item.isCash && (
-                  <AnimatedFigure keyName="totalChange">
-                    <ChangeBadge
-                      pct={item.changePct}
-                      amountAzn={item.totalPnlAzn}
-                      mode={totalMode[item.name] ?? "pct"}
-                      onToggle={() => flipMode(setTotalMode, item.name)}
-                    />
-                  </AnimatedFigure>
-                )}
-              {visible.dayChange &&
-                item.dayChangePct != null &&
-                !item.isCash && (
-                  <AnimatedFigure keyName="dayChange">
-                    <ChangeBadge
-                      pct={item.dayChangePct}
-                      amountAzn={item.dayChangeAzn}
-                      mode={dayMode[item.name] ?? "pct"}
-                      onToggle={() => flipMode(setDayMode, item.name)}
-                      variant="outlined"
-                    />
-                  </AnimatedFigure>
-                )}
-            </AnimatePresence>
-          );
-          const valueCluster = (
-            <AnimatePresence initial={false} mode="popLayout">
-              {visible.value && (
-                <AnimatedFigure keyName="value" inline>
-                  {formatAzn(item.valueAzn)}
-                </AnimatedFigure>
-              )}
-              {visible.percent && (
-                <AnimatedFigure keyName="percent" inline>
-                  <span
-                    className={`text-black/45 ${visible.value ? "ml-2" : ""}`}
-                  >
-                    {(item.percent * 100).toFixed(1)}%
-                  </span>
-                </AnimatedFigure>
-              )}
-            </AnimatePresence>
-          );
-          const hasMeta =
-            !item.isCash &&
-            ((visible.price && item.priceUsd != null) ||
-              (visible.totalChange && item.changePct != null) ||
-              (visible.dayChange && item.dayChangePct != null));
-          const hasValueCluster = visible.value || visible.percent;
+          const ticker = (item.symbol ?? "").trim().toUpperCase();
+          const primary = item.isCash ? item.name : ticker || item.name;
+          const secondary =
+            !item.isCash && ticker && item.name.toUpperCase() !== ticker
+              ? item.name
+              : null;
+
+          const showPrice =
+            visible.price && item.priceUsd != null && !item.isCash;
+          const showTotal =
+            visible.totalChange && item.changePct != null && !item.isCash;
+          const showDay =
+            visible.dayChange && item.dayChangePct != null && !item.isCash;
 
           return (
             <li
               key={item.name}
-              className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              className="flex items-start gap-3 py-3"
             >
-              {/* Line 1: color + name (+ desktop meta) + mobile value cluster */}
-              <div className="flex min-w-0 items-center gap-2">
+              {/* Identity: ticker over company name (+ percent of portfolio) */}
+              <div className="flex min-w-0 flex-1 items-start gap-2.5">
                 <RankBadge
                   rank={todayRank.get(item.name) ?? 0}
                   delta={
@@ -300,36 +251,87 @@ export function AllocationList({ items }: { items: Item[] }) {
                 {item.color && (
                   <span
                     aria-hidden
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: item.color }}
                   />
                 )}
-                <span className="min-w-0 flex-1 truncate text-sm text-black/85 sm:flex-none">
-                  {item.name}
-                </span>
-                <div className="hidden items-center gap-2 sm:flex">
-                  {metaCluster}
-                </div>
-                {hasValueCluster && (
-                  <div className="num ml-auto shrink-0 text-sm text-black/75 sm:hidden">
-                    {valueCluster}
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="num text-sm font-semibold tracking-wide text-black/85">
+                    {primary}
+                  </span>
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    {secondary && (
+                      <span className="min-w-0 truncate text-xs leading-tight text-black/50">
+                        {secondary}
+                      </span>
+                    )}
+                    <AnimatePresence initial={false}>
+                      {visible.percent && (
+                        <AnimatedFigure keyName="percent" inline>
+                          <span className="num shrink-0 text-xs text-black/40">
+                            {(item.percent * 100).toFixed(1)}%
+                          </span>
+                        </AnimatedFigure>
+                      )}
+                    </AnimatePresence>
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* Line 2 (mobile only): price + badges indented under the name */}
-              {hasMeta && (
-                <div className="flex items-center gap-2 pl-[18px] sm:hidden">
-                  {metaCluster}
+              {/* Numbers: value / price on row 1 (aligned with the ticker),
+                  total / day change badges on row 2 (aligned with the company
+                  name) — two rows, like Yahoo. total = filled, day = outlined.
+                  Auto-width columns keep long ₼ values from crowding the name. */}
+              <div className="grid shrink-0 grid-cols-[auto_auto] items-center gap-x-4 gap-y-1 text-right">
+                <div className="num text-sm font-medium text-black/80">
+                  <AnimatePresence initial={false}>
+                    {visible.value && (
+                      <AnimatedFigure keyName="value" inline>
+                        {formatAzn(item.valueAzn)}
+                      </AnimatedFigure>
+                    )}
+                  </AnimatePresence>
                 </div>
-              )}
+                <div className="num text-sm text-black/45">
+                  <AnimatePresence initial={false}>
+                    {showPrice && (
+                      <AnimatedFigure keyName="price" inline>
+                        {usdFmt.format(item.priceUsd as number)}
+                      </AnimatedFigure>
+                    )}
+                  </AnimatePresence>
+                </div>
 
-              {/* Desktop-only right cluster */}
-              {hasValueCluster && (
-                <div className="num hidden shrink-0 text-sm text-black/75 sm:block">
-                  {valueCluster}
+                <div className="flex justify-end">
+                  <AnimatePresence initial={false}>
+                    {showTotal && (
+                      <AnimatedFigure keyName="totalChange">
+                        <ChangeBadge
+                          pct={item.changePct as number}
+                          amountAzn={item.totalPnlAzn}
+                          mode={totalMode[item.name] ?? "pct"}
+                          onToggle={() => flipMode(setTotalMode, item.name)}
+                        />
+                      </AnimatedFigure>
+                    )}
+                  </AnimatePresence>
                 </div>
-              )}
+                <div className="flex justify-end">
+                  <AnimatePresence initial={false}>
+                    {showDay && (
+                      <AnimatedFigure keyName="dayChange">
+                        <ChangeBadge
+                          pct={item.dayChangePct as number}
+                          amountAzn={item.dayChangeAzn}
+                          mode={dayMode[item.name] ?? "pct"}
+                          onToggle={() => flipMode(setDayMode, item.name)}
+                          variant="outlined"
+                        />
+                      </AnimatedFigure>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
             </li>
           );
         })}

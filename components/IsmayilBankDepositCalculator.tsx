@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { formatAzn, formatGrouped, NBSP } from "@/lib/portfolio";
 
 const MIN_AMOUNT = 50;
 const MAX_AMOUNT = 2000;
@@ -13,22 +14,13 @@ const PERIOD_OPTIONS = [
 ] as const;
 
 function formatAmount(value: number) {
-  return `${new Intl.NumberFormat("az-AZ", {
-    maximumFractionDigits: 0,
-  }).format(value)} ₼`;
+  return `${formatGrouped(value, 0)}${NBSP}₼`;
 }
 
-function formatMoney(value: number) {
-  return `${new Intl.NumberFormat("az-AZ", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)} ₼`;
-}
+const formatMoney = formatAzn;
 
 function formatRate(rate: number) {
-  return `${new Intl.NumberFormat("az-AZ", {
-    maximumFractionDigits: 0,
-  }).format(rate)} %`;
+  return `${formatGrouped(rate, 0)} %`;
 }
 
 function AmountField({
