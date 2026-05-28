@@ -16,6 +16,8 @@ import {
 } from "@/lib/priceHistory";
 import { formatAzn, formatPct } from "@/lib/portfolio";
 import { getHolderMarketState } from "@/lib/holdings";
+import { getMarketQuotes } from "@/lib/market";
+import { bestQuotes, buyPrice, sellPrice } from "@/lib/priceMath";
 import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
@@ -45,7 +47,7 @@ export default async function DashboardPage() {
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState] =
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -55,6 +57,7 @@ export default async function DashboardPage() {
       getStrategyStatement(),
       isAdmin ? getDebts() : Promise.resolve([]),
       getHolderMarketState(name),
+      getMarketQuotes(),
     ]);
   const canEditStrategy = isAdmin;
 
@@ -109,6 +112,17 @@ export default async function DashboardPage() {
     priceHistory,
   );
 
+  // Badge prices reflect the live order book (best bid/ask) on top of the Fund
+  // quote; fall back to the plain Fund ±commission quote if market data is down.
+  const badgeQuotes = marketQuotes
+    ? bestQuotes(
+        fund.unitPrice,
+        marketQuotes.bestBuyOrder,
+        marketQuotes.bestSellOrder,
+        marketQuotes.fundCanSell,
+      )
+    : { ask: buyPrice(fund.unitPrice), bid: sellPrice(fund.unitPrice) };
+
   return (
     <main className="px-6 pb-24">
       <Header dateLabel={dateLabel} />
@@ -131,7 +145,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="lg:col-span-1 flex flex-col gap-3">
-            <PriceBadge current={fund.unitPrice} />
+            <PriceBadge current={fund.unitPrice} ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
             <Link
               href="/market"
               className="group flex items-center justify-between rounded-2xl border border-[rgba(22,163,74,0.18)] bg-brand-green/5 px-5 py-3 text-sm font-medium text-brand-green transition hover:bg-brand-green/10"
