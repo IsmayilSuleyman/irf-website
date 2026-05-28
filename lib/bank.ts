@@ -50,6 +50,18 @@ export function simplifyText(value: string): string {
     .replace(/[\u00C7\u00E7]/g, "c");
 }
 
+// A schedule installment counts as paid only when its status exactly matches one
+// of Ismayil's paid words ("Odenildi" / "Odenilmisdir" / "Odendi" / "Odenmis",
+// compared after simplifyText folds the diacritics). Deliberately stricter than
+// a substring check: an unpaid status such as "Odenilecek" also contains the
+// "oden" root, so a substring test would silently drop its reminder.
+const PAID_STATUS_TOKENS = new Set(["odenildi", "odenilmisdir", "odendi", "odenmis"]);
+
+export function isPaymentPaid(status: string | null | undefined): boolean {
+  const token = simplifyText(String(status ?? "")).trim().toLocaleLowerCase("en-US");
+  return PAID_STATUS_TOKENS.has(token);
+}
+
 function headerKey(value: unknown): string {
   return simplifyText(String(value ?? ""))
     .trim()
