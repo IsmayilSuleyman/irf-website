@@ -10,7 +10,7 @@ import { formatAzn } from "@/lib/portfolio";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Bucket = "7d" | "1d" | "overdue";
+type Phase = "upcoming" | "tomorrow" | "today" | "overdue";
 
 // Today's calendar date in Asia/Baku as "YYYY-MM-DD" (en-CA yields ISO order).
 function bakuTodayISO(): string {
@@ -33,11 +33,15 @@ function daysUntil(dueISO: string, todayISO: string): number | null {
   return Math.round((due - today) / 86_400_000);
 }
 
-function bucketFor(days: number): Bucket | null {
-  if (days === 7) return "7d";
-  if (days === 1) return "1d";
-  if (days <= 0) return "overdue"; // due today or already past
-  return null;
+// An unpaid installment is reminded once a day from a week out onward: every
+// day in the final week, on the due date, and while overdue. More than a week
+// away → nothing yet.
+function phaseFor(days: number): Phase | null {
+  if (days > 7) return null;
+  if (days >= 2) return "upcoming";
+  if (days === 1) return "tomorrow";
+  if (days === 0) return "today";
+  return "overdue";
 }
 
 // "2026-06-15" -> "15.06.2026" (Azerbaijani day-first display).
@@ -47,43 +51,37 @@ function humanDate(iso: string): string {
 }
 
 function composeMessage(
-  bucket: Bucket,
+  phase: Phase,
   item: BankPaymentScheduleItem,
+  days: number,
 ): { title: string; body: string } {
   const when = humanDate(item.date);
   const amount = item.amountAzn != null ? formatAzn(item.amountAzn) : null;
   const note = item.label ? ` ${item.label}.` : "";
+  const sum = amount ? `${amount} ` : "";
 
-  if (bucket === "7d") {
+  if (phase === "upcoming") {
     return {
-      title: "Ödənişə 1 həftə qalır",
-      body: amount
-        ? `${when} tarixində ${amount} ödənişiniz var.${note}`
-        : `${when} tarixində ödənişiniz var.${note}`,
+      title: `Ödənişə ${days} gün qalır`,
+      body: `${when} tarixində ${sum}ödənişiniz var.${note}`,
     };
   }
-  if (bucket === "1d") {
+  if (phase === "tomorrow") {
     return {
       title: "Ödənişə 1 gün qalır",
-      body: amount
-        ? `Sabah (${when}) ${amount} ödənişiniz var.${note}`
-        : `Sabah (${when}) ödənişiniz var.${note}`,
+      body: `Sabah (${when}) ${sum}ödənişiniz var.${note}`,
+    };
+  }
+  if (phase === "today") {
+    return {
+      title: "Bu gün ödəniş günüdür",
+      body: `Bu gün (${when}) ${sum}ödənişiniz var.${note}`,
     };
   }
   return {
     title: "Ödəniş gecikib",
-    body: amount
-      ? `${when} tarixli ${amount} ödənişiniz hələ edilməyib.${note}`
-      : `${when} tarixli ödənişiniz hələ edilməyib.${note}`,
+    body: `${when} tarixli ${sum}ödənişiniz hələ edilməyib.${note}`,
   };
-}
-
-function dedupeSuffix(bucket: Bucket, dueISO: string, todayISO: string): string {
-  // 7d/1d fire once per due date. Overdue re-fires once per day until paid, so
-  // the run date is part of its key.
-  return bucket === "overdue"
-    ? `pay:${dueISO}:overdue:${todayISO}`
-    : `pay:${dueISO}:${bucket}`;
 }
 
 export async function GET(req: Request) {
@@ -120,16 +118,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 
-  const todayISO = bakuTodayISO();
-  const supabase = createClient(url, anon);
-
   // ?dryRun=1 runs the full pipeline (live Sheet read + bucketing + message
   // composition) but skips every write — used to preview what would be sent.
-  const dryRun = new URL(req.url).searchParams.get("dryRun") === "1";
+  // ?today=YYYY-MM-DD (dry-run only) simulates the run as if it were that date.
+  const params = new URL(req.url).searchParams;
+  const dryRun = params.get("dryRun") === "1";
+  const overrideToday = dryRun ? params.get("today") : null;
+  const todayISO =
+    overrideToday && /^\d{4}-\d{2}-\d{2}$/.test(overrideToday)
+      ? overrideToday
+      : bakuTodayISO();
+  const supabase = createClient(url, anon);
   const preview: Array<{
     name: string;
     date: string;
-    bucket: Bucket;
+    phase: Phase;
     title: string;
     body: string;
   }> = [];
@@ -145,27 +148,29 @@ export async function GET(req: Request) {
       const days = daysUntil(item.date, todayISO);
       if (days == null) continue; // unparseable date — leave it alone
 
-      const bucket = bucketFor(days);
-      if (!bucket) continue;
+      const phase = phaseFor(days);
+      if (!phase) continue;
 
-      const { title, body } = composeMessage(bucket, item);
+      const { title, body } = composeMessage(phase, item, days);
       attempted += 1;
 
       if (dryRun) {
-        preview.push({ name: account.name, date: item.date, bucket, title, body });
+        preview.push({ name: account.name, date: item.date, phase, title, body });
         continue;
       }
 
+      // One reminder per payment per day: the run date is in the dedupe key, so
+      // it re-fires daily but a same-day retry inserts nothing.
       const { data, error } = await supabase.rpc("create_payment_notification", {
         p_name: account.name,
         p_title: title,
         p_body: body,
-        p_dedupe_suffix: dedupeSuffix(bucket, item.date, todayISO),
+        p_dedupe_suffix: `pay:${item.date}:${todayISO}`,
         p_secret: secret,
       });
 
       if (error) {
-        errors.push(`${account.name} / ${item.date} / ${bucket}: ${error.message}`);
+        errors.push(`${account.name} / ${item.date} / ${phase}: ${error.message}`);
       } else if (data === true) {
         inserted += 1;
       } else {
