@@ -239,8 +239,10 @@ export function AllocationList({ items }: { items: Item[] }) {
               key={item.name}
               className="flex items-start gap-3 py-3"
             >
-              {/* Identity: ticker over company name (+ percent of portfolio) */}
-              <div className="flex min-w-0 flex-1 items-start gap-2.5">
+              {/* Identity: ticker over company name (+ percent of portfolio).
+                  Rank + movement arrow + sector dot are vertically centered
+                  against the two-line block. */}
+              <div className="flex min-w-0 flex-1 items-center gap-2.5">
                 <RankBadge
                   rank={todayRank.get(item.name) ?? 0}
                   delta={
@@ -251,7 +253,7 @@ export function AllocationList({ items }: { items: Item[] }) {
                 {item.color && (
                   <span
                     aria-hidden
-                    className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: item.color }}
                   />
                 )}
