@@ -96,7 +96,7 @@ function ChangeBadge({
   const label = showAmount
     ? formatSignedAzn(amountAzn as number)
     : `${up ? "+" : ""}${(pct * 100).toFixed(1)}%`;
-  const base = `num rounded-md px-1.5 py-0.5 text-[11px] font-medium ${cls}`;
+  const base = `num rounded-md px-1.5 py-0.5 text-[10px] font-medium ${cls}`;
   if (!onToggle || !hasAmount) {
     return <span className={base}>{label}</span>;
   }
@@ -239,8 +239,10 @@ export function AllocationList({ items }: { items: Item[] }) {
               key={item.name}
               className="flex items-start gap-3 py-3"
             >
-              {/* Identity: ticker over company name (+ percent of portfolio) */}
-              <div className="flex min-w-0 flex-1 items-start gap-2.5">
+              {/* Identity: ticker over company name (+ percent of portfolio).
+                  Rank + movement arrow + sector dot are vertically centered
+                  against the two-line block. */}
+              <div className="flex min-w-0 flex-1 items-center gap-2.5">
                 <RankBadge
                   rank={todayRank.get(item.name) ?? 0}
                   delta={
@@ -251,24 +253,24 @@ export function AllocationList({ items }: { items: Item[] }) {
                 {item.color && (
                   <span
                     aria-hidden
-                    className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: item.color }}
                   />
                 )}
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="num text-sm font-semibold tracking-wide text-black/85">
+                <div className="flex min-w-0 flex-1 flex-col gap-0">
+                  <span className="num text-lg font-semibold leading-tight tracking-wide text-black/85">
                     {primary}
                   </span>
-                  <div className="flex min-w-0 items-baseline gap-2">
+                  <div className="-mt-1 flex min-w-0 items-baseline gap-2">
                     {secondary && (
-                      <span className="min-w-0 truncate text-xs leading-tight text-black/50">
+                      <span className="min-w-0 truncate text-[11px] leading-tight text-black/50">
                         {secondary}
                       </span>
                     )}
                     <AnimatePresence initial={false}>
                       {visible.percent && (
                         <AnimatedFigure keyName="percent" inline>
-                          <span className="num shrink-0 text-xs text-black/40">
+                          <span className="num shrink-0 text-[11px] text-black/40">
                             {(item.percent * 100).toFixed(1)}%
                           </span>
                         </AnimatedFigure>
@@ -278,12 +280,12 @@ export function AllocationList({ items }: { items: Item[] }) {
                 </div>
               </div>
 
-              {/* Numbers: value / price on row 1 (aligned with the ticker),
-                  total / day change badges on row 2 (aligned with the company
-                  name) — two rows, like Yahoo. total = filled, day = outlined.
-                  Auto-width columns keep long ₼ values from crowding the name. */}
-              <div className="grid shrink-0 grid-cols-[auto_auto] items-center gap-x-4 gap-y-1 text-right">
-                <div className="num text-sm font-medium text-black/80">
+              {/* Numbers: value / price on row 1, total / day change badges on
+                  row 2 (total = filled, day = outlined). The price/day column is
+                  a fixed width so the value + total-change column lands on the
+                  same vertical line across every row regardless of price width. */}
+              <div className="grid shrink-0 grid-cols-[auto_52px] items-center gap-x-4 gap-y-1 text-right">
+                <div className="num text-[13px] font-medium text-black/80">
                   <AnimatePresence initial={false}>
                     {visible.value && (
                       <AnimatedFigure keyName="value" inline>
@@ -292,7 +294,7 @@ export function AllocationList({ items }: { items: Item[] }) {
                     )}
                   </AnimatePresence>
                 </div>
-                <div className="num text-sm text-black/45">
+                <div className="num text-[13px] text-black/45">
                   <AnimatePresence initial={false}>
                     {showPrice && (
                       <AnimatedFigure keyName="price" inline>
