@@ -1,6 +1,6 @@
 export type NotificationRow = {
   id: string;
-  kind: "match" | "settled";
+  kind: "match" | "settled" | "payment_due";
   trade_id: string | null;
   title: string;
   body: string;
