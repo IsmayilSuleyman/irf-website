@@ -11,6 +11,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Phase = "upcoming" | "tomorrow" | "today" | "overdue";
+type ActiveItem = { k: string; title: string; body: string };
 
 // Today's calendar date in Asia/Baku as "YYYY-MM-DD" (en-CA yields ISO order).
 function bakuTodayISO(): string {
@@ -33,9 +34,9 @@ function daysUntil(dueISO: string, todayISO: string): number | null {
   return Math.round((due - today) / 86_400_000);
 }
 
-// An unpaid installment is reminded once a day from a week out onward: every
-// day in the final week, on the due date, and while overdue. More than a week
-// away → nothing yet.
+// A payment reminder is "active" (should be shown) from a week out onward until
+// it's paid: each day in the final week, on the due date, and while overdue.
+// More than a week away → not yet shown.
 function phaseFor(days: number): Phase | null {
   if (days > 7) return null;
   if (days >= 2) return "upcoming";
@@ -62,20 +63,20 @@ function composeMessage(
 
   if (phase === "upcoming") {
     return {
-      title: `Ödənişə ${days} gün qalır`,
+      title: `Ödənişə ${days} gün qalıb`,
       body: `${when} tarixində ${sum}ödənişiniz var.${note}`,
     };
   }
   if (phase === "tomorrow") {
     return {
-      title: "Ödənişə 1 gün qalır",
+      title: "Ödənişə 1 gün qalıb",
       body: `Sabah (${when}) ${sum}ödənişiniz var.${note}`,
     };
   }
   if (phase === "today") {
     return {
       title: "Bu gün ödəniş günüdür",
-      body: `Bu gün (${when}) ${sum}ödənişiniz var.${note}`,
+      body: `Bu gün ${sum}ödənişiniz var.${note}`,
     };
   }
   return {
@@ -83,6 +84,8 @@ function composeMessage(
     body: `${when} tarixli ${sum}ödənişiniz hələ edilməyib.${note}`,
   };
 }
+
+type SyncResult = { linked?: boolean; active?: number; deleted?: number };
 
 export async function GET(req: Request) {
   // Same Bearer guard as /api/record-price.
@@ -118,8 +121,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 
-  // ?dryRun=1 runs the full pipeline (live Sheet read + bucketing + message
-  // composition) but skips every write — used to preview what would be sent.
+  // ?dryRun=1 runs the full pipeline (live Sheet read + classification + message
+  // composition) but performs no writes — previews what each account would show.
   // ?today=YYYY-MM-DD (dry-run only) simulates the run as if it were that date.
   const params = new URL(req.url).searchParams;
   const dryRun = params.get("dryRun") === "1";
@@ -129,19 +132,22 @@ export async function GET(req: Request) {
       ? overrideToday
       : bakuTodayISO();
   const supabase = createClient(url, anon);
-  const preview: Array<{
-    name: string;
-    date: string;
-    phase: Phase;
-    title: string;
-    body: string;
-  }> = [];
-  let attempted = 0;
-  let inserted = 0;
-  let skipped = 0;
+
+  const preview: Array<{ name: string; active: ActiveItem[] }> = [];
+  let synced = 0; // accounts reconciled (linked to a user)
+  let active = 0; // active reminders upserted across all accounts
+  let deleted = 0; // stale (paid / out-of-window) reminders removed
+  let skipped = 0; // accounts with a schedule but no linked user
   const errors: string[] = [];
 
   for (const account of accounts) {
+    // Only loan holders carry a schedule; skip deposit-only / empty accounts.
+    if (account.paymentSchedule.length === 0) continue;
+
+    // The full set of reminders this account should currently show. One entry
+    // per unpaid installment within the window; a stable key per due date so
+    // the row updates in place day to day rather than piling up.
+    const items: ActiveItem[] = [];
     for (const item of account.paymentSchedule) {
       if (isPaymentPaid(item.status)) continue;
 
@@ -152,30 +158,34 @@ export async function GET(req: Request) {
       if (!phase) continue;
 
       const { title, body } = composeMessage(phase, item, days);
-      attempted += 1;
+      items.push({ k: `pay:${item.date}`, title, body });
+    }
 
-      if (dryRun) {
-        preview.push({ name: account.name, date: item.date, phase, title, body });
-        continue;
-      }
+    if (dryRun) {
+      if (items.length > 0) preview.push({ name: account.name, active: items });
+      continue;
+    }
 
-      // One reminder per payment per day: the run date is in the dedupe key, so
-      // it re-fires daily but a same-day retry inserts nothing.
-      const { data, error } = await supabase.rpc("create_payment_notification", {
-        p_name: account.name,
-        p_title: title,
-        p_body: body,
-        p_dedupe_suffix: `pay:${item.date}:${todayISO}`,
-        p_secret: secret,
-      });
+    // Reconcile: upsert the active reminders and delete any now-paid ones.
+    // Called even when items is empty, so a just-paid loan's reminders clear.
+    const { data, error } = await supabase.rpc("sync_payment_notifications", {
+      p_name: account.name,
+      p_items: items,
+      p_secret: secret,
+    });
 
-      if (error) {
-        errors.push(`${account.name} / ${item.date} / ${phase}: ${error.message}`);
-      } else if (data === true) {
-        inserted += 1;
-      } else {
-        skipped += 1; // no linked user, or already sent
-      }
+    if (error) {
+      errors.push(`${account.name}: ${error.message}`);
+      continue;
+    }
+
+    const res = (data ?? {}) as SyncResult;
+    if (res.linked) {
+      synced += 1;
+      active += res.active ?? 0;
+      deleted += res.deleted ?? 0;
+    } else {
+      skipped += 1; // no linked user to notify
     }
   }
 
@@ -183,8 +193,9 @@ export async function GET(req: Request) {
     ok: errors.length === 0,
     today: todayISO,
     accounts: accounts.length,
-    attempted,
-    inserted,
+    synced,
+    active,
+    deleted,
     skipped,
     errors,
     ...(dryRun ? { dryRun: true, preview } : {}),
