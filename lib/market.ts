@@ -11,6 +11,8 @@ export type MarketStatus = {
   commission: number;
   satis: number;
   alis: number;
+  best_buy_order: number | null;
+  best_sell_order: number | null;
   total_units: number;
   float_cap_pct: number;
   public_float_pct: number;
@@ -100,6 +102,31 @@ async function refreshUnitPriceFromSheet(supabase: SupabaseClient): Promise<void
   }
 }
 
+export type MarketQuotes = {
+  bestBuyOrder: number | null;
+  bestSellOrder: number | null;
+  fundCanSell: boolean;
+};
+
+/**
+ * Lightweight order-book quotes for pages that don't need the full market
+ * payload (e.g. the dashboard badge). Returns the resting best bid/ask and
+ * whether the Fund is currently selling, so the caller can combine them with a
+ * live unit price via bestQuotes(). null when Supabase isn't configured.
+ */
+export async function getMarketQuotes(): Promise<MarketQuotes | null> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("market_status");
+  if (error || !data) return null;
+  const s = data as Record<string, unknown>;
+  return {
+    bestBuyOrder: s.best_buy_order == null ? null : num(s.best_buy_order),
+    bestSellOrder: s.best_sell_order == null ? null : num(s.best_sell_order),
+    fundCanSell: num(s.fund_sell_capacity) > 0,
+  };
+}
+
 /**
  * Loads everything the /market page needs for the current user in one pass.
  * Reads run under the user's session, so RLS scopes orders/trades correctly
@@ -143,6 +170,8 @@ export async function getMarketData(): Promise<MarketData | null> {
     commission: num(rawStatus.commission),
     satis: num(rawStatus.satis),
     alis: num(rawStatus.alis),
+    best_buy_order: rawStatus.best_buy_order == null ? null : num(rawStatus.best_buy_order),
+    best_sell_order: rawStatus.best_sell_order == null ? null : num(rawStatus.best_sell_order),
     total_units: num(rawStatus.total_units),
     float_cap_pct: num(rawStatus.float_cap_pct),
     public_float_pct: num(rawStatus.public_float_pct),

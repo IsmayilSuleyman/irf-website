@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth-guard";
 import { getMarketData } from "@/lib/market";
+import { bestQuotes } from "@/lib/priceMath";
 import { formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
 import { MotionSection } from "@/components/MotionSection";
@@ -29,6 +30,12 @@ export default async function MarketPage() {
   }
 
   const notConfigured = data.status.unit_price <= 0;
+  const quotes = bestQuotes(
+    data.status.unit_price,
+    data.status.best_buy_order,
+    data.status.best_sell_order,
+    data.status.fund_sell_capacity > 0,
+  );
 
   return (
     <main className="px-6 pb-24">
@@ -46,7 +53,7 @@ export default async function MarketPage() {
             </p>
           </div>
           <div className="lg:col-span-1">
-            <PriceBadge current={data.status.unit_price} />
+            <PriceBadge current={data.status.unit_price} ask={quotes.ask} bid={quotes.bid} />
           </div>
         </MotionSection>
 
