@@ -1,3 +1,5 @@
+import { Odometer } from "@/components/Odometer";
+
 export function PriceBadge({
   current,
   ask,
@@ -34,7 +36,11 @@ function Row({
     <div className="flex items-baseline justify-between gap-6">
       <span className="text-black/55">{label}</span>
       <span className={`num text-black ${bold ? "font-bold" : ""}`}>
-        {value != null ? `${value.toFixed(2)} ₼` : "—"}
+        {value != null ? (
+          <Odometer value={value} fractionDigits={2} suffix=" ₼" />
+        ) : (
+          "—"
+        )}
       </span>
     </div>
   );
