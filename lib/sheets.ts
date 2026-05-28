@@ -357,7 +357,7 @@ export function computeHolderValueHistory(
   holderName: string,
   transactions: Transaction[],
   priceHistory: NavPoint[],
-): { label: string; value: number }[] {
+): { label: string; value: number; date: string }[] {
   const target = norm(holderName);
   const mine = transactions.filter((t) => norm(t.holderName) === target);
 
@@ -370,7 +370,7 @@ export function computeHolderValueHistory(
       .filter((n) => Number.isFinite(n)),
   );
 
-  const result: { label: string; value: number }[] = [];
+  const result: { label: string; value: number; date: string }[] = [];
 
   for (const point of priceHistory) {
     const pointMs = new Date(point.recordedAt).getTime();
@@ -386,7 +386,11 @@ export function computeHolderValueHistory(
     }
 
     if (units > 0) {
-      result.push({ label: point.label, value: units * point.price });
+      result.push({
+        label: point.label,
+        value: units * point.price,
+        date: point.recordedAt,
+      });
     }
   }
 
