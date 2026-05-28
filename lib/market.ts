@@ -1,6 +1,7 @@
-import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { FUND_PRINCIPAL_NAME } from "@/lib/holdings";
+import { getFundData } from "@/lib/sheets";
 
 const norm = (s: string) =>
   s.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
@@ -78,6 +79,28 @@ const num = (v: unknown) => {
 };
 
 /**
+ * Push the live Sheet unit price into fund_config so the bazar tracks the same
+ * price the dashboard shows. Best-effort: a missing secret or a failed Sheet
+ * read leaves the last-synced price in place rather than breaking the page.
+ * The value comes from the trusted server; the RPC is secret-gated server-side.
+ */
+async function refreshUnitPriceFromSheet(supabase: SupabaseClient): Promise<void> {
+  const secret = process.env.MARKET_REFRESH_SECRET;
+  if (!secret) return;
+  try {
+    const fund = await getFundData();
+    if (fund.unitPrice > 0) {
+      await supabase.rpc("refresh_fund_price", {
+        p_unit_price: fund.unitPrice,
+        p_secret: secret,
+      });
+    }
+  } catch (err) {
+    console.error("refresh_fund_price failed:", err);
+  }
+}
+
+/**
  * Loads everything the /market page needs for the current user in one pass.
  * Reads run under the user's session, so RLS scopes orders/trades correctly
  * (a participant sees only their own; the admin sees all).
@@ -92,6 +115,10 @@ export async function getMarketData(): Promise<MarketData | null> {
   if (!user) return null;
 
   const holderName = displayName(user.user_metadata);
+
+  // Track the live Sheet price before reading status, so the bazar's unit
+  // price (and the engine's floor/cap) match the dashboard.
+  await refreshUnitPriceFromSheet(supabase);
 
   const [statusRes, bookRes, ordersRes, tradesRes, availRes] = await Promise.all([
     supabase.rpc("market_status"),
