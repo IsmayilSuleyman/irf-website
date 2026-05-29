@@ -116,10 +116,9 @@ export default async function DashboardPage({
     priceHistory,
   );
 
-  // Whole-fund view (owner-only). The mode is encoded in the URL so the server
-  // renders the correct dataset; non-owners always get the personal view
-  // regardless of the query param.
-  const fundView = isAdmin && sp?.view === "fund";
+  // Whole-fund view, available to every signed-in holder. The mode is encoded
+  // in the URL (?view=fund) so the server renders the correct dataset.
+  const fundView = sp?.view === "fund";
   // Fund-wide hero figures, computed on the same basis as the "Ümumi dəyəri"
   // tile below so the headline and the tile always agree.
   const totalCostBasis = holdings.reduce((s, h) => s + h.costBasisAzn, 0);
@@ -145,11 +144,9 @@ export default async function DashboardPage({
       <Header dateLabel={dateLabel} />
 
       <div className="mx-auto flex max-w-5xl flex-col gap-16">
-        {isAdmin && (
-          <div className="hidden justify-end sm:-mb-12 sm:flex">
-            <FundViewToggle active={fundView} />
-          </div>
-        )}
+        <div className="hidden justify-end sm:-mb-12 sm:flex">
+          <FundViewToggle active={fundView} />
+        </div>
 
         {/* Hero */}
         <MotionSection className="grid grid-cols-1 lg:grid-cols-3 gap-x-12 gap-y-6 items-end">
@@ -162,9 +159,7 @@ export default async function DashboardPage({
                 dayChange={fundDayChange}
                 totalChange={fundTotalChange}
                 toggle={
-                  isAdmin ? (
-                    <FundViewToggle active={fundView} compact className="sm:hidden" />
-                  ) : undefined
+                  <FundViewToggle active={fundView} compact className="sm:hidden" />
                 }
               />
             ) : (
@@ -176,15 +171,22 @@ export default async function DashboardPage({
                 units={effectiveUnits}
                 avgBuyPrice={perf.avgBuyPrice}
                 toggle={
-                  isAdmin ? (
-                    <FundViewToggle active={fundView} compact className="sm:hidden" />
-                  ) : undefined
+                  <FundViewToggle active={fundView} compact className="sm:hidden" />
                 }
               />
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <MarketCountdown />
               <RefreshTimer />
+              {!fundView && (
+                <Link
+                  href="/market"
+                  className="group inline-flex items-center gap-1.5 rounded-full border border-[rgba(22,163,74,0.28)] bg-brand-green/5 px-3 py-1.5 text-[11px] font-medium text-brand-green shadow-sm transition hover:bg-brand-green/10"
+                >
+                  <span>Bazar</span>
+                  <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
+                </Link>
+              )}
             </div>
           </div>
           <div className="lg:col-span-1 flex flex-col gap-3">
@@ -192,15 +194,6 @@ export default async function DashboardPage({
               <ShareholdersList holders={fund.holders} />
             ) : (
               <PriceBadge current={fund.unitPrice} ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
-            )}
-            {!fundView && (
-              <Link
-                href="/market"
-                className="group flex items-center justify-between rounded-2xl border border-[rgba(22,163,74,0.18)] bg-brand-green/5 px-5 py-3 text-sm font-medium text-brand-green transition hover:bg-brand-green/10"
-              >
-                <span>Bazar — payları al və sat</span>
-                <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
-              </Link>
             )}
           </div>
         </MotionSection>
