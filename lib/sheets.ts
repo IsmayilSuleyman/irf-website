@@ -398,6 +398,55 @@ export function computeHolderValueHistory(
 }
 
 /**
+ * Whole-fund value time series — the fund-wide analog of
+ * computeHolderValueHistory. At each price-history point T:
+ *   value_T = Σ(units from ALL transactions on or before T) × unit_price_T
+ *
+ * Secondary-market trades between holders net to zero units (one side +units,
+ * the other −units), so summing every transaction yields the fund's total
+ * outstanding units at T. Points before the very first transaction are skipped.
+ */
+export function computeFundValueHistory(
+  transactions: Transaction[],
+  priceHistory: NavPoint[],
+): { label: string; value: number; date: string }[] {
+  if (transactions.length === 0) return [];
+
+  const firstTxMs = Math.min(
+    ...transactions
+      .map((t) => new Date(t.date).getTime())
+      .filter((n) => Number.isFinite(n)),
+  );
+  if (!Number.isFinite(firstTxMs)) return [];
+
+  const result: { label: string; value: number; date: string }[] = [];
+
+  for (const point of priceHistory) {
+    const pointMs = new Date(point.recordedAt).getTime();
+    if (!Number.isFinite(pointMs) || pointMs < firstTxMs) continue;
+
+    // Total fund units outstanding at this point in time
+    let units = 0;
+    for (const t of transactions) {
+      const tMs = new Date(t.date).getTime();
+      if (Number.isFinite(tMs) && tMs <= pointMs) {
+        units += t.units;
+      }
+    }
+
+    if (units > 0) {
+      result.push({
+        label: point.label,
+        value: units * point.price,
+        date: point.recordedAt,
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
  * Transaction-aware holding-value change over a period.
  *
  * Computes how much the user's holding actually gained or lost over the

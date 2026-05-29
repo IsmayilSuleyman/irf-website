@@ -14,18 +14,16 @@ import {
   computePeriodChanges,
   findLatestPriceBeforeDate,
 } from "@/lib/priceHistory";
-import { formatAzn, formatPct } from "@/lib/portfolio";
 import { getHolderMarketState } from "@/lib/holdings";
 import { getMarketQuotes } from "@/lib/market";
 import { bestQuotes, buyPrice, sellPrice } from "@/lib/priceMath";
 import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
-import { StatTile } from "@/components/StatTile";
 import { PerformanceChart } from "@/components/PerformanceChart";
 import { HeroPrice } from "@/components/HeroPrice";
 import { PriceBadge } from "@/components/PriceBadge";
-import { IndicatorsCard } from "@/components/IndicatorsCard";
+import { FundSummary } from "@/components/FundSummary";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
 import { getStrategyStatement, isOwnerEmail } from "@/lib/fundSettings";
@@ -33,6 +31,8 @@ import { AllocationList } from "@/components/AllocationList";
 import { PortfolioPie } from "@/components/PortfolioPie";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
+import { FundViewToggle } from "@/components/FundViewToggle";
+import { ShareholdersList } from "@/components/ShareholdersList";
 import { RefreshTimer } from "@/components/RefreshTimer";
 import { MarketCountdown } from "@/components/MarketCountdown";
 import { DebtPanel } from "@/components/DebtPanel";
@@ -41,8 +41,13 @@ import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule"
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const user = await requireUser();
+  const sp = await searchParams;
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
@@ -111,6 +116,19 @@ export default async function DashboardPage() {
     priceHistory,
   );
 
+  // Whole-fund view (owner-only). The mode is encoded in the URL so the server
+  // renders the correct dataset; non-owners always get the personal view
+  // regardless of the query param.
+  const fundView = isAdmin && sp?.view === "fund";
+  // Fund-wide hero figures, computed on the same basis as the "Ümumi dəyəri"
+  // tile below so the headline and the tile always agree.
+  const totalCostBasis = holdings.reduce((s, h) => s + h.costBasisAzn, 0);
+  const fundTotalChange = fund.totalCapital - totalCostBasis;
+  const hasFundDayData = holdings.some((h) => h.dayChangeUsd != null);
+  const fundDayChange = hasFundDayData
+    ? holdings.reduce((s, h) => s + (h.dayChangeUsd ?? 0), 0)
+    : null;
+
   // Badge prices reflect the live order book (best bid/ask) on top of the Fund
   // quote; fall back to the plain Fund ±commission quote if market data is down.
   const badgeQuotes = marketQuotes
@@ -127,89 +145,89 @@ export default async function DashboardPage() {
       <Header dateLabel={dateLabel} />
 
       <div className="mx-auto flex max-w-5xl flex-col gap-16">
+        {isAdmin && (
+          <div className="hidden justify-end sm:-mb-12 sm:flex">
+            <FundViewToggle active={fundView} />
+          </div>
+        )}
+
         {/* Hero */}
-        <MotionSection className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-end">
+        <MotionSection className="grid grid-cols-1 lg:grid-cols-3 gap-x-12 gap-y-6 items-end">
           <div className="lg:col-span-2 flex flex-col gap-5">
-            <HeroPrice
-              holderName={holder.name}
-              holdingValue={holdingValue}
-              holdingPnl={holdingPnl}
-              dayChange={dayChange}
-              units={effectiveUnits}
-              avgBuyPrice={perf.avgBuyPrice}
-            />
+            {fundView ? (
+              <HeroPrice
+                variant="fund"
+                holderName={holder.name}
+                value={fund.totalCapital}
+                dayChange={fundDayChange}
+                totalChange={fundTotalChange}
+                toggle={
+                  isAdmin ? (
+                    <FundViewToggle active={fundView} compact className="sm:hidden" />
+                  ) : undefined
+                }
+              />
+            ) : (
+              <HeroPrice
+                holderName={holder.name}
+                holdingValue={holdingValue}
+                holdingPnl={holdingPnl}
+                dayChange={dayChange}
+                units={effectiveUnits}
+                avgBuyPrice={perf.avgBuyPrice}
+                toggle={
+                  isAdmin ? (
+                    <FundViewToggle active={fundView} compact className="sm:hidden" />
+                  ) : undefined
+                }
+              />
+            )}
             <div className="flex items-center gap-2">
               <MarketCountdown />
               <RefreshTimer />
             </div>
           </div>
           <div className="lg:col-span-1 flex flex-col gap-3">
-            <PriceBadge current={fund.unitPrice} ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
-            <Link
-              href="/market"
-              className="group flex items-center justify-between rounded-2xl border border-[rgba(22,163,74,0.18)] bg-brand-green/5 px-5 py-3 text-sm font-medium text-brand-green transition hover:bg-brand-green/10"
-            >
-              <span>Bazar — payları al və sat</span>
-              <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
-            </Link>
+            {fundView ? (
+              <ShareholdersList holders={fund.holders} />
+            ) : (
+              <PriceBadge current={fund.unitPrice} ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
+            )}
+            {!fundView && (
+              <Link
+                href="/market"
+                className="group flex items-center justify-between rounded-2xl border border-[rgba(22,163,74,0.18)] bg-brand-green/5 px-5 py-3 text-sm font-medium text-brand-green transition hover:bg-brand-green/10"
+              >
+                <span>Bazar — payları al və sat</span>
+                <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
+              </Link>
+            )}
           </div>
         </MotionSection>
 
-        {/* Chart */}
-        <MotionSection delay={0.05}>
-          <PerformanceChart data={chartData} />
-        </MotionSection>
+        {/* Chart — personal holding history. The whole-fund view will get a
+            dedicated "Ümumfond dəyər tarixçəsi" chart later; hidden for now. */}
+        {!fundView && (
+          <MotionSection delay={0.05} className="-mt-10">
+            <PerformanceChart data={chartData} />
+          </MotionSection>
+        )}
 
-        {/* Fund info */}
-        <MotionSection delay={0.1} className="hairline pt-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {(() => {
-              const totalCostBasis = holdings.reduce(
-                (s, h) => s + h.costBasisAzn,
-                0,
-              );
-              const cbChange = fund.totalCapital - totalCostBasis;
-              const cbChangePct =
-                totalCostBasis > 0 ? cbChange / totalCostBasis : 0;
-              const cbTone =
-                cbChange > 0
-                  ? "text-brand-green"
-                  : cbChange < 0
-                    ? "text-brand-red"
-                    : "text-black/55";
-              const sign = cbChange > 0 ? "+" : "";
-              return (
-                <StatTile label="Ümumi dəyəri">
-                  <div className="num text-4xl md:text-5xl font-bold text-black">
-                    {formatAzn(fund.totalCapital)}
-                  </div>
-                  {totalCostBasis > 0 && (
-                    <div className="flex flex-col gap-0.5 text-xs text-black/55">
-                      <div>
-                        Maya dəyəri: {formatAzn(totalCostBasis)}
-                      </div>
-                      <div className={cbTone}>
-                        {sign}
-                        {formatAzn(cbChange)} ({sign}
-                        {formatPct(cbChangePct)})
-                      </div>
-                    </div>
-                  )}
-                </StatTile>
-              );
-            })()}
-            <StatTile
-              label="Xalis dəyəri"
-              value={formatAzn(fund.netCapital)}
-              sub="Bütün borclar çıxılandan sonrakı nəticə."
-            />
-            <IndicatorsCard changes={periodChanges} />
-          </div>
+        {/* Fund info — hidden in the whole-fund view; the hero already shows the totals. */}
+        {!fundView && (
+        <MotionSection delay={0.1} className="hairline -mt-8 pt-6">
+          <FundSummary
+            totalCapital={fund.totalCapital}
+            totalCostBasis={totalCostBasis}
+            netCapital={fund.netCapital}
+            changes={periodChanges}
+          />
         </MotionSection>
+        )}
 
-        {/* Strategy statement */}
-        {(canEditStrategy || strategyStatement.trim().length > 0) && (
-          <MotionSection delay={0.12}>
+        {/* Strategy statement — personal view only */}
+        {!fundView && (canEditStrategy || strategyStatement.trim().length > 0) && (
+          <MotionSection delay={0.12} className="-mt-10">
             <StrategyStatementCard
               initialValue={strategyStatement}
               canEdit={canEditStrategy}
@@ -217,9 +235,9 @@ export default async function DashboardPage() {
           </MotionSection>
         )}
 
-        {/* Debt panel — admin only */}
-        {isAdmin && debts.length > 0 && (
-          <MotionSection delay={0.13} className="hairline pt-10">
+        {/* Debt panel — admin only, personal view only */}
+        {!fundView && isAdmin && debts.length > 0 && (
+          <MotionSection delay={0.13} className="hairline -mt-8 pt-6">
             <DebtPanel
               projections={computeDebtProjections(debts)}
               schedule={computeDebtSchedule(debts)}
@@ -305,7 +323,7 @@ export default async function DashboardPage() {
           ];
 
           return (
-            <MotionSection delay={0.15} className="hairline pt-10">
+            <MotionSection delay={0.15} className="hairline -mt-8 pt-6">
               <div className="glass p-6 flex flex-col gap-6">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
