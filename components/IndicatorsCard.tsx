@@ -1,17 +1,24 @@
 import type { PeriodChange, PeriodChanges } from "@/lib/priceHistory";
 
+/** The 4 period returns as a bare grid — reused inside the unified FundSummary. */
+export function PeriodIndicators({ changes }: { changes: PeriodChanges }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4 md:gap-x-0 md:gap-y-0 md:divide-x md:divide-black/[0.06]">
+      <Indicator change={changes.w1} label="1 həftə" />
+      <Indicator change={changes.m1} label="1 ay" />
+      <Indicator change={changes.m3} label="3 ay" />
+      <Indicator change={changes.y1} label="1 il" />
+    </div>
+  );
+}
+
 export function IndicatorsCard({ changes }: { changes: PeriodChanges }) {
   return (
     <div className="glass flex flex-col gap-6 p-6">
       <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
         Göstəricilər
       </div>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4 md:gap-x-0 md:gap-y-0 md:divide-x md:divide-black/[0.06]">
-        <Indicator change={changes.w1} label="1 həftə" />
-        <Indicator change={changes.m1} label="1 ay" />
-        <Indicator change={changes.m3} label="3 ay" />
-        <Indicator change={changes.y1} label="1 il" />
-      </div>
+      <PeriodIndicators changes={changes} />
     </div>
   );
 }
