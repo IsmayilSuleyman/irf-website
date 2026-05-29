@@ -69,7 +69,7 @@ export function HeroPrice(props: PersonalProps | FundProps) {
       <div className="flex items-end gap-4">
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(3.75rem, 12vw, 7.5rem)" }}
+          style={{ fontSize: "clamp(4rem, 13vw, 8rem)" }}
         >
           <Odometer value={holdingValue} fractionDigits={2} suffix="₼" />
         </div>
@@ -117,7 +117,7 @@ function FundHero({
       <div className="flex items-end gap-4">
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(3.75rem, 12vw, 7.5rem)" }}
+          style={{ fontSize: "clamp(4rem, 13vw, 8rem)" }}
         >
           <Odometer value={value} fractionDigits={2} suffix="₼" />
         </div>
