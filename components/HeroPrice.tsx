@@ -36,11 +36,19 @@ function Greeting({
   toggle?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-green">
-        Xoş gəldin, {holderName}
+    <div className="flex flex-col gap-0.5">
+      {/* Row 1: greeting + toggle. On mobile the name drops to its own row
+          below (so it never truncates); on desktop it stays inline here. */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-green">
+          Xoş gəldin,
+          <span className="hidden sm:inline"> {holderName}</span>
+        </div>
+        {toggle}
       </div>
-      {toggle}
+      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-green sm:hidden">
+        {holderName}
+      </div>
     </div>
   );
 }
@@ -69,7 +77,7 @@ export function HeroPrice(props: PersonalProps | FundProps) {
       <div className="flex items-end gap-4">
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(4rem, 13vw, 8rem)" }}
+          style={{ fontSize: "clamp(3.25rem, 10vw, 6.5rem)" }}
         >
           <Odometer value={holdingValue} fractionDigits={2} suffix="₼" />
         </div>
@@ -117,7 +125,7 @@ function FundHero({
       <div className="flex items-end gap-4">
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(4rem, 13vw, 8rem)" }}
+          style={{ fontSize: "clamp(3.25rem, 10vw, 6.5rem)" }}
         >
           <Odometer value={value} fractionDigits={2} suffix="₼" />
         </div>
