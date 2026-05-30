@@ -33,7 +33,6 @@ import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
 import { FundViewToggle } from "@/components/FundViewToggle";
 import { ShareholdersList } from "@/components/ShareholdersList";
-import { RefreshTimer } from "@/components/RefreshTimer";
 import { MarketCountdown } from "@/components/MarketCountdown";
 import { DebtPanel } from "@/components/DebtPanel";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
@@ -143,7 +142,7 @@ export default async function DashboardPage({
     <main className="px-6 pb-24">
       <Header dateLabel={dateLabel} />
 
-      <div className="mx-auto flex max-w-5xl flex-col gap-16">
+      <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
         <div className="hidden justify-end sm:-mb-12 sm:flex">
           <FundViewToggle active={fundView} />
         </div>
@@ -159,7 +158,7 @@ export default async function DashboardPage({
                 dayChange={fundDayChange}
                 totalChange={fundTotalChange}
                 toggle={
-                  <FundViewToggle active={fundView} compact className="sm:hidden" />
+                  <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
                 }
               />
             ) : (
@@ -171,13 +170,12 @@ export default async function DashboardPage({
                 units={effectiveUnits}
                 avgBuyPrice={perf.avgBuyPrice}
                 toggle={
-                  <FundViewToggle active={fundView} compact className="sm:hidden" />
+                  <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
                 }
               />
             )}
             <div className="flex flex-wrap items-center gap-2">
               <MarketCountdown />
-              <RefreshTimer />
               {!fundView && (
                 <Link
                   href="/market"

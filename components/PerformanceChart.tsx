@@ -5,12 +5,13 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceDot,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { formatAzn } from "@/lib/portfolio";
+import { formatAzn, formatGrouped } from "@/lib/portfolio";
 
 type Point = { label: string; value: number; date?: string };
 
@@ -38,6 +39,8 @@ export function PerformanceChart({ data }: { data: Point[] }) {
       return Number.isFinite(t) && t >= cutoff;
     });
   }, [data, range]);
+
+  const last = filtered.length > 0 ? filtered[filtered.length - 1] : null;
 
   if (!data || data.length === 0) {
     return (
@@ -84,7 +87,7 @@ export function PerformanceChart({ data }: { data: Point[] }) {
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={filtered}
-              margin={{ top: 10, right: 16, left: 0, bottom: 0 }}
+              margin={{ top: 10, right: 14, left: 0, bottom: 0 }}
             >
               <defs>
                 <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
@@ -101,7 +104,15 @@ export function PerformanceChart({ data }: { data: Point[] }) {
                 axisLine={false}
                 minTickGap={24}
               />
-              <YAxis hide domain={["auto", "auto"]} />
+              <YAxis
+                domain={["auto", "auto"]}
+                width={52}
+                tick={{ fontSize: 10, fill: "rgba(0,0,0,0.4)" }}
+                tickLine={false}
+                axisLine={false}
+                tickCount={4}
+                tickFormatter={(v: number) => formatGrouped(v, 0)}
+              />
               <Tooltip
                 contentStyle={{
                   background: "rgba(255,255,255,0.96)",
@@ -121,6 +132,16 @@ export function PerformanceChart({ data }: { data: Point[] }) {
                 strokeWidth={2.5}
                 fill="url(#g)"
               />
+              {last && (
+                <ReferenceDot
+                  x={last.label}
+                  y={last.value}
+                  r={4}
+                  fill="#16a34a"
+                  stroke="#fff"
+                  strokeWidth={2}
+                />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         )}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { nextUsMarketTransition } from "@/lib/marketHours";
+import { RefreshTimer } from "@/components/RefreshTimer";
 
 function formatRemaining(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -34,16 +35,19 @@ export function MarketCountdown() {
       className="inline-flex items-center gap-2 rounded-full border border-black/8 bg-white/70 px-3 py-1.5 text-[11px] font-medium shadow-sm"
       title="ABŞ fond bazarları (NYSE/NASDAQ) iş saatları"
     >
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${open ? "animate-pulse bg-brand-green" : "bg-black/30"}`}
-      />
+      <RefreshTimer />
       <span className={open ? "text-brand-green" : "text-black/45"}>
         {open ? "ABŞ bazarları açıqdır" : "ABŞ bazarları bağlıdır"}
       </span>
       <span className="text-black/20">·</span>
       <span className="text-black/45">
-        {open ? "Bağlanmağa" : "Açılmağa"}{" "}
-        <span className="num tabular-nums text-black/70">{formatRemaining(remaining)}</span> qalıb
+        <span className="hidden sm:inline">
+          {open ? "Bağlanmağa" : "Açılmağa"}{" "}
+        </span>
+        <span className="num tabular-nums text-black/70">
+          {formatRemaining(remaining)}
+        </span>
+        <span className="hidden sm:inline"> qalıb</span>
       </span>
     </span>
   );
