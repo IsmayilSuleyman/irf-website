@@ -8,6 +8,7 @@ import {
   type BankAccount,
   type BankPaymentScheduleItem,
 } from "@/lib/bank";
+import { sendPushAll, type StoredSub } from "@/lib/push";
 
 export const runtime = "nodejs";
 
@@ -82,8 +83,21 @@ export async function POST(req: Request) {
       // Not admin → stop immediately (403).
       if (error.code === "42501") return rpcErrorResponse(error);
       errors.push(`${acc.name}: ${error.message}`);
-    } else if (data === true) {
+      continue;
+    }
+    const res = (data ?? {}) as { sent?: boolean; unread?: number; subs?: StoredSub[] };
+    if (res.sent) {
       sent += 1;
+      const subs = res.subs ?? [];
+      if (subs.length > 0) {
+        await sendPushAll(subs, {
+          title: msg.title,
+          body: msg.body,
+          url: "/bank",
+          unread: res.unread,
+          tag: "irf-debt",
+        });
+      }
     } else {
       skipped += 1; // borrower has no linked app user
     }

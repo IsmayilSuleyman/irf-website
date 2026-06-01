@@ -5,6 +5,7 @@ import {
   isPaymentPaid,
   composeDebtReminderMessage,
 } from "@/lib/bank";
+import { sendPushAll, type StoredSub } from "@/lib/push";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +32,14 @@ function daysUntil(dueISO: string, todayISO: string): number | null {
   return Math.round((due - today) / 86_400_000);
 }
 
-type SyncResult = { linked?: boolean; active?: number; deleted?: number };
+type SyncResult = {
+  linked?: boolean;
+  active?: number;
+  deleted?: number;
+  new?: string[];
+  unread?: number;
+  subs?: StoredSub[];
+};
 
 export async function GET(req: Request) {
   // Same Bearer guard as /api/record-price.
@@ -83,6 +91,7 @@ export async function GET(req: Request) {
   let active = 0;
   let deleted = 0;
   let skipped = 0;
+  let pushed = 0;
   const errors: string[] = [];
 
   for (const account of accounts) {
@@ -125,6 +134,25 @@ export async function GET(req: Request) {
       synced += 1;
       active += res.active ?? 0;
       deleted += res.deleted ?? 0;
+
+      // Push a banner only for reminders that were newly inserted this run
+      // (not the daily refresh of one already showing).
+      const newKeys = res.new ?? [];
+      const subs = res.subs ?? [];
+      if (newKeys.length > 0 && subs.length > 0) {
+        for (const key of newKeys) {
+          const item = items.find((i) => i.k === key);
+          if (!item) continue;
+          pushed += 1;
+          await sendPushAll(subs, {
+            title: item.title,
+            body: item.body,
+            url: "/bank",
+            unread: res.unread,
+            tag: "irf-payment",
+          });
+        }
+      }
     } else {
       skipped += 1;
     }
@@ -138,6 +166,7 @@ export async function GET(req: Request) {
     active,
     deleted,
     skipped,
+    pushed,
     errors,
     ...(dryRun ? { dryRun: true, preview } : {}),
   });
