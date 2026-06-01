@@ -36,6 +36,10 @@ export async function sendPush(
     await webpush.sendNotification(
       { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
       JSON.stringify(payload),
+      // High urgency so the push service delivers immediately even while the
+      // device is dozing (Android/Samsung otherwise batch normal pushes until
+      // the app is foregrounded). TTL: hold up to a day if the device is off.
+      { urgency: "high", TTL: 24 * 60 * 60 },
     );
     return { ok: true, gone: false };
   } catch (err) {
