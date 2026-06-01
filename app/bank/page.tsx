@@ -143,11 +143,11 @@ export default async function BankPage() {
   const isAdmin = supabase
     ? (await supabase.rpc("is_fund_admin")).data === true
     : false;
-  const debtors = isAdmin
-    ? (await getBankAccounts())
-        .filter((a) => a.outstandingLoanAzn > 0)
-        .map((a) => ({ name: a.name, amount: a.outstandingLoanAzn }))
-    : [];
+  const adminAccounts = isAdmin ? await getBankAccounts() : [];
+  const debtors = adminAccounts
+    .filter((a) => a.outstandingLoanAzn > 0)
+    .map((a) => ({ name: a.name, amount: a.outstandingLoanAzn }));
+  const recipientNames = adminAccounts.map((a) => a.name);
 
   if (!account) {
     return (
@@ -316,7 +316,7 @@ export default async function BankPage() {
           <MotionSection delay={0.16}>
             <div className="mt-8 flex flex-col gap-4">
               <DebtNoticePanel debtors={debtors} />
-              <BroadcastPanel />
+              <BroadcastPanel recipients={recipientNames} />
             </div>
           </MotionSection>
         ) : null}
