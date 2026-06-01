@@ -12,6 +12,7 @@ import { formatGrouped, formatGroupedTrim } from "@/lib/portfolio";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 import { DebtNoticePanel } from "@/components/DebtNoticePanel";
+import { BroadcastPanel } from "@/components/BroadcastPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -313,8 +314,9 @@ export default async function BankPage() {
 
         {isAdmin ? (
           <MotionSection delay={0.16}>
-            <div className="mt-8">
+            <div className="mt-8 flex flex-col gap-4">
               <DebtNoticePanel debtors={debtors} />
+              <BroadcastPanel />
             </div>
           </MotionSection>
         ) : null}
