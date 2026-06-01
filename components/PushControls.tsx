@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+// The VAPID public key is public by design (handed to every client + the push
+// service), so it's safe to ship as a fallback. This way the "enable" button
+// works even if NEXT_PUBLIC_VAPID_PUBLIC_KEY wasn't set at build time.
+const VAPID_PUBLIC =
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+  "BPpa36JzM4PgP4PBBvCukwt8QiyHuJ8GIar2h43jwMNEcPafVYLEJtaQmT2LG4fFbVLNGbTgc1dDmyyE5UCutBg";
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);

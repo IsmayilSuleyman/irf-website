@@ -13,10 +13,13 @@ let configured = false;
 
 function ensureConfigured(): boolean {
   if (configured) return true;
-  const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const pub =
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+    "BPpa36JzM4PgP4PBBvCukwt8QiyHuJ8GIar2h43jwMNEcPafVYLEJtaQmT2LG4fFbVLNGbTgc1dDmyyE5UCutBg";
   const priv = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT || "mailto:irf.ismayilsuleyman@gmail.com";
-  if (!pub || !priv) return false;
+  // Only the private key is secret; without it we can't sign, so bail.
+  if (!priv) return false;
   webpush.setVapidDetails(subject, pub, priv);
   configured = true;
   return true;
