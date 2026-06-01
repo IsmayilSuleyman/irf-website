@@ -79,6 +79,19 @@ export function NotificationsBell() {
     }
   };
 
+  const clearAll = async () => {
+    setItems([]);
+    setUnread(0);
+    if (typeof navigator !== "undefined" && "clearAppBadge" in navigator) {
+      (navigator as BadgeNav).clearAppBadge?.().catch(() => {});
+    }
+    try {
+      await fetch("/api/notifications", { method: "DELETE" });
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -109,8 +122,18 @@ export function NotificationsBell() {
 
       {open && (
         <div className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-xl border border-black/10 bg-white/95 shadow-[0_18px_50px_rgba(48,94,63,0.18)] backdrop-blur-md sm:absolute sm:inset-x-auto sm:right-0 sm:top-9 sm:w-72 sm:max-w-[85vw]">
-          <div className="border-b border-black/[0.07] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-green/80">
-            Bildirişlər
+          <div className="flex items-center justify-between gap-2 border-b border-black/[0.07] px-4 py-2">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-green/80">
+              Bildirişlər
+            </span>
+            {items.length > 0 && (
+              <button
+                onClick={clearAll}
+                className="text-[10px] font-medium text-black/40 transition hover:text-brand-red"
+              >
+                Təmizlə
+              </button>
+            )}
           </div>
           <PushControls />
           {items.length === 0 ? (
