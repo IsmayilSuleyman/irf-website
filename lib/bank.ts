@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { unstable_cache } from "next/cache";
+import { formatAzn } from "@/lib/portfolio";
 
 export type BankPaymentScheduleItem = {
   amountAzn: number | null;
@@ -60,6 +61,63 @@ const PAID_STATUS_TOKENS = new Set(["odenildi", "odenilmisdir", "odendi", "odenm
 export function isPaymentPaid(status: string | null | undefined): boolean {
   const token = simplifyText(String(status ?? "")).trim().toLocaleLowerCase("en-US");
   return PAID_STATUS_TOKENS.has(token);
+}
+
+const AZ_MONTHS = [
+  "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+  "iyul", "avqust", "sentyabr", "oktyabr", "noyabr", "dekabr",
+];
+
+// Azerbaijani-aware case maps. Node's "az" locale is unreliable (same reason
+// lib/portfolio formats AZN manually), so the İ/I/ı/i + Əə… cases are explicit.
+const AZ_TO_LOWER: Record<string, string> = {
+  I: "ı", "İ": "i", "Ə": "ə", "Ö": "ö", "Ü": "ü", "Ğ": "ğ", "Ş": "ş", "Ç": "ç",
+};
+const AZ_TO_UPPER: Record<string, string> = {
+  "ı": "I", i: "İ", "ə": "Ə", "ö": "Ö", "ü": "Ü", "ğ": "Ğ", "ş": "Ş", "ç": "Ç",
+};
+
+function azLower(s: string): string {
+  return s.replace(/[A-ZÇĞİÖŞÜƏ]/g, (c) => AZ_TO_LOWER[c] ?? c.toLowerCase());
+}
+
+function azUpperFirst(s: string): string {
+  if (!s) return s;
+  const first = s.charAt(0);
+  return (AZ_TO_UPPER[first] ?? first.toUpperCase()) + s.slice(1);
+}
+
+// "İSMAYIL SÜLEYMAN" -> "İsmayıl Süleyman"
+export function azTitleCase(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => azUpperFirst(azLower(w)))
+    .join(" ");
+}
+
+// The borrower-facing reminder/notice text, shared by the daily cron and the
+// admin "pay your debt" button so both read identically. Returns null if the
+// due date isn't a parseable YYYY-MM-DD.
+export function composeDebtReminderMessage(
+  rawHolderName: string,
+  item: Pick<BankPaymentScheduleItem, "date" | "amountAzn">,
+): { title: string; body: string } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(item.date.trim());
+  if (!m) return null;
+  const monthLower = AZ_MONTHS[Number(m[2]) - 1];
+  if (!monthLower) return null;
+  const monthCap = azUpperFirst(monthLower);
+  const day = Number(m[3]); // strips any leading zero: "03" -> 3
+  const name = azTitleCase(rawHolderName);
+  const amount = item.amountAzn != null ? `${formatAzn(item.amountAzn)} ` : "";
+
+  return {
+    title: "Ödəniş xatırlatması",
+    body:
+      `Dəyərli ${name}, sizin ${monthLower} ayı üçün ${amount}ödənişiniz var. ` +
+      `${monthCap} ayı üçün ödənişinizi ayın ${day}-dək etmənizi xahiş edirik.`,
+  };
 }
 
 function headerKey(value: unknown): string {

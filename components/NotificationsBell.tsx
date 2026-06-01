@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { NotificationRow } from "@/lib/notifications";
+import { PushControls } from "@/components/PushControls";
+
+type BadgeNav = Navigator & {
+  setAppBadge?: (n?: number) => Promise<void>;
+  clearAppBadge?: () => Promise<void>;
+};
 
 function timeAgo(iso: string): string {
   const t = new Date(iso).getTime();
@@ -38,6 +44,14 @@ export function NotificationsBell() {
     const id = setInterval(load, 60000);
     return () => clearInterval(id);
   }, []);
+
+  // Mirror the unread count onto the installed app icon while the app is open.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("setAppBadge" in navigator)) return;
+    const nav = navigator as BadgeNav;
+    if (unread > 0) nav.setAppBadge?.(unread).catch(() => {});
+    else nav.clearAppBadge?.().catch(() => {});
+  }, [unread]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -98,6 +112,7 @@ export function NotificationsBell() {
           <div className="border-b border-black/[0.07] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-green/80">
             Bildirişlər
           </div>
+          <PushControls />
           {items.length === 0 ? (
             <div className="px-4 py-6 text-center text-xs text-black/40">
               Bildiriş yoxdur.

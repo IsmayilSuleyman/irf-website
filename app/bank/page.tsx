@@ -1,14 +1,17 @@
 import Link from "next/link";
 import {
   getBankAccountByName,
+  getBankAccounts,
   simplifyText,
   type BankPaymentScheduleItem,
 } from "@/lib/bank";
 import { requireUser } from "@/lib/auth-guard";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { formatGrouped, formatGroupedTrim } from "@/lib/portfolio";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
+import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +136,17 @@ export default async function BankPage() {
   const name = displayNameOf(user.user_metadata);
   const account = await getBankAccountByName(name);
   const dateLabel = formatBakuDate(new Date());
+
+  // Admin (is_fund_admin) can push on-demand "pay your debt" notices to borrowers.
+  const supabase = await createSupabaseServerClient();
+  const isAdmin = supabase
+    ? (await supabase.rpc("is_fund_admin")).data === true
+    : false;
+  const debtors = isAdmin
+    ? (await getBankAccounts())
+        .filter((a) => a.outstandingLoanAzn > 0)
+        .map((a) => ({ name: a.name, amount: a.outstandingLoanAzn }))
+    : [];
 
   if (!account) {
     return (
@@ -293,6 +307,14 @@ export default async function BankPage() {
           <MotionSection delay={0.12}>
             <div className="mt-6">
               <PaymentSchedule schedule={account.paymentSchedule} />
+            </div>
+          </MotionSection>
+        ) : null}
+
+        {isAdmin ? (
+          <MotionSection delay={0.16}>
+            <div className="mt-8">
+              <DebtNoticePanel debtors={debtors} />
             </div>
           </MotionSection>
         ) : null}

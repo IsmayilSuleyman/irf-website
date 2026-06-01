@@ -8,16 +8,24 @@ export async function GET() {
   const ctx = await getAuthedContext();
   if (ctx instanceof NextResponse) return ctx;
 
+  // The bell shows only the last 3 days; anything older disappears from view.
+  // Active payment reminders refresh their created_at on each daily reconcile,
+  // so they stay until paid; non-refreshing notices (trade alerts, admin debt
+  // notices) age out exactly 3 days after they appear.
+  const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+
   const [listRes, countRes] = await Promise.all([
     ctx.supabase
       .from("notifications")
       .select("id, kind, trade_id, title, body, read, created_at")
+      .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(30),
     ctx.supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })
-      .eq("read", false),
+      .eq("read", false)
+      .gte("created_at", since),
   ]);
 
   if (listRes.error) {
