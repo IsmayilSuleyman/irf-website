@@ -27,7 +27,7 @@ export default async function IsmayilBankPage() {
   const backHref = user ? "/bank" : "/welcome";
   const backLabel = user ? "Hesabıma qayıt" : "Geri qayıt";
   return (
-    <main className="px-4 py-6 sm:px-6 sm:py-10">
+    <main className="min-h-screen bg-bank-section px-4 py-6 sm:px-6 sm:py-10">
       <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-[2.4rem] border border-blue-200/70 bg-white/72 p-6 shadow-[0_28px_80px_rgba(68,108,184,0.12)] backdrop-blur-xl sm:p-8 lg:p-12">
         <div
           aria-hidden

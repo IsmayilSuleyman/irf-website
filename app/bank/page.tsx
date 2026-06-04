@@ -147,7 +147,7 @@ export default async function BankPage({
     const accounts = await getBankAccounts();
     const aggregate = computeBankWide(accounts, new Date());
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen bg-bank-section">
         <BankHeader dateLabel={dateLabel} />
         <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
           <div className="hidden justify-end sm:-mb-6 sm:flex">
@@ -185,7 +185,7 @@ export default async function BankPage({
 
   if (!account) {
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen bg-bank-section">
         <BankHeader dateLabel={dateLabel} />
         <div className="mx-auto flex max-w-5xl justify-end px-6 pt-6">
           <BankViewToggle active={bankView} />
@@ -232,7 +232,7 @@ export default async function BankPage({
       : null;
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-bank-section">
       <BankHeader dateLabel={dateLabel} />
 
       <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
