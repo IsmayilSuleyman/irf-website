@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  computeBankWide,
   getBankAccountByName,
   getBankAccounts,
   simplifyText,
@@ -8,9 +9,12 @@ import {
 import { requireUser } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
-import { formatGrouped, formatGroupedTrim } from "@/lib/portfolio";
+import { formatGrouped } from "@/lib/portfolio";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
+import { BankViewToggle } from "@/components/BankViewToggle";
+import { BankWideView } from "@/components/BankWideView";
+import { DepositHero } from "@/components/DepositHero";
 import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 import { BroadcastPanel } from "@/components/BroadcastPanel";
 
@@ -26,11 +30,6 @@ function formatDisplayDate(value: string | null | undefined): string | null {
 function formatAmount(value: number): string {
   const hasFraction = Math.abs(value % 1) > 0.001;
   return formatGrouped(value, hasFraction ? 2 : 0);
-}
-
-function formatPercent(value: number | null): string {
-  if (value == null) return "—";
-  return `${formatGroupedTrim(value, 2)}%`;
 }
 
 function normalizeStatus(status: string | null | undefined): string {
@@ -131,28 +130,66 @@ function PaymentSchedule({ schedule }: { schedule: BankPaymentScheduleItem[] }) 
   );
 }
 
-export default async function BankPage() {
+export default async function BankPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const user = await requireUser("/bank");
+  const sp = await searchParams;
+  // Bank-wide transparency view, available to every signed-in user. Encoded in
+  // the URL (?view=bank) so the server renders the right dataset and the state
+  // survives refreshes — mirrors FundViewToggle on /dashboard.
+  const bankView = sp?.view === "bank";
+  const dateLabel = formatBakuDate(new Date());
+
+  if (bankView) {
+    const accounts = await getBankAccounts();
+    const aggregate = computeBankWide(accounts, new Date());
+    return (
+      <main className="min-h-screen bg-bank-section">
+        <BankHeader dateLabel={dateLabel} />
+        <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
+          <div className="hidden justify-end sm:-mb-6 sm:flex">
+            <BankViewToggle active={bankView} />
+          </div>
+          <MotionSection>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
+                ÜMUMBANK BAXIŞI
+              </p>
+              <BankViewToggle active={bankView} compact className="sm:hidden" />
+            </div>
+          </MotionSection>
+          <MotionSection delay={0.04}>
+            <BankWideView aggregate={aggregate} />
+          </MotionSection>
+        </section>
+      </main>
+    );
+  }
 
   const name = displayNameOf(user.user_metadata);
   const account = await getBankAccountByName(name);
-  const dateLabel = formatBakuDate(new Date());
 
   // Admin (is_fund_admin) can push on-demand "pay your debt" notices to borrowers.
   const supabase = await createSupabaseServerClient();
   const isAdmin = supabase
     ? (await supabase.rpc("is_fund_admin")).data === true
     : false;
-  const debtors = isAdmin
-    ? (await getBankAccounts())
-        .filter((a) => a.outstandingLoanAzn > 0)
-        .map((a) => ({ name: a.name, amount: a.outstandingLoanAzn }))
-    : [];
+  const adminAccounts = isAdmin ? await getBankAccounts() : [];
+  const debtors = adminAccounts
+    .filter((a) => a.outstandingLoanAzn > 0)
+    .map((a) => ({ name: a.name, amount: a.outstandingLoanAzn }));
+  const recipientNames = adminAccounts.map((a) => a.name);
 
   if (!account) {
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen bg-bank-section">
         <BankHeader dateLabel={dateLabel} />
+        <div className="mx-auto flex max-w-5xl justify-end px-6 pt-6">
+          <BankViewToggle active={bankView} />
+        </div>
         <section className="mx-auto max-w-[680px] px-5 py-20 text-center sm:py-28">
           <MotionSection>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#18A957]">
@@ -189,28 +226,26 @@ export default async function BankPage() {
     account.outstandingLoanAzn <= 0 &&
     account.paymentSchedule.length === 0;
 
-  const maturityEndAmount =
-    account.depositedAzn > 0 && account.maturityBonusAzn != null
-      ? account.depositedAzn + account.maturityBonusAzn
-      : null;
-
-  const depositTermLabel =
-    account.termMonths != null ? `${account.termMonths} ay` : "—";
-
   const remainingPayments =
     account.paymentSchedule.length > 0
       ? account.paymentSchedule.filter((p) => !isPaid(p.status)).length
       : null;
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-bank-section">
       <BankHeader dateLabel={dateLabel} />
 
       <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
+        <div className="hidden justify-end sm:-mb-12 sm:flex">
+          <BankViewToggle active={bankView} />
+        </div>
         <MotionSection>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
-            XOŞ GƏLDİN, {account.name}
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
+              XOŞ GƏLDİN, {account.name}
+            </p>
+            <BankViewToggle active={bankView} compact className="sm:hidden" />
+          </div>
         </MotionSection>
 
         {/* ── Empty state ── */}
@@ -233,38 +268,19 @@ export default async function BankPage() {
           </MotionSection>
         ) : null}
 
-        {/* ── Deposits Section ── */}
+        {/* ── Deposits Section — Fund-hero style headline ── */}
         {account.depositedAzn > 0 ? (
           <MotionSection delay={0.04}>
-            <h2 className="mt-8 text-[15px] font-semibold tracking-[-0.01em] text-[#111111]">
-              İsmayılBank-da olan depozitlərim:
-            </h2>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatTile
-                label="Depozit"
-                value={`${formatAmount(account.depositedAzn)}₼`}
+            <div className="mt-8">
+              <DepositHero
+                depositedAzn={account.depositedAzn}
+                termMonths={account.termMonths}
+                annualRatePct={account.annualRatePct}
+                maturityBonusAzn={account.maturityBonusAzn}
+                maturityDate={account.maturityDate}
               />
-              <StatTile
-                label="Depozitin müddəti"
-                value={depositTermLabel}
-              />
-              <StatTile
-                label="Depozitin illik gəlirlik faizi"
-                value={formatPercent(account.annualRatePct)}
-              />
-              <StatTile label="Müddətin sonunda alacağın məbləğ">
-                {maturityEndAmount != null ? (
-                  <p className="mt-2 flex items-baseline gap-1.5 font-semibold tracking-[-0.03em]">
-                    <span className="text-base text-black/48">{formatAmount(account.depositedAzn)}₼</span>
-                    <span className="text-xs text-black/30" aria-hidden>─►</span>
-                    <span className="text-[1.35rem] text-[#128342]">{formatAmount(maturityEndAmount)}₼</span>
-                  </p>
-                ) : (
-                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-[#111111]">—</p>
-                )}
-              </StatTile>
             </div>
-            <p className="mt-3 text-xs leading-5 text-black/48">
+            <p className="mt-4 text-xs leading-5 text-black/48">
               Qeyd: depozit üzrə hesablanmış faiz yalnız depozit müddətinin
               sonunda{account.maturityDate ? ` (${formatDisplayDate(account.maturityDate)})` : ""} ödənilir.
               Vaxtından əvvəl çıxarılan depozitlərə faiz gəliri verilmir.
@@ -316,7 +332,7 @@ export default async function BankPage() {
           <MotionSection delay={0.16}>
             <div className="mt-8 flex flex-col gap-4">
               <DebtNoticePanel debtors={debtors} />
-              <BroadcastPanel />
+              <BroadcastPanel recipients={recipientNames} />
             </div>
           </MotionSection>
         ) : null}

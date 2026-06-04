@@ -36,6 +36,15 @@ body {
   overflow-x: hidden;
 }
 
+/* Bank-section background — same shape as the site-wide green gradient but
+   tinted toward the İsmayılBank blue (#2F61D8). Apply on the bank-area
+   <main> so /bank and /ismayilbank read as a distinct visual area while
+   the rest of the site (IRF fund) keeps its brand-green tint. */
+.bg-bank-section {
+  background: linear-gradient(135deg, #ffffff 0%, #f4f7fd 50%, #e8eefa 100%);
+  background-attachment: fixed;
+}
+
 @layer components {
   .glass {
     @apply rounded-2xl border bg-white/55 shadow-glass-green backdrop-blur-md;

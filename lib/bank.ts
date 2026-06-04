@@ -449,3 +449,305 @@ export async function getBankAccountByName(
 
   return accounts.find((account) => normalize(account.name) === target);
 }
+
+// === Bank-wide aggregation for the "Ümumbank baxış" toggle ===
+//
+// Pure function over the parsed BankAccount[]. Caller passes `today` so we can
+// snapshot the 30-day windows deterministically (and test without freezing
+// clock time). Date math uses UTC midnight throughout — accuracy is "days",
+// not "minutes", so we sidestep DST / Baku tz drift entirely.
+
+export type BankWideDepositor = {
+  name: string;
+  depositedAzn: number;
+  maturityDate: string | null;
+  maturityBonusAzn: number | null;
+  daysToMaturity: number | null;
+  termMonths: number | null;
+  annualRatePct: number | null;
+  // Monthly interest accrual (display-only; lifetime bonus is still paid at
+  // maturity per the existing policy).
+  monthlyInterestAzn: number;
+  monthsElapsed: number;
+  accruedInterestAzn: number;
+};
+
+export type BankWideBorrower = {
+  name: string;
+  outstandingLoanAzn: number;
+  monthlyPaymentAzn: number | null;
+  nextPaymentDate: string | null;
+  daysToNextPayment: number | null;
+};
+
+export type BankWideUpcomingPayout = {
+  name: string;
+  amountAzn: number;
+  date: string;
+  daysAway: number;
+};
+
+export type BankWideUpcomingInflow = {
+  name: string;
+  amountAzn: number;
+  date: string;
+  daysAway: number;
+  label: string | null;
+  paid: boolean;
+};
+
+export type BankWideAggregate = {
+  totalDepositsAzn: number;
+  totalLoansAzn: number;
+  netLiquidityAzn: number;
+  liquidityPct: number | null;
+  loanShareOfDepositsPct: number;
+  totalPendingBonusAzn: number;
+  // Interest the depositors have already "earned" so far, summed across all
+  // open deposits (display-only). Plus the current monthly accrual rate
+  // counting only deposits still within their term.
+  totalAccruedInterestAzn: number;
+  totalMonthlyInterestAzn: number;
+  depositors: BankWideDepositor[];
+  borrowers: BankWideBorrower[];
+  next30dPayouts: { totalAzn: number; items: BankWideUpcomingPayout[] };
+  next30dInflow: { totalAzn: number; items: BankWideUpcomingInflow[] };
+};
+
+function parseDateUtc(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  // "YYYY-MM-DD" parsed as local time would shift across timezones; pin to UTC.
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00:00Z` : trimmed;
+  const d = new Date(iso);
+  return Number.isFinite(d.valueOf()) ? d : null;
+}
+
+function daysBetween(from: Date, to: Date): number {
+  const MS_PER_DAY = 86_400_000;
+  return Math.round((to.valueOf() - from.valueOf()) / MS_PER_DAY);
+}
+
+// Subtract `months` months from a UTC date, preserving the day-of-month and
+// clamping to the target month's end (e.g. Mar 31 minus 1 month → Feb 28/29).
+function subtractMonths(date: Date, months: number): Date {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  const d = date.getUTCDate();
+  const targetMonthStart = new Date(Date.UTC(y, m - months, 1));
+  const ty = targetMonthStart.getUTCFullYear();
+  const tm = targetMonthStart.getUTCMonth();
+  // Last day of the target month.
+  const daysInTargetMonth = new Date(Date.UTC(ty, tm + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(ty, tm, Math.min(d, daysInTargetMonth)));
+}
+
+// Whole calendar months elapsed from `start` to `today`. The current month
+// only counts once today.day >= start.day; otherwise it's still in progress.
+// Negative results are clamped to 0 (deposit hasn't started yet).
+function monthsBetween(start: Date, today: Date): number {
+  let months =
+    (today.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+    (today.getUTCMonth() - start.getUTCMonth());
+  if (today.getUTCDate() < start.getUTCDate()) months -= 1;
+  return Math.max(0, months);
+}
+
+export function computeBankWide(
+  accounts: BankAccount[],
+  today: Date,
+): BankWideAggregate {
+  // Anchor "today" at UTC midnight — diffs are then stable regardless of when
+  // in the day the request hits.
+  const todayUtc = new Date(
+    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+  );
+
+  let totalDepositsAzn = 0;
+  let totalLoansAzn = 0;
+  let totalPendingBonusAzn = 0;
+  let totalAccruedInterestAzn = 0;
+  let totalMonthlyInterestAzn = 0;
+
+  const depositors: BankWideDepositor[] = [];
+  const borrowers: BankWideBorrower[] = [];
+  const payouts: BankWideUpcomingPayout[] = [];
+  const inflow: BankWideUpcomingInflow[] = [];
+
+  for (const acc of accounts) {
+    totalDepositsAzn += acc.depositedAzn;
+    totalLoansAzn += acc.outstandingLoanAzn;
+    if (acc.maturityBonusAzn != null) totalPendingBonusAzn += acc.maturityBonusAzn;
+
+    if (acc.depositedAzn > 0) {
+      const matDate = parseDateUtc(acc.maturityDate);
+      const daysToMaturity = matDate ? daysBetween(todayUtc, matDate) : null;
+
+      // Monthly accrual (display-only). Prefer the sheet's maturityBonusAzn /
+      // termMonths since the bonus column is the canonical lifetime amount.
+      // Fall back to rate × principal / 12 when bonus is missing.
+      let monthlyInterestAzn = 0;
+      let monthsElapsed = 0;
+      let accruedInterestAzn = 0;
+      if (acc.termMonths != null && acc.termMonths > 0) {
+        if (acc.maturityBonusAzn != null && acc.maturityBonusAzn > 0) {
+          monthlyInterestAzn = acc.maturityBonusAzn / acc.termMonths;
+        } else if (acc.annualRatePct != null && acc.depositedAzn > 0) {
+          monthlyInterestAzn =
+            (acc.depositedAzn * acc.annualRatePct) / 100 / 12;
+        }
+        if (monthlyInterestAzn > 0 && matDate) {
+          const startDate = subtractMonths(matDate, acc.termMonths);
+          monthsElapsed = Math.min(
+            monthsBetween(startDate, todayUtc),
+            acc.termMonths,
+          );
+          accruedInterestAzn = monthsElapsed * monthlyInterestAzn;
+        }
+      }
+
+      totalAccruedInterestAzn += accruedInterestAzn;
+      // The current monthly accrual rate only counts deposits still within
+      // their term — a matured deposit no longer earns more.
+      if (
+        monthlyInterestAzn > 0 &&
+        (acc.termMonths == null || monthsElapsed < acc.termMonths)
+      ) {
+        totalMonthlyInterestAzn += monthlyInterestAzn;
+      }
+
+      depositors.push({
+        name: acc.name,
+        depositedAzn: acc.depositedAzn,
+        maturityDate: acc.maturityDate,
+        maturityBonusAzn: acc.maturityBonusAzn,
+        daysToMaturity,
+        termMonths: acc.termMonths,
+        annualRatePct: acc.annualRatePct,
+        monthlyInterestAzn,
+        monthsElapsed,
+        accruedInterestAzn,
+      });
+
+      // Bonus paid out when the term ends — only flag the ones inside the window.
+      if (
+        daysToMaturity != null &&
+        daysToMaturity >= 0 &&
+        daysToMaturity <= 30 &&
+        acc.maturityBonusAzn != null &&
+        acc.maturityBonusAzn > 0 &&
+        acc.maturityDate
+      ) {
+        payouts.push({
+          name: acc.name,
+          amountAzn: acc.maturityBonusAzn,
+          date: acc.maturityDate,
+          daysAway: daysToMaturity,
+        });
+      }
+    }
+
+    if (acc.outstandingLoanAzn > 0) {
+      const nextDate = parseDateUtc(acc.nextPaymentDate);
+      borrowers.push({
+        name: acc.name,
+        outstandingLoanAzn: acc.outstandingLoanAzn,
+        monthlyPaymentAzn: acc.monthlyPaymentAzn,
+        nextPaymentDate: acc.nextPaymentDate,
+        daysToNextPayment: nextDate ? daysBetween(todayUtc, nextDate) : null,
+      });
+
+      // Window per-item:
+      //   • paid installments dated within the last 30 days → surface as
+      //     "Ödənilib" so a borrower who already paid this month still shows
+      //     up in the card (and the row makes clear the total is 0 because
+      //     it's been paid, not because the payment was forgotten).
+      //   • unpaid installments dated within the next 30 days → expected
+      //     inflow that does count toward the total.
+      // The total only sums the unpaid bucket.
+      let scheduleSeen = false;
+      for (const item of acc.paymentSchedule) {
+        scheduleSeen = true;
+        if (item.amountAzn == null || item.amountAzn <= 0) continue;
+        const d = parseDateUtc(item.date);
+        if (!d) continue;
+        const daysAway = daysBetween(todayUtc, d);
+        const paid = isPaymentPaid(item.status);
+        const inWindow = paid
+          ? daysAway >= -30 && daysAway <= 30
+          : daysAway >= 0 && daysAway <= 30;
+        if (!inWindow) continue;
+        inflow.push({
+          name: acc.name,
+          amountAzn: item.amountAzn,
+          date: item.date,
+          daysAway,
+          label: item.label,
+          paid,
+        });
+      }
+
+      // Fallback ONLY when there are no paymentSchedule rows at all. When a
+      // schedule exists, trust it as the source of truth — the fallback would
+      // otherwise resurrect a paid installment as unpaid inflow (the sheet's
+      // nextPaymentDate column can lag behind paid status).
+      if (
+        !scheduleSeen &&
+        acc.nextPaymentDate &&
+        acc.monthlyPaymentAzn != null &&
+        acc.monthlyPaymentAzn > 0
+      ) {
+        const nextD = parseDateUtc(acc.nextPaymentDate);
+        if (nextD) {
+          const daysAway = daysBetween(todayUtc, nextD);
+          if (daysAway >= 0 && daysAway <= 30) {
+            inflow.push({
+              name: acc.name,
+              amountAzn: acc.monthlyPaymentAzn,
+              date: acc.nextPaymentDate,
+              daysAway,
+              label: null,
+              paid: false,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  depositors.sort((a, b) => b.depositedAzn - a.depositedAzn);
+  borrowers.sort((a, b) => b.outstandingLoanAzn - a.outstandingLoanAzn);
+  payouts.sort((a, b) => a.daysAway - b.daysAway);
+  inflow.sort((a, b) => a.daysAway - b.daysAway);
+
+  const netLiquidityAzn = totalDepositsAzn - totalLoansAzn;
+  const liquidityPct =
+    totalDepositsAzn > 0 ? (netLiquidityAzn / totalDepositsAzn) * 100 : null;
+  const loanShareOfDepositsPct =
+    totalDepositsAzn > 0
+      ? Math.min((totalLoansAzn / totalDepositsAzn) * 100, 100)
+      : 0;
+
+  return {
+    totalDepositsAzn,
+    totalLoansAzn,
+    netLiquidityAzn,
+    liquidityPct,
+    loanShareOfDepositsPct,
+    totalPendingBonusAzn,
+    totalAccruedInterestAzn,
+    totalMonthlyInterestAzn,
+    depositors,
+    borrowers,
+    next30dPayouts: {
+      totalAzn: payouts.reduce((s, p) => s + p.amountAzn, 0),
+      items: payouts,
+    },
+    next30dInflow: {
+      // Only unpaid installments count toward the expected total.
+      totalAzn: inflow.reduce((s, p) => s + (p.paid ? 0 : p.amountAzn), 0),
+      items: inflow,
+    },
+  };
+}

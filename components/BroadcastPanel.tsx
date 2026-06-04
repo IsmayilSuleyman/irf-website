@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 
-// Owner-only panel: send a custom notification to every user (bell + push).
-export function BroadcastPanel() {
+// Owner-only panel: send a custom notification either to everyone or to one
+// specific shareholder (bell + push).
+export function BroadcastPanel({ recipients }: { recipients: string[] }) {
+  const [target, setTarget] = useState(""); // "" = everyone
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -15,7 +17,10 @@ export function BroadcastPanel() {
       setError("Mesaj boş ola bilməz.");
       return;
     }
-    if (!window.confirm("Bu bildiriş bütün istifadəçilərə göndərilsin?")) return;
+    const toAll = target === "";
+    if (toAll && !window.confirm("Bu bildiriş BÜTÜN istifadəçilərə göndərilsin?")) {
+      return;
+    }
 
     setBusy(true);
     setMsg(null);
@@ -24,14 +29,18 @@ export function BroadcastPanel() {
       const res = await fetch("/api/admin/broadcast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body: message }),
+        body: JSON.stringify({
+          holderName: toAll ? undefined : target,
+          title,
+          body: message,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? "Göndərilmədi.");
         return;
       }
-      setMsg(`${json.sent} istifadəçiyə göndərildi.`);
+      setMsg(toAll ? `${json.sent} istifadəçiyə göndərildi.` : `Göndərildi: ${target}.`);
       setTitle("");
       setMessage("");
     } catch {
@@ -44,18 +53,31 @@ export function BroadcastPanel() {
   return (
     <section className="rounded-2xl border border-black/6 bg-white/90 p-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#2F61D8]">
-        İdarəetmə · Elan (hamıya)
+        İdarəetmə · Bildiriş göndər
       </p>
       <p className="mt-1 text-[12px] text-black/45">
-        Bütün istifadəçilərə xüsusi bildiriş göndər.
+        Hamıya və ya bir şəxsə xüsusi bildiriş göndər.
       </p>
+
+      <select
+        value={target}
+        onChange={(e) => setTarget(e.target.value)}
+        className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#2F61D8]"
+      >
+        <option value="">Hamıya (bütün istifadəçilər)</option>
+        {recipients.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
 
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Başlıq (istəyə bağlı — default: Elan)"
         maxLength={80}
-        className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#2F61D8]"
+        className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#2F61D8]"
       />
       <textarea
         value={message}
@@ -74,7 +96,7 @@ export function BroadcastPanel() {
         disabled={busy || !message.trim()}
         className="mt-3 rounded-full bg-[#2F61D8] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#2854be] disabled:opacity-50"
       >
-        {busy ? "Göndərilir..." : "Hamıya göndər"}
+        {busy ? "Göndərilir..." : target === "" ? "Hamıya göndər" : "Göndər"}
       </button>
     </section>
   );

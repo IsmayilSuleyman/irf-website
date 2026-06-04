@@ -51,3 +51,13 @@ export async function POST(req: Request) {
   if (error) return rpcErrorResponse(error);
   return NextResponse.json({ result: data });
 }
+
+// Clear (delete) all of the caller's own notifications.
+export async function DELETE() {
+  const ctx = await getAuthedContext();
+  if (ctx instanceof NextResponse) return ctx;
+
+  const { data, error } = await ctx.supabase.rpc("clear_my_notifications");
+  if (error) return rpcErrorResponse(error);
+  return NextResponse.json({ cleared: data ?? 0 });
+}
