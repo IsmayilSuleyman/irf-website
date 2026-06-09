@@ -69,7 +69,7 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
               <div key={o.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                       o.side === "sell"
                         ? "bg-brand-red/10 text-brand-red"
                         : "bg-brand-green/10 text-brand-green"
@@ -90,7 +90,7 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
                   <button
                     onClick={() => cancel(o.id)}
                     disabled={busy === o.id}
-                    className="shrink-0 rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                    className="shrink-0 rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/55 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
                   >
                     {busy === o.id ? "..." : "Ləğv et"}
                   </button>
@@ -99,7 +99,7 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
                     onClick={() => remove(o.id)}
                     disabled={busy === o.id}
                     aria-label="Sifarişi sil"
-                    className="shrink-0 rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                    className="shrink-0 rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/55 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
                   >
                     {busy === o.id ? "..." : "Sil"}
                   </button>

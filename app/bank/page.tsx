@@ -45,14 +45,14 @@ function statusStyles(status: string | null | undefined): string {
   const n = normalizeStatus(status);
 
   if (n.includes("oden") || n.includes("paid")) {
-    return "bg-[#e9f7ee] text-[#128342]";
+    return "bg-brand-green-mist text-status-paid";
   }
 
   if (n.includes("gec") || n.includes("late")) {
-    return "bg-[#fdecee] text-[#c74252]";
+    return "bg-status-late-soft text-status-late";
   }
 
-  return "bg-[#eef2fb] text-[#2F61D8]";
+  return "bg-bank-blue-soft text-bank-blue";
 }
 
 function StatTile({
@@ -68,14 +68,14 @@ function StatTile({
 }) {
   const valueTone =
     tone === "positive"
-      ? "text-[#128342]"
+      ? "text-status-paid"
       : tone === "negative"
-        ? "text-[#c74252]"
-        : "text-[#111111]";
+        ? "text-status-late"
+        : "text-ink";
 
   return (
     <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">
         {label}
       </p>
       {children ?? (
@@ -95,9 +95,9 @@ function ScheduleRow({ item }: { item: BankPaymentScheduleItem }) {
   return (
     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-3.5">
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-[#161616]">{dateLabel}</p>
+        <p className="truncate text-sm font-medium text-ink">{dateLabel}</p>
         {item.label ? (
-          <p className="mt-0.5 truncate text-xs text-black/48">{item.label}</p>
+          <p className="mt-0.5 truncate text-xs text-black/45">{item.label}</p>
         ) : null}
       </div>
       <span
@@ -105,7 +105,7 @@ function ScheduleRow({ item }: { item: BankPaymentScheduleItem }) {
       >
         {statusLabel}
       </span>
-      <p className="text-sm font-semibold tabular-nums text-[#111111]">{amountLabel}</p>
+      <p className="text-sm font-semibold tabular-nums text-ink">{amountLabel}</p>
     </div>
   );
 }
@@ -114,10 +114,10 @@ function PaymentSchedule({ schedule }: { schedule: BankPaymentScheduleItem[] }) 
   return (
     <section className="rounded-2xl border border-black/6 bg-white/90">
       <header className="flex items-baseline justify-between px-5 py-4">
-        <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-[#111111]">
+        <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-ink">
           Ödəniş cədvəli
         </h2>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-black/42">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45">
           {schedule.length} ödəniş
         </span>
       </header>
@@ -155,7 +155,7 @@ export default async function BankPage({
           </div>
           <MotionSection>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue">
                 ÜMUMBANK BAXIŞI
               </p>
               <BankViewToggle active={bankView} compact className="sm:hidden" />
@@ -192,25 +192,25 @@ export default async function BankPage({
         </div>
         <section className="mx-auto max-w-[680px] px-5 py-20 text-center sm:py-28">
           <MotionSection>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#18A957]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-green">
               Hesab tapılmadı
             </p>
-            <h1 className="mt-4 text-[clamp(1.9rem,3vw,2.5rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-[#111111]">
+            <h1 className="mt-4 text-[clamp(1.9rem,3vw,2.5rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink">
               Bu giriş hələ bank cədvəlinə bağlanmayıb
             </h1>
-            <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-black/54">
+            <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-black/55">
               {user.email} hesabı üçün uyğun bank sətri tapılmadı.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-2 sm:flex-row">
               <Link
                 href="/portal"
-                className="inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-5 py-3 text-sm font-medium text-black/66 transition hover:border-[#2F61D8]/30 hover:text-[#2F61D8]"
+                className="inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-5 py-3 text-sm font-medium text-black/70 transition hover:border-bank-blue/30 hover:text-bank-blue"
               >
                 Portala qayıt
               </Link>
               <Link
                 href="/ismayilbank"
-                className="inline-flex items-center justify-center rounded-xl bg-[#2F61D8] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#2854be]"
+                className="inline-flex items-center justify-center rounded-xl bg-bank-blue px-5 py-3 text-sm font-medium text-white transition hover:bg-bank-blue-deep"
               >
                 Kalkulyatora keç
               </Link>
@@ -241,7 +241,7 @@ export default async function BankPage({
         </div>
         <MotionSection>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue">
               XOŞ GƏLDİN, {account.name}
             </p>
             <BankViewToggle active={bankView} compact className="sm:hidden" />
@@ -252,15 +252,15 @@ export default async function BankPage({
         {hasNoProducts ? (
           <MotionSection delay={0.04}>
             <div className="mt-16 flex flex-col items-start sm:mt-24">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/38">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/35">
                 Hələlik heç nə yoxdur
               </p>
-              <p className="mt-3 max-w-sm text-sm leading-6 text-black/54">
+              <p className="mt-3 max-w-sm text-sm leading-6 text-black/55">
                 Depozit və ya kredit məhsullarımızla tanış olmaq üçün kalkulyatora keç.
               </p>
               <Link
                 href="/ismayilbank"
-                className="mt-6 inline-flex items-center justify-center rounded-xl bg-[#2F61D8] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#2854be]"
+                className="mt-6 inline-flex items-center justify-center rounded-xl bg-bank-blue px-5 py-3 text-sm font-medium text-white transition hover:bg-bank-blue-deep"
               >
                 Depozit və kredit şərtlərinə bax
               </Link>
@@ -280,7 +280,7 @@ export default async function BankPage({
                 maturityDate={account.maturityDate}
               />
             </div>
-            <p className="mt-4 text-xs leading-5 text-black/48">
+            <p className="mt-4 text-xs leading-5 text-black/45">
               Qeyd: depozit üzrə hesablanmış faiz yalnız depozit müddətinin
               sonunda{account.maturityDate ? ` (${formatDisplayDate(account.maturityDate)})` : ""} ödənilir.
               Vaxtından əvvəl çıxarılan depozitlərə faiz gəliri verilmir.
@@ -291,7 +291,7 @@ export default async function BankPage({
         {/* ── Credits Section ── */}
         {account.outstandingLoanAzn > 0 ? (
           <MotionSection delay={0.08}>
-            <h2 className="mt-10 text-[15px] font-semibold tracking-[-0.01em] text-[#111111]">
+            <h2 className="mt-10 text-[15px] font-semibold tracking-[-0.01em] text-ink">
               İsmayılBank ilə olan kreditlərim:
             </h2>
             <div className="mt-3 grid grid-cols-3 gap-3">

@@ -129,7 +129,7 @@ export function NotificationsBell() {
             {items.length > 0 && (
               <button
                 onClick={clearAll}
-                className="text-[10px] font-medium text-black/40 transition hover:text-brand-red"
+                className="text-[10px] font-medium text-black/45 transition hover:text-brand-red"
               >
                 Təmizlə
               </button>
@@ -137,7 +137,7 @@ export function NotificationsBell() {
           </div>
           <PushControls />
           {items.length === 0 ? (
-            <div className="px-4 py-6 text-center text-xs text-black/40">
+            <div className="px-4 py-6 text-center text-xs text-black/45">
               Bildiriş yoxdur.
             </div>
           ) : (

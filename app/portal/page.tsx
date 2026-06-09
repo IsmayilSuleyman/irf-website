@@ -20,7 +20,7 @@ function PortalOption({
   return (
     <Link
       href={href}
-      className={`group flex h-[4.6rem] w-full max-w-[17rem] items-center justify-center rounded-[1.35rem] border border-black/6 ${tone} px-6 shadow-[0_16px_38px_rgba(68,103,86,0.08)] backdrop-blur-xl transition duration-200 hover:-translate-y-0.5 hover:border-black/10 hover:shadow-[0_20px_48px_rgba(68,103,86,0.12)]`}
+      className={`group flex h-[4.6rem] w-full max-w-[17rem] items-center justify-center rounded-card border border-black/6 ${tone} px-6 shadow-[0_16px_38px_rgba(68,103,86,0.08)] backdrop-blur-xl transition duration-200 hover:-translate-y-0.5 hover:border-black/10 hover:shadow-[0_20px_48px_rgba(68,103,86,0.12)]`}
     >
       <span className="sr-only">{srLabel}</span>
       {logo}
@@ -33,18 +33,18 @@ export default async function PortalPage() {
 
   return (
     <main className="min-h-screen overflow-hidden px-3 py-3 sm:px-4 sm:py-4">
-      <section className="relative mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-[1680px] items-center justify-center overflow-hidden rounded-[2rem] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(244,250,246,0.92)_48%,rgba(231,246,237,0.96))] px-6 py-16 shadow-[0_28px_90px_rgba(48,94,63,0.08)] sm:min-h-[calc(100vh-2rem)] sm:rounded-[2.75rem] sm:px-10 lg:px-16">
+      <section className="relative mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-[1680px] items-center justify-center overflow-hidden rounded-hero border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.88),rgba(244,250,246,0.92)_48%,rgba(231,246,237,0.96))] px-6 py-16 shadow-[0_28px_90px_rgba(48,94,63,0.08)] sm:min-h-[calc(100vh-2rem)] sm:rounded-[2.75rem] sm:px-10 lg:px-16">
         <div
           aria-hidden
           className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(255,255,255,0.78),rgba(255,255,255,0)_32%),radial-gradient(circle_at_78%_14%,rgba(226,240,255,0.28),rgba(226,240,255,0)_24%),radial-gradient(circle_at_72%_76%,rgba(205,244,219,0.42),rgba(205,244,219,0)_30%)]"
         />
         <div
           aria-hidden
-          className="absolute inset-4 rounded-[1.7rem] border border-white/50 bg-white/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] sm:inset-8 sm:rounded-[2.15rem]"
+          className="absolute inset-4 rounded-3xl border border-white/50 bg-white/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] sm:inset-8 sm:rounded-hero"
         />
 
         <div className="relative flex w-full max-w-[22rem] flex-col items-center text-center">
-          <h1 className="text-[clamp(1.7rem,2.4vw,2.35rem)] font-black leading-[1.08] tracking-[-0.05em] text-[#171717]">
+          <h1 className="text-[clamp(1.7rem,2.4vw,2.35rem)] font-black leading-[1.08] tracking-[-0.05em] text-ink">
             Keçid etmək istədiyiniz portalı seçin:
           </h1>
 

@@ -91,7 +91,7 @@ export function PushControls() {
 
   if (state === "denied") {
     return (
-      <div className="border-b border-black/[0.06] px-4 py-2 text-[10px] text-black/40">
+      <div className="border-b border-black/[0.06] px-4 py-2 text-[10px] text-black/45">
         Bildirişlər brauzer tərəfindən bloklanıb.
       </div>
     );

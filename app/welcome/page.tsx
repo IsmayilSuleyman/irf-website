@@ -62,26 +62,26 @@ function ProductCard({
     tone === "green"
       ? {
           action:
-            "bg-[#1FA447] shadow-[0_16px_36px_rgba(31,164,71,0.24)] hover:bg-[#19903d]",
-          brand: "text-[#14A44D]",
-          iconShell: "bg-[#EAF7EF]",
-          pill: "border-[#BDE5CA] bg-[#F4FBF6] text-black/40",
+            "bg-brand-green shadow-[0_16px_36px_rgba(22,163,74,0.24)] hover:bg-brand-green-deep",
+          brand: "text-brand-green",
+          iconShell: "bg-brand-green-mist",
+          pill: "border-brand-green-ring bg-brand-green-mist text-black/45",
         }
       : {
           action:
-            "bg-[#2F61D8] shadow-[0_16px_36px_rgba(47,97,216,0.24)] hover:bg-[#2854be]",
-          brand: "text-[#2F61D8]",
-          iconShell: "bg-[#EAF1FF]",
-          pill: "border-[#B6CDFE] bg-[#F3F7FF] text-black/40",
+            "bg-bank-blue shadow-[0_16px_36px_rgba(47,97,216,0.24)] hover:bg-bank-blue-deep",
+          brand: "text-bank-blue",
+          iconShell: "bg-bank-blue-soft",
+          pill: "border-bank-blue-ring bg-bank-blue-soft text-black/45",
         };
 
   return (
-    <article className="flex h-full flex-col rounded-[2rem] border border-[#CFE8D8] bg-white/72 p-7 shadow-[0_22px_65px_rgba(83,131,101,0.12)] backdrop-blur-xl sm:p-10">
+    <article className="flex h-full flex-col rounded-hero border border-brand-green-ring bg-white/72 p-7 shadow-[0_22px_65px_rgba(83,131,101,0.12)] backdrop-blur-xl sm:p-10">
       {headerVisual ? (
         <div>
           {headerVisual}
           {title ? (
-            <h2 className="mt-5 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-[#2A2A2A]">
+            <h2 className="mt-5 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-ink">
               {title}
             </h2>
           ) : null}
@@ -97,14 +97,14 @@ function ProductCard({
             <p className={`text-[0.68rem] font-bold uppercase tracking-[0.14em] ${palette.brand}`}>
               {brand}
             </p>
-            <h2 className="mt-1 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-[#2A2A2A]">
+            <h2 className="mt-1 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-ink">
               {title}
             </h2>
           </div>
         </div>
       )}
 
-      <p className="mt-7 max-w-[20rem] text-[1.05rem] leading-[1.7] tracking-[-0.02em] text-black/48">
+      <p className="mt-7 max-w-[20rem] text-[1.05rem] leading-[1.7] tracking-[-0.02em] text-black/45">
         {description}
       </p>
 
@@ -121,7 +121,7 @@ function ProductCard({
 
       <Link
         href={href}
-        className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-[1.05rem] px-6 py-4 text-lg font-semibold tracking-[-0.03em] text-white transition duration-300 hover:-translate-y-0.5 ${palette.action}`}
+        className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-card px-6 py-4 text-lg font-semibold tracking-[-0.03em] text-white transition duration-300 hover:-translate-y-0.5 ${palette.action}`}
       >
         <span>{action}</span>
         <ArrowIcon />
@@ -140,7 +140,7 @@ export default async function WelcomePage({
 
   return (
     <main className="min-h-screen overflow-hidden p-1.5 sm:p-2">
-      <section className="relative mx-auto min-h-[calc(100vh-0.75rem)] max-w-[1920px] overflow-hidden rounded-[1.7rem] border border-black/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.8),rgba(242,250,245,0.88)_48%,rgba(229,246,235,0.9))] shadow-[0_28px_90px_rgba(48,94,63,0.08)]">
+      <section className="relative mx-auto min-h-[calc(100vh-0.75rem)] max-w-[1920px] overflow-hidden rounded-3xl border border-black/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.8),rgba(242,250,245,0.88)_48%,rgba(229,246,235,0.9))] shadow-[0_28px_90px_rgba(48,94,63,0.08)]">
         <div
           aria-hidden
           className="absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(255,255,255,0.76),rgba(255,255,255,0)_30%),radial-gradient(circle_at_74%_78%,rgba(205,244,219,0.54),rgba(205,244,219,0)_26%)]"
@@ -178,7 +178,7 @@ export default async function WelcomePage({
         <WelcomeAnimations showSetupNotice={showSetupNotice}>
           <Link
             href="/login"
-            className="inline-flex items-center justify-center gap-2 rounded-[1rem] bg-[#1FA447] px-6 py-4 text-base font-semibold tracking-[-0.03em] text-white shadow-[0_16px_36px_rgba(31,164,71,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#19903d]"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-green px-6 py-4 text-base font-semibold tracking-[-0.03em] text-white shadow-[0_16px_36px_rgba(22,163,74,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-brand-green-deep"
           >
             <span>Daxil ol</span>
             <ArrowIcon />
@@ -189,7 +189,7 @@ export default async function WelcomePage({
             brand="IRF"
             description="Şəxsi investisiya portfelinizi real vaxt rejimində izləyin. Aktivlər, gəlirlilik və bölgü bir baxışda."
             headerVisual={
-              <div className="inline-flex rounded-[1.2rem] border border-[#BDE5CA] bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(31,164,71,0.12)]">
+              <div className="inline-flex rounded-card border border-brand-green-ring bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(22,163,74,0.12)]">
                 <div className="w-[180px] sm:w-[210px]">
                   <Logo width={210} priority />
                 </div>
@@ -204,7 +204,7 @@ export default async function WelcomePage({
             brand="ISMAYILBANK"
             description="Depozit və kredit faizlərini müqayisə edin. Ən sərfəli şərtləri tapın və qərarlarınızı daha ağıllı verin."
             headerVisual={
-              <div className="inline-flex rounded-[1.2rem] border border-blue-200/70 bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
+              <div className="inline-flex rounded-card border border-blue-200/70 bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
                 <IsmayilBankLogo size={38} />
               </div>
             }

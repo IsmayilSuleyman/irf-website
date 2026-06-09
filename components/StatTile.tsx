@@ -33,7 +33,7 @@ export function StatTile({
         </div>
       )}
       {sub && (
-        <div className="text-xs text-black/40 leading-snug max-w-xs">{sub}</div>
+        <div className="text-xs text-black/45 leading-snug max-w-xs">{sub}</div>
       )}
     </div>
   );

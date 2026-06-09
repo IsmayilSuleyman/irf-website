@@ -71,7 +71,7 @@ export function LoginForm() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="border-b border-[rgba(22,163,74,0.28)] bg-transparent px-0 py-2 text-black outline-none transition focus:border-brand-green"
+          className="border-b border-brand-green/28 bg-transparent px-0 py-2 text-black outline-none transition focus:border-brand-green"
           placeholder="ad@example.com"
         />
       </div>
@@ -86,7 +86,7 @@ export function LoginForm() {
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border-b border-[rgba(22,163,74,0.28)] bg-transparent px-0 py-2 text-black outline-none transition focus:border-brand-green"
+          className="border-b border-brand-green/28 bg-transparent px-0 py-2 text-black outline-none transition focus:border-brand-green"
           placeholder="********"
         />
       </div>

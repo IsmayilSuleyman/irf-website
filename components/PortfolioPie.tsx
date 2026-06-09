@@ -14,7 +14,7 @@ export function PortfolioPie({
 }) {
   if (!stocks || stocks.length === 0) {
     return (
-      <div className="flex h-72 items-center justify-center text-black/40">
+      <div className="flex h-72 items-center justify-center text-black/45">
         Məlumat yoxdur.
       </div>
     );

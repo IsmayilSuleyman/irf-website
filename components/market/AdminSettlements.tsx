@@ -60,7 +60,7 @@ export function AdminSettlements({ pending }: { pending: TradeRow[] }) {
         <button
           onClick={sync}
           disabled={busy === "sync"}
-          className="rounded-full border border-[rgba(22,163,74,0.3)] bg-white/70 px-3 py-1.5 text-[11px] font-medium text-black/70 transition hover:border-brand-green hover:text-brand-green disabled:opacity-50"
+          className="rounded-full border border-brand-green/30 bg-white/70 px-3 py-1.5 text-[11px] font-medium text-black/70 transition hover:border-brand-green hover:text-brand-green disabled:opacity-50"
         >
           {busy === "sync" ? "Sinxronlaşır..." : "Cədvəldən sinxronla"}
         </button>
@@ -99,7 +99,7 @@ export function AdminSettlements({ pending }: { pending: TradeRow[] }) {
                 <button
                   onClick={() => act(t.id, "reject")}
                   disabled={busy === t.id + "reject"}
-                  className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                  className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/55 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
                 >
                   {busy === t.id + "reject" ? "..." : "Rədd et"}
                 </button>

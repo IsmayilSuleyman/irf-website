@@ -73,7 +73,7 @@ export function StrategyStatementCard({
             rows={6}
             maxLength={4000}
             placeholder="Növbəti hərəkətləriniz barədə səhmdarlara məlumat..."
-            className="w-full resize-y rounded-lg border border-black/10 bg-white/60 p-3 text-sm text-black/80 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30"
+            className="w-full resize-y rounded-lg border border-black/10 bg-white/60 p-3 text-sm text-black/85 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30"
             disabled={pending}
           />
           {error && <div className="text-xs text-brand-red">{error}</div>}
@@ -82,7 +82,7 @@ export function StrategyStatementCard({
               type="button"
               onClick={onCancel}
               disabled={pending}
-              className="rounded-md px-3 py-1.5 text-xs text-black/55 hover:text-black/80 transition-colors disabled:opacity-50"
+              className="rounded-md px-3 py-1.5 text-xs text-black/55 hover:text-black/85 transition-colors disabled:opacity-50"
             >
               Ləğv et
             </button>
@@ -98,7 +98,7 @@ export function StrategyStatementCard({
         </div>
       ) : hasValue ? (
         showContent && (
-          <p className="whitespace-pre-line text-sm leading-relaxed text-black/75">
+          <p className="whitespace-pre-line text-sm leading-relaxed text-black/70">
             {value}
           </p>
         )

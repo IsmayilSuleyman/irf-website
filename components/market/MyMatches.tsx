@@ -77,7 +77,7 @@ export function MyMatches({
                   <button
                     onClick={() => reject(t.id)}
                     disabled={busy === t.id}
-                    className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                    className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/55 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
                   >
                     {busy === t.id ? "..." : "Ləğv et"}
                   </button>

@@ -60,7 +60,7 @@ export function FundSummary({
           <div className="num text-4xl font-bold text-black md:text-5xl">
             {formatAzn(netCapital)}
           </div>
-          <div className="max-w-xs text-xs leading-snug text-black/40">
+          <div className="max-w-xs text-xs leading-snug text-black/45">
             Bütün borclar çıxılandan sonrakı nəticə.
           </div>
         </div>

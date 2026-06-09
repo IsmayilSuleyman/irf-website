@@ -99,8 +99,8 @@ export function OrderTicket({
           <button
             type="button"
             onClick={() => setSide("buy")}
-            className={`rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.16em] transition ${
-              side === "buy" ? "bg-brand-green text-white shadow-sm" : "text-black/50"
+            className={`rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+              side === "buy" ? "bg-brand-green text-white shadow-sm" : "text-black/45"
             }`}
           >
             Al
@@ -108,8 +108,8 @@ export function OrderTicket({
           <button
             type="button"
             onClick={() => setSide("sell")}
-            className={`rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.16em] transition ${
-              side === "sell" ? "bg-brand-red text-white shadow-sm" : "text-black/50"
+            className={`rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+              side === "sell" ? "bg-brand-red text-white shadow-sm" : "text-black/45"
             }`}
           >
             Sat
@@ -151,7 +151,7 @@ export function OrderTicket({
           )}
         </div>
 
-        <div className="flex items-baseline justify-between border-t border-[rgba(22,163,74,0.18)] pt-3 text-sm">
+        <div className="flex items-baseline justify-between border-t border-brand-green/18 pt-3 text-sm">
           <span className="text-black/55">Cəmi (təxmini)</span>
           <span className="num font-bold text-black">{price2(total)}</span>
         </div>
@@ -192,7 +192,7 @@ function Field({
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <label className="text-[10px] uppercase tracking-[0.22em] text-black/45">{label}</label>
-        {suffix && <span className="text-[10px] text-black/40">{suffix}</span>}
+        {suffix && <span className="text-[10px] text-black/45">{suffix}</span>}
       </div>
       <input
         type="number"
@@ -202,7 +202,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="num border-b border-[rgba(22,163,74,0.28)] bg-transparent px-0 py-2 text-lg text-black outline-none transition focus:border-brand-green"
+        className="num border-b border-brand-green/28 bg-transparent px-0 py-2 text-lg text-black outline-none transition focus:border-brand-green"
       />
     </div>
   );
@@ -222,7 +222,7 @@ function Shortcut({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="rounded-full border border-[rgba(22,163,74,0.28)] bg-white/60 px-3 py-1.5 text-[11px] font-medium text-black/70 transition hover:border-brand-green hover:text-brand-green disabled:opacity-50 disabled:hover:border-[rgba(22,163,74,0.28)] disabled:hover:text-black/70"
+      className="rounded-full border border-brand-green/28 bg-white/60 px-3 py-1.5 text-[11px] font-medium text-black/70 transition hover:border-brand-green hover:text-brand-green disabled:opacity-50 disabled:hover:border-brand-green/28 disabled:hover:text-black/70"
     >
       {label}
     </button>

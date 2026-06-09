@@ -43,7 +43,7 @@ function Indicator({
 
   return (
     <div className="flex flex-col items-start gap-2 md:px-4 md:first:pl-0 md:last:pr-0">
-      <div className="text-[10px] uppercase tracking-[0.12em] whitespace-nowrap text-black/40">
+      <div className="text-[10px] uppercase tracking-[0.14em] whitespace-nowrap text-black/45">
         {label}
       </div>
 

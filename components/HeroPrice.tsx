@@ -40,13 +40,13 @@ function Greeting({
       {/* Row 1: greeting + toggle. On mobile the name drops to its own row
           below (so it never truncates); on desktop it stays inline here. */}
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-green">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-green">
           Xoş gəldin,
           <span className="hidden sm:inline"> {holderName}</span>
         </div>
         {toggle}
       </div>
-      <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-brand-green sm:hidden">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-green sm:hidden">
         {holderName}
       </div>
     </div>
@@ -82,7 +82,7 @@ export function HeroPrice(props: PersonalProps | FundProps) {
           <Odometer value={holdingValue} fractionDigits={2} suffix="₼" />
         </div>
       </div>
-      <div className="flex flex-col gap-1 text-xs text-black/50">
+      <div className="flex flex-col gap-1 text-xs text-black/45">
         <div>
           {dayChangeStr ? (
             <>
@@ -100,7 +100,7 @@ export function HeroPrice(props: PersonalProps | FundProps) {
         </div>
         <div>
           {formatUnits(units)} pay · ortalama alış qiyməti{" "}
-          <span className="text-black/75">
+          <span className="text-black/70">
             {avgBuyPrice != null ? formatAzn(avgBuyPrice) : "N/A"}
           </span>
         </div>
@@ -130,7 +130,7 @@ function FundHero({
           <Odometer value={value} fractionDigits={2} suffix="₼" />
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/50">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/45">
         {dayStr ? (
           <span>
             günlük dəyişim{" "}

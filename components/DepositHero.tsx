@@ -45,12 +45,12 @@ export function DepositHero({
 
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue">
         Depozit balansım
       </p>
 
       <div
-        className="num mt-2 font-black leading-none tracking-tight text-[#111111]"
+        className="num mt-2 font-black leading-none tracking-tight text-ink"
         style={{ fontSize: "clamp(3.25rem, 10vw, 6.5rem)" }}
       >
         <Odometer value={depositedAzn} fractionDigits={2} suffix="₼" />
@@ -60,13 +60,13 @@ export function DepositHero({
         {termMonths != null ? (
           <span>
             müddət{" "}
-            <span className="font-medium text-black/75">{termMonths} ay</span>
+            <span className="font-medium text-black/70">{termMonths} ay</span>
           </span>
         ) : null}
         {annualRatePct != null ? (
           <span>
             · illik{" "}
-            <span className="font-medium text-black/75">
+            <span className="font-medium text-black/70">
               {formatPercent(annualRatePct)}
             </span>
           </span>
@@ -74,7 +74,7 @@ export function DepositHero({
         {maturityEndAmount != null ? (
           <span>
             müddət sonu{" "}
-            <span className="font-medium text-[#128342]">
+            <span className="font-medium text-brand-green-deep">
               {formatAmount(maturityEndAmount)}₼
             </span>
             {maturityDateLabel ? (

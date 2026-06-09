@@ -19,7 +19,7 @@ export function ShareholdersList({ holders }: { holders: Shareholder[] }) {
         Pay sahibləri
       </div>
       {sorted.length === 0 ? (
-        <div className="text-sm text-black/40">Sahib yoxdur.</div>
+        <div className="text-sm text-black/45">Sahib yoxdur.</div>
       ) : (
         <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1 text-sm">
           {sorted.map((h, i) => (
@@ -34,7 +34,7 @@ export function ShareholdersList({ holders }: { holders: Shareholder[] }) {
                 <span className="num font-medium text-black">
                   {formatAzn(h.valueAzn)}
                 </span>
-                <span className="num w-14 text-right text-[11px] text-black/40">
+                <span className="num w-14 text-right text-[11px] text-black/45">
                   {formatPct(h.percent)}
                 </span>
               </span>

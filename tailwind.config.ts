@@ -8,12 +8,35 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // IRF brand (green) — the fund side of the site.
         brand: {
           green: "#16a34a",
           "green-soft": "#22c55e",
           "green-deep": "#15803d",
+          "green-mist": "#e9f7ee", // soft tinted backgrounds
+          "green-ring": "#bde5ca", // tinted borders / rings
           red: "#dc2626",
         },
+        // İsmayılBank brand (blue) — /bank and /ismayilbank area.
+        bank: {
+          blue: "#2f61d8",
+          "blue-deep": "#2854be", // hover / pressed
+          "blue-soft": "#eef2fb", // soft tinted backgrounds
+          "blue-ring": "#b6cdfe", // tinted borders / rings
+        },
+        // Payment / schedule statuses (bank loan rows, debt notices).
+        status: {
+          paid: "#15803d",
+          late: "#c74252",
+          "late-soft": "#fdecee",
+          warn: "#b45309",
+        },
+        // Primary text color for headings and emphasized copy.
+        ink: "#111111",
+      },
+      borderRadius: {
+        card: "1.25rem", // standard tiles & inner panels
+        hero: "2rem", // large feature cards / page shells
       },
       fontFamily: {
         sans: [

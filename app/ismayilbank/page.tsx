@@ -7,9 +7,9 @@ import { getBankAccounts } from "@/lib/bank";
 import { formatGrouped } from "@/lib/portfolio";
 
 function liquidityTileColor(pct: number): string {
-  if (pct >= 60) return "text-[#128342]";
-  if (pct >= 30) return "text-[#b45309]";
-  return "text-[#c74252]";
+  if (pct >= 60) return "text-status-paid";
+  if (pct >= 30) return "text-status-warn";
+  return "text-status-late";
 }
 
 export default async function IsmayilBankPage() {
@@ -28,7 +28,7 @@ export default async function IsmayilBankPage() {
   const backLabel = user ? "Hesabıma qayıt" : "Geri qayıt";
   return (
     <main className="min-h-screen bg-bank-section px-4 py-6 sm:px-6 sm:py-10">
-      <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-[2.4rem] border border-blue-200/70 bg-white/72 p-6 shadow-[0_28px_80px_rgba(68,108,184,0.12)] backdrop-blur-xl sm:p-8 lg:p-12">
+      <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-hero border border-blue-200/70 bg-white/72 p-6 shadow-[0_28px_80px_rgba(68,108,184,0.12)] backdrop-blur-xl sm:p-8 lg:p-12">
         <div
           aria-hidden
           className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-300/30 blur-3xl"
@@ -44,15 +44,15 @@ export default async function IsmayilBankPage() {
 
         <div className="relative">
           <div className="flex justify-center">
-            <div className="inline-flex rounded-[1.2rem] border border-blue-200/70 bg-white/82 px-5 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
+            <div className="inline-flex rounded-card border border-blue-200/70 bg-white/82 px-5 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
               <IsmayilBankLogo size={54} />
             </div>
           </div>
 
-          <h1 className="mt-8 text-center text-[clamp(3rem,8vw,5rem)] font-black tracking-[-0.08em] text-[#161616]">
+          <h1 className="mt-8 text-center text-[clamp(3rem,8vw,5rem)] font-black tracking-[-0.08em] text-ink">
             İsmayılBank hesablayıcısı
           </h1>
-          <p className="mx-auto mt-4 max-w-3xl text-center text-[1.1rem] leading-8 tracking-[-0.02em] text-black/52 sm:text-[1.2rem]">
+          <p className="mx-auto mt-4 max-w-3xl text-center text-[1.1rem] leading-8 tracking-[-0.02em] text-black/55 sm:text-[1.2rem]">
             Kredit və depozit məhsulları üçün ilkin hesablamanı burada edin.
             Şərtləri müqayisə edib sizə uyğun variantı rahat seçə bilərsiniz.
           </p>
@@ -60,36 +60,36 @@ export default async function IsmayilBankPage() {
           <div className="mt-12 space-y-12">
             {/* ── Liquidity Snapshot ── */}
             <section className="space-y-4">
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-black/38">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-black/35">
                 Bank likvidliyi
               </p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">Ümumi depozit</p>
-                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-[#111111]">{formatGrouped(totalDeposits, 0)} ₼</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">Ümumi depozit</p>
+                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-ink">{formatGrouped(totalDeposits, 0)} ₼</p>
                 </div>
                 <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">Cəmi kredit</p>
-                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalLoans > 0 ? "text-[#c74252]" : "text-[#111111]"}`}>{formatGrouped(totalLoans, 0)} ₼</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">Cəmi kredit</p>
+                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalLoans > 0 ? "text-status-late" : "text-ink"}`}>{formatGrouped(totalLoans, 0)} ₼</p>
                 </div>
                 <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">Xalis likvidlik</p>
-                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-[#128342]">{formatGrouped(netLiquidity, 0)} ₼</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">Xalis likvidlik</p>
+                  <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-brand-green-deep">{formatGrouped(netLiquidity, 0)} ₼</p>
                 </div>
                 <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/42">Likvidlik nisbəti</p>
-                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalDeposits > 0 ? liquidityTileColor(liquidityPct) : "text-[#111111]"}`}>{totalDeposits > 0 ? `${formatGrouped(liquidityPct, 0)}%` : "—"}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">Likvidlik nisbəti</p>
+                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalDeposits > 0 ? liquidityTileColor(liquidityPct) : "text-ink"}`}>{totalDeposits > 0 ? `${formatGrouped(liquidityPct, 0)}%` : "—"}</p>
                 </div>
               </div>
               <div className="space-y-1.5">
                 <div className="h-2 w-full overflow-hidden rounded-full bg-black/6">
                   <div
-                    className="h-full rounded-l-full bg-[#c74252]/70 transition-all"
+                    className="h-full rounded-l-full bg-status-late/70 transition-all"
                     style={{ width: `${loanBarPct}%` }}
                   />
                 </div>
-                <div className="flex gap-4 text-[11px] font-medium text-black/42">
-                  <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[#c74252]/70" />Kredit</span>
+                <div className="flex gap-4 text-[11px] font-medium text-black/45">
+                  <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-status-late/70" />Kredit</span>
                   <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-black/12" />Azad likvidlik</span>
                 </div>
               </div>
@@ -97,13 +97,13 @@ export default async function IsmayilBankPage() {
 
             <section className="space-y-5">
               <div className="max-w-2xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#2F61D8]/76">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-bank-blue/75">
                   Kredit
                 </p>
-                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-[#161616]">
+                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-ink">
                   Kredit kalkulyatoru
                 </h2>
-                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/52">
+                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/55">
                   50-2000 AZN arasındakı məbləği və 1-12 ay müddəti seçin. İllik
                   faiz dərəcəsi seçdiyiniz müddətə uyğun tətbiq olunur.
                 </p>
@@ -113,13 +113,13 @@ export default async function IsmayilBankPage() {
 
             <section className="space-y-5">
               <div className="max-w-2xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#18A957]/76">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-green/75">
                   Depozit
                 </p>
-                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-[#161616]">
+                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-ink">
                   Depozit kalkulyatoru
                 </h2>
-                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/52">
+                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/55">
                   50-2000 AZN arasındakı depozit məbləğini seçin və 3, 6, 9 və ya
                   12 ay müddətlər üzrə müddət sonu qazancını görün.
                 </p>
@@ -131,7 +131,7 @@ export default async function IsmayilBankPage() {
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
               href={backHref}
-              className="inline-flex items-center justify-center rounded-[1rem] border border-black/10 bg-white/80 px-6 py-4 text-base font-semibold tracking-[-0.03em] text-black/65 transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-[#2F61D8]"
+              className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white/80 px-6 py-4 text-base font-semibold tracking-[-0.03em] text-black/70 transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-bank-blue"
             >
               {backLabel}
             </Link>

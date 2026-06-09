@@ -178,7 +178,7 @@ export function AllocationList({ items }: { items: Item[] }) {
   );
 
   if (!items || items.length === 0) {
-    return <div className="text-black/40">Məlumat yoxdur.</div>;
+    return <div className="text-black/45">Məlumat yoxdur.</div>;
   }
 
   const todayRanked = [...items].sort((a, b) => b.valueAzn - a.valueAzn);
@@ -209,7 +209,7 @@ export function AllocationList({ items }: { items: Item[] }) {
               className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
                 on
                   ? "bg-brand-green/15 text-brand-green"
-                  : "border border-black/10 text-black/40 hover:text-black/70"
+                  : "border border-black/10 text-black/45 hover:text-black/70"
               }`}
             >
               {col.label}
@@ -263,14 +263,14 @@ export function AllocationList({ items }: { items: Item[] }) {
                   </span>
                   <div className="-mt-1 flex min-w-0 items-baseline gap-2">
                     {secondary && (
-                      <span className="min-w-0 truncate text-[11px] leading-tight text-black/50">
+                      <span className="min-w-0 truncate text-[11px] leading-tight text-black/45">
                         {secondary}
                       </span>
                     )}
                     <AnimatePresence initial={false}>
                       {visible.percent && (
                         <AnimatedFigure keyName="percent" inline>
-                          <span className="num shrink-0 text-[11px] text-black/40">
+                          <span className="num shrink-0 text-[11px] text-black/45">
                             {(item.percent * 100).toFixed(1)}%
                           </span>
                         </AnimatedFigure>
@@ -285,7 +285,7 @@ export function AllocationList({ items }: { items: Item[] }) {
                   a fixed width so the value + total-change column lands on the
                   same vertical line across every row regardless of price width. */}
               <div className="grid shrink-0 grid-cols-[auto_52px] items-center gap-x-4 gap-y-1 text-right">
-                <div className="num text-[13px] font-medium text-black/80">
+                <div className="num text-[13px] font-medium text-black/85">
                   <AnimatePresence initial={false}>
                     {visible.value && (
                       <AnimatedFigure keyName="value" inline>

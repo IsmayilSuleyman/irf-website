@@ -44,7 +44,7 @@ export function PerformanceChart({ data }: { data: Point[] }) {
 
   if (!data || data.length === 0) {
     return (
-      <div className="glass flex h-72 items-center justify-center text-black/40">
+      <div className="glass flex h-72 items-center justify-center text-black/45">
         Tarixçə yoxdur.
       </div>
     );
@@ -69,7 +69,7 @@ export function PerformanceChart({ data }: { data: Point[] }) {
               className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
                 range === r.key
                   ? "border-brand-green bg-brand-green text-white shadow-sm"
-                  : "border-[rgba(22,163,74,0.28)] bg-white/60 text-black/55 hover:border-brand-green hover:text-brand-green"
+                  : "border-brand-green/28 bg-white/60 text-black/55 hover:border-brand-green hover:text-brand-green"
               }`}
             >
               {r.label}
@@ -80,7 +80,7 @@ export function PerformanceChart({ data }: { data: Point[] }) {
       </div>
       <div className="h-72">
         {filtered.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-black/40">
+          <div className="flex h-full items-center justify-center text-sm text-black/45">
             Bu dövr üçün məlumat yoxdur.
           </div>
         ) : (

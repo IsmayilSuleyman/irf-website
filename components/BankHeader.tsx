@@ -36,7 +36,7 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
           <Link
             href="/dashboard"
             aria-label="İRF hesabına keç"
-            className="inline-flex items-center gap-2 rounded border border-black/12 bg-white/80 px-2 py-1.5 transition hover:-translate-y-px hover:border-[#16a34a]/30 hover:shadow-sm sm:px-3 sm:py-2"
+            className="inline-flex items-center gap-2 rounded border border-black/12 bg-white/80 px-2 py-1.5 transition hover:-translate-y-px hover:border-brand-green/30 hover:shadow-sm sm:px-3 sm:py-2"
           >
             <span aria-hidden className="text-sm leading-none text-black/55 sm:hidden">→</span>
             <div className="w-[80px]">
@@ -51,15 +51,15 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
         <div className="flex items-center gap-5">
           <Link
             href="/portal"
-            className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/42 transition hover:text-[#2F61D8] sm:inline"
+            className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 transition hover:text-bank-blue sm:inline"
           >
             Portal
           </Link>
-          <span className="hidden text-xs text-black/42 sm:inline">{dateLabel}</span>
+          <span className="hidden text-xs text-black/45 sm:inline">{dateLabel}</span>
           <button
             onClick={onLogout}
             disabled={!canLogout}
-            className="text-xs uppercase tracking-[0.18em] text-black/50 transition hover:text-[#2F61D8]"
+            className="text-xs uppercase tracking-[0.18em] text-black/45 transition hover:text-bank-blue"
           >
             Çıxış
           </button>

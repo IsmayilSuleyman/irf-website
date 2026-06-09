@@ -179,7 +179,7 @@ export default async function DashboardPage({
               {!fundView && (
                 <Link
                   href="/market"
-                  className="group inline-flex items-center gap-1.5 rounded-full border border-[rgba(22,163,74,0.28)] bg-brand-green/5 px-3 py-1.5 text-[11px] font-medium text-brand-green shadow-sm transition hover:bg-brand-green/10"
+                  className="group inline-flex items-center gap-1.5 rounded-full border border-brand-green/28 bg-brand-green/5 px-3 py-1.5 text-[11px] font-medium text-brand-green shadow-sm transition hover:bg-brand-green/10"
                 >
                   <span>Bazar</span>
                   <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>

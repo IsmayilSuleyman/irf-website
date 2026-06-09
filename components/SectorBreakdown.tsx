@@ -31,7 +31,7 @@ export function SectorBreakdown({ rows }: { rows: SectorRow[] }) {
               )}
               <span className="truncate text-sm text-black/85">{r.sector}</span>
             </div>
-            <div className="num shrink-0 text-sm text-black/75">
+            <div className="num shrink-0 text-sm text-black/70">
               {formatAzn(r.valueAzn)}
               <span className="ml-2 text-black/45">
                 {(r.percent * 100).toFixed(1)}%

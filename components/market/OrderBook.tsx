@@ -100,7 +100,7 @@ export function OrderBook({
         <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-green/10 px-2.5 py-1">
           <span className="font-semibold text-brand-green">Fonda satış</span>
           <span className="num text-brand-green">{price2(bid)}</span>
-          <span className="text-black/40">· limitsiz</span>
+          <span className="text-black/45">· limitsiz</span>
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.04] px-2.5 py-1">
           <span className="text-[9px] uppercase tracking-[0.14em] text-black/45">Hazırki</span>
@@ -110,7 +110,7 @@ export function OrderBook({
           <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-red/10 px-2.5 py-1">
             <span className="font-semibold text-brand-red">Fonddan alış</span>
             <span className="num text-brand-red">{price2(ask)}</span>
-            <span className="text-black/40">· {formatUnits(status.fund_sell_capacity)}</span>
+            <span className="text-black/45">· {formatUnits(status.fund_sell_capacity)}</span>
           </span>
         ) : (
           <span className="inline-flex items-center rounded-full bg-black/[0.04] px-2.5 py-1 text-black/35">
@@ -199,7 +199,7 @@ function OrderPopup({
     title = isBuy ? "Fonda satış" : "Fonddan alış";
     meta = <>Fond · {bar.units == null ? "limitsiz" : `${formatUnits(bar.units)} pay`}</>;
     body = (
-      <p className="mt-3 border-t border-black/10 pt-3 text-xs leading-relaxed text-black/60">
+      <p className="mt-3 border-t border-black/10 pt-3 text-xs leading-relaxed text-black/55">
         {isBuy
           ? "Fond payları bu qiymətə həmişə geri alır — istənilən vaxt limitsiz sata bilərsiniz."
           : `Fond bu qiymətə ${formatUnits(status.fund_sell_capacity)} paya qədər satır.`}
@@ -219,7 +219,7 @@ function OrderPopup({
         {orders.map((o, i) => (
           <div key={i} className="flex items-center justify-between gap-3 text-xs">
             <span className="truncate text-black/70">{o.holderName || "Naməlum"}</span>
-            <span className="num shrink-0 text-black/50">{formatUnits(o.units)} pay</span>
+            <span className="num shrink-0 text-black/45">{formatUnits(o.units)} pay</span>
           </div>
         ))}
       </div>
@@ -242,7 +242,7 @@ function OrderPopup({
           type="button"
           onClick={onClose}
           aria-label="Bağla"
-          className="absolute right-3 top-3 text-black/40 transition hover:text-black/70"
+          className="absolute right-3 top-3 text-black/45 transition hover:text-black/70"
         >
           ✕
         </button>
@@ -251,7 +251,7 @@ function OrderPopup({
         <div className="mt-1">
           <span className={`num text-2xl font-bold ${color}`}>{price2(bar.price)}</span>
         </div>
-        <div className="mt-1 text-[11px] text-black/50">{meta}</div>
+        <div className="mt-1 text-[11px] text-black/45">{meta}</div>
         {body}
       </div>
     </div>

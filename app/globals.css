@@ -9,12 +9,18 @@
   --hairline: rgba(0, 0, 0, 0.08);
   --brand-green: #16a34a;
   --brand-red: #dc2626;
+  --bank-blue: #2f61d8;
   --accent: #16a34a;
   --accent-light: #22c55e;
   --glass-bg: rgba(255, 255, 255, 0.55);
   --glass-border: rgba(22, 163, 74, 0.18);
   --glass-blur: 14px;
 }
+
+/* Text-emphasis scale (use these steps only):
+   text-black/20 dot separators · /30 watermark · /35 faint labels ·
+   /45 muted labels · /55 secondary copy · /70 body emphasis · /85 strong.
+   Color tokens live in tailwind.config.ts (brand-*, bank-*, status-*, ink). */
 
 html {
   scroll-behavior: smooth;
@@ -92,8 +98,8 @@ body {
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    #2f61d8 0%,
-    #2f61d8 var(--range-progress),
+    var(--bank-blue) 0%,
+    var(--bank-blue) var(--range-progress),
     rgba(15, 23, 42, 0.08) var(--range-progress),
     rgba(15, 23, 42, 0.08) 100%
   );
@@ -105,7 +111,7 @@ body {
   height: 32px;
   margin-top: -8px;
   border-radius: 999px;
-  border: 4px solid #2f61d8;
+  border: 4px solid var(--bank-blue);
   background: #ffffff;
   box-shadow: 0 10px 22px rgba(47, 97, 216, 0.16);
 }
@@ -119,14 +125,14 @@ body {
 .bank-range::-moz-range-progress {
   height: 16px;
   border-radius: 999px;
-  background: #2f61d8;
+  background: var(--bank-blue);
 }
 
 .bank-range::-moz-range-thumb {
   width: 14px;
   height: 32px;
   border-radius: 999px;
-  border: 4px solid #2f61d8;
+  border: 4px solid var(--bank-blue);
   background: #ffffff;
   box-shadow: 0 10px 22px rgba(47, 97, 216, 0.16);
 }

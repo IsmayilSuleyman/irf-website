@@ -51,7 +51,7 @@ export function DebtPanel({
         <div className="text-[10px] uppercase tracking-[0.22em] text-brand-red/80">
           Borclar
         </div>
-        <div className="num text-xs text-black/40">
+        <div className="num text-xs text-black/45">
           {formatAzn(totalMonthly)} / ay
         </div>
       </div>
@@ -85,7 +85,7 @@ export function DebtPanel({
       {/* Debt reduction chart */}
       {schedule.length > 1 && (
         <div>
-          <div className="mb-3 text-[11px] text-black/40">Borcun azalma proqnozu</div>
+          <div className="mb-3 text-[11px] text-black/45">Borcun azalma proqnozu</div>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={schedule} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
@@ -133,7 +133,7 @@ export function DebtPanel({
       {/* Individual debts */}
       {projections.length > 0 && (
         <div>
-          <div className="mb-2 text-[11px] text-black/40">Borcların siyahısı</div>
+          <div className="mb-2 text-[11px] text-black/45">Borcların siyahısı</div>
           <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
             {projections.map((debt) => (
               <li key={debt.name} className="py-3 flex flex-col gap-2">
@@ -141,11 +141,11 @@ export function DebtPanel({
                   <span className="text-sm text-black/85 font-medium">{debt.name}</span>
                   <div className="flex items-center gap-3 shrink-0">
                     {debt.annualInterestRate > 0 && (
-                      <span className="num text-[11px] text-black/40">
+                      <span className="num text-[11px] text-black/45">
                         {(debt.annualInterestRate * 100).toFixed(1)}% il
                       </span>
                     )}
-                    <span className="num text-xs text-black/50">
+                    <span className="num text-xs text-black/45">
                       {formatAzn(debt.monthlyPaymentAzn)}/ay
                     </span>
                     <span className="num text-sm font-semibold text-brand-red/80">

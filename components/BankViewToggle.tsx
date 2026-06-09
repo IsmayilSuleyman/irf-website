@@ -43,15 +43,15 @@ export function BankViewToggle({
         className={`font-semibold uppercase transition-colors ${
           compact
             ? "text-[8px] tracking-[0.14em]"
-            : "text-[9px] tracking-[0.2em] sm:text-[10px]"
-        } ${active ? "text-[#2F61D8]" : "text-black/45 group-hover:text-black/70"}`}
+            : "text-[9px] tracking-[0.22em] sm:text-[10px]"
+        } ${active ? "text-bank-blue" : "text-black/45 group-hover:text-black/70"}`}
       >
         Ümumbank baxış
       </span>
       <span
         className={`relative inline-flex shrink-0 items-center rounded-full transition-colors ${
           compact ? "h-3.5 w-6" : "h-5 w-9"
-        } ${active ? "bg-[#2F61D8]" : "bg-black/15 group-hover:bg-black/25"}`}
+        } ${active ? "bg-bank-blue" : "bg-black/15 group-hover:bg-black/25"}`}
       >
         <span
           className={`inline-block rounded-full bg-white shadow-sm transition-transform ${

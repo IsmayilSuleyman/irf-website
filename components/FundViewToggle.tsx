@@ -43,7 +43,7 @@ export function FundViewToggle({
         className={`font-semibold uppercase transition-colors ${
           compact
             ? "text-[8px] tracking-[0.14em]"
-            : "text-[9px] tracking-[0.2em] sm:text-[10px]"
+            : "text-[9px] tracking-[0.22em] sm:text-[10px]"
         } ${active ? "text-brand-green" : "text-black/45 group-hover:text-black/70"}`}
       >
         Ümumfond baxış
