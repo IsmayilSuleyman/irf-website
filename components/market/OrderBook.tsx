@@ -199,7 +199,7 @@ function OrderPopup({
     title = isBuy ? "Fonda satış" : "Fonddan alış";
     meta = <>Fond · {bar.units == null ? "limitsiz" : `${formatUnits(bar.units)} pay`}</>;
     body = (
-      <p className="mt-3 border-t border-black/10 pt-3 text-xs leading-relaxed text-black/55">
+      <p className="mt-3 border-t border-black/12 pt-3 text-xs leading-relaxed text-black/55">
         {isBuy
           ? "Fond payları bu qiymətə həmişə geri alır — istənilən vaxt limitsiz sata bilərsiniz."
           : `Fond bu qiymətə ${formatUnits(status.fund_sell_capacity)} paya qədər satır.`}
@@ -215,7 +215,7 @@ function OrderPopup({
     );
     const orders = [...bar.orders].sort((a, b) => b.units - a.units);
     body = (
-      <div className="mt-4 flex flex-col gap-1.5 border-t border-black/10 pt-3">
+      <div className="mt-4 flex flex-col gap-1.5 border-t border-black/12 pt-3">
         {orders.map((o, i) => (
           <div key={i} className="flex items-center justify-between gap-3 text-xs">
             <span className="truncate text-black/70">{o.holderName || "Naməlum"}</span>

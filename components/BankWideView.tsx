@@ -83,7 +83,7 @@ function ListSection({
   children?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-black/6 bg-white/90">
+    <section className="rounded-2xl border border-black/8 bg-white/90">
       <header className="flex items-baseline justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-ink">
@@ -96,7 +96,7 @@ function ListSection({
         {headerRight}
       </header>
       {children ? (
-        <div className="divide-y divide-black/6 border-t border-black/6">
+        <div className="divide-y divide-black/6 border-t border-black/8">
           {children}
         </div>
       ) : empty ? (

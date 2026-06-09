@@ -20,7 +20,7 @@ function PortalOption({
   return (
     <Link
       href={href}
-      className={`group flex h-[4.6rem] w-full max-w-[17rem] items-center justify-center rounded-card border border-black/6 ${tone} px-6 shadow-[0_16px_38px_rgba(68,103,86,0.08)] backdrop-blur-xl transition duration-200 hover:-translate-y-0.5 hover:border-black/10 hover:shadow-[0_20px_48px_rgba(68,103,86,0.12)]`}
+      className={`group flex h-[4.6rem] w-full max-w-[17rem] items-center justify-center rounded-card border border-black/8 ${tone} px-6 shadow-[0_16px_38px_rgba(68,103,86,0.08)] backdrop-blur-xl transition duration-200 hover:-translate-y-0.5 hover:border-black/12 hover:shadow-[0_20px_48px_rgba(68,103,86,0.12)]`}
     >
       <span className="sr-only">{srLabel}</span>
       {logo}

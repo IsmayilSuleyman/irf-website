@@ -51,7 +51,7 @@ export function BroadcastPanel({ recipients }: { recipients: string[] }) {
   };
 
   return (
-    <section className="rounded-2xl border border-black/6 bg-white/90 p-5">
+    <section className="rounded-2xl border border-black/8 bg-white/90 p-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-bank-blue">
         İdarəetmə · Bildiriş göndər
       </p>
@@ -62,7 +62,7 @@ export function BroadcastPanel({ recipients }: { recipients: string[] }) {
       <select
         value={target}
         onChange={(e) => setTarget(e.target.value)}
-        className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-bank-blue"
+        className="mt-3 w-full rounded-xl border border-black/12 bg-white px-3 py-2 text-sm outline-none transition focus:border-bank-blue"
       >
         <option value="">Hamıya (bütün istifadəçilər)</option>
         {recipients.map((name) => (
@@ -77,7 +77,7 @@ export function BroadcastPanel({ recipients }: { recipients: string[] }) {
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Başlıq (istəyə bağlı — default: Elan)"
         maxLength={80}
-        className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-bank-blue"
+        className="mt-2 w-full rounded-xl border border-black/12 bg-white px-3 py-2 text-sm outline-none transition focus:border-bank-blue"
       />
       <textarea
         value={message}
@@ -85,7 +85,7 @@ export function BroadcastPanel({ recipients }: { recipients: string[] }) {
         placeholder="Mesaj..."
         rows={3}
         maxLength={500}
-        className="mt-2 w-full resize-y rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-bank-blue"
+        className="mt-2 w-full resize-y rounded-xl border border-black/12 bg-white px-3 py-2 text-sm outline-none transition focus:border-bank-blue"
       />
 
       {msg && <div className="mt-2 text-xs text-brand-green-deep">{msg}</div>}

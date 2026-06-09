@@ -28,7 +28,7 @@ export default async function IsmayilBankPage() {
   const backLabel = user ? "Hesabıma qayıt" : "Geri qayıt";
   return (
     <main className="min-h-screen bg-bank-section px-4 py-6 sm:px-6 sm:py-10">
-      <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-hero border border-blue-200/70 bg-white/72 p-6 shadow-[0_28px_80px_rgba(68,108,184,0.12)] backdrop-blur-xl sm:p-8 lg:p-12">
+      <section className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-hero border border-blue-200/70 bg-white/70 p-6 shadow-[0_28px_80px_rgba(68,108,184,0.12)] backdrop-blur-xl sm:p-8 lg:p-12">
         <div
           aria-hidden
           className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-blue-300/30 blur-3xl"
@@ -44,7 +44,7 @@ export default async function IsmayilBankPage() {
 
         <div className="relative">
           <div className="flex justify-center">
-            <div className="inline-flex rounded-card border border-blue-200/70 bg-white/82 px-5 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
+            <div className="inline-flex rounded-card border border-blue-200/70 bg-white/80 px-5 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
               <IsmayilBankLogo size={54} />
             </div>
           </div>
@@ -64,19 +64,19 @@ export default async function IsmayilBankPage() {
                 Bank likvidliyi
               </p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
+                <div className="rounded-2xl border border-black/8 bg-white/90 px-5 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">Ümumi depozit</p>
                   <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-ink">{formatGrouped(totalDeposits, 0)} ₼</p>
                 </div>
-                <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
+                <div className="rounded-2xl border border-black/8 bg-white/90 px-5 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">Cəmi kredit</p>
                   <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalLoans > 0 ? "text-status-late" : "text-ink"}`}>{formatGrouped(totalLoans, 0)} ₼</p>
                 </div>
-                <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
+                <div className="rounded-2xl border border-black/8 bg-white/90 px-5 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">Xalis likvidlik</p>
                   <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-brand-green-deep">{formatGrouped(netLiquidity, 0)} ₼</p>
                 </div>
-                <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
+                <div className="rounded-2xl border border-black/8 bg-white/90 px-5 py-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">Likvidlik nisbəti</p>
                   <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalDeposits > 0 ? liquidityTileColor(liquidityPct) : "text-ink"}`}>{totalDeposits > 0 ? `${formatGrouped(liquidityPct, 0)}%` : "—"}</p>
                 </div>
@@ -131,7 +131,7 @@ export default async function IsmayilBankPage() {
           <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Link
               href={backHref}
-              className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white/80 px-6 py-4 text-base font-semibold tracking-[-0.03em] text-black/70 transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-bank-blue"
+              className="inline-flex items-center justify-center rounded-2xl border border-black/12 bg-white/80 px-6 py-4 text-base font-semibold tracking-[-0.03em] text-black/70 transition hover:-translate-y-0.5 hover:border-blue-300 hover:text-bank-blue"
             >
               {backLabel}
             </Link>

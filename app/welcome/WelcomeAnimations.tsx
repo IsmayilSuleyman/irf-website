@@ -25,7 +25,7 @@ export function WelcomeAnimations({
       {showSetupNotice ? (
         <motion.div
           {...riseIn(0.03, 12)}
-          className="mt-6 max-w-3xl rounded-3xl border border-bank-blue-ring bg-white/78 px-5 py-4 shadow-[0_18px_44px_rgba(66,96,175,0.12)] backdrop-blur-md sm:px-6"
+          className="mt-6 max-w-3xl rounded-3xl border border-bank-blue-ring bg-white/80 px-5 py-4 shadow-[0_18px_44px_rgba(66,96,175,0.12)] backdrop-blur-md sm:px-6"
         >
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-bank-blue">
             Qurasdirma xetasi

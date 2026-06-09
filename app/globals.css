@@ -20,6 +20,8 @@
 /* Text-emphasis scale (use these steps only):
    text-black/20 dot separators · /30 watermark · /35 faint labels ·
    /45 muted labels · /55 secondary copy · /70 body emphasis · /85 strong.
+   Hairline borders: border-black/8 (soft) · border-black/12 (default).
+   Glass surfaces: bg-white/55 (.glass) · /60 · /70 (.glass-strong) · /80 · /90 · /95.
    Color tokens live in tailwind.config.ts (brand-*, bank-*, status-*, ink). */
 
 html {
@@ -68,10 +70,9 @@ body {
     border-color: var(--glass-border);
   }
 
+  /* Numeric figures: lining tabular digits so money values align. */
   .num {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
-      "SF Pro Text", "Segoe UI", system-ui, sans-serif !important;
-    @apply tabular-nums tracking-tight;
+    @apply font-sans tabular-nums tracking-tight;
   }
 
 .hairline {

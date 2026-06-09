@@ -74,7 +74,7 @@ function StatTile({
         : "text-ink";
 
   return (
-    <div className="rounded-2xl border border-black/6 bg-white/90 px-5 py-4">
+    <div className="rounded-2xl border border-black/8 bg-white/90 px-5 py-4">
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">
         {label}
       </p>
@@ -112,7 +112,7 @@ function ScheduleRow({ item }: { item: BankPaymentScheduleItem }) {
 
 function PaymentSchedule({ schedule }: { schedule: BankPaymentScheduleItem[] }) {
   return (
-    <section className="rounded-2xl border border-black/6 bg-white/90">
+    <section className="rounded-2xl border border-black/8 bg-white/90">
       <header className="flex items-baseline justify-between px-5 py-4">
         <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-ink">
           Ödəniş cədvəli
@@ -121,7 +121,7 @@ function PaymentSchedule({ schedule }: { schedule: BankPaymentScheduleItem[] }) 
           {schedule.length} ödəniş
         </span>
       </header>
-      <div className="divide-y divide-black/6 border-t border-black/6">
+      <div className="divide-y divide-black/6 border-t border-black/8">
         {schedule.map((item, index) => (
           <ScheduleRow key={`${item.date}-${index}`} item={item} />
         ))}
@@ -204,7 +204,7 @@ export default async function BankPage({
             <div className="mt-8 flex flex-col justify-center gap-2 sm:flex-row">
               <Link
                 href="/portal"
-                className="inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-5 py-3 text-sm font-medium text-black/70 transition hover:border-bank-blue/30 hover:text-bank-blue"
+                className="inline-flex items-center justify-center rounded-xl border border-black/12 bg-white px-5 py-3 text-sm font-medium text-black/70 transition hover:border-bank-blue/30 hover:text-bank-blue"
               >
                 Portala qayıt
               </Link>

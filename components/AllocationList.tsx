@@ -209,7 +209,7 @@ export function AllocationList({ items }: { items: Item[] }) {
               className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
                 on
                   ? "bg-brand-green/15 text-brand-green"
-                  : "border border-black/10 text-black/45 hover:text-black/70"
+                  : "border border-black/12 text-black/45 hover:text-black/70"
               }`}
             >
               {col.label}

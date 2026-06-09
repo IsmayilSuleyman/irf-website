@@ -187,7 +187,7 @@ export function IsmayilBankDepositCalculator() {
       </div>
 
       <div className="rounded-hero bg-[linear-gradient(160deg,#16a34a_0%,#15803d_100%)] p-8 text-white shadow-[0_30px_70px_rgba(22,163,74,0.24)] sm:p-10">
-        <p className="text-center text-[1.15rem] font-medium tracking-[-0.03em] text-white/88">
+        <p className="text-center text-[1.15rem] font-medium tracking-[-0.03em] text-white/90">
           Müddət sonu məbləğ
         </p>
         <p className="num mt-5 text-center text-[clamp(3rem,6vw,4.6rem)] font-black tracking-[-0.08em]">
@@ -202,7 +202,7 @@ export function IsmayilBankDepositCalculator() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-sm leading-6 tracking-[-0.01em] text-white/78">
+        <p className="mt-6 text-center text-sm leading-6 tracking-[-0.01em] text-white/75">
           Hesablama illik gəlirin müddətə proporsional bölünməsi ilə aparılır.
         </p>
       </div>

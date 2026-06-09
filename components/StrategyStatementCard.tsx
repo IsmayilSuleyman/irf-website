@@ -73,7 +73,7 @@ export function StrategyStatementCard({
             rows={6}
             maxLength={4000}
             placeholder="Növbəti hərəkətləriniz barədə səhmdarlara məlumat..."
-            className="w-full resize-y rounded-lg border border-black/10 bg-white/60 p-3 text-sm text-black/85 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30"
+            className="w-full resize-y rounded-lg border border-black/12 bg-white/60 p-3 text-sm text-black/85 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30"
             disabled={pending}
           />
           {error && <div className="text-xs text-brand-red">{error}</div>}

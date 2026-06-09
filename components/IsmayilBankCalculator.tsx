@@ -194,7 +194,7 @@ export function IsmayilBankCalculator() {
         </div>
 
         <div className="rounded-hero bg-[linear-gradient(160deg,#2f61d8_0%,#2854be_100%)] p-8 text-white shadow-[0_30px_70px_rgba(47,97,216,0.28)] sm:p-10">
-          <p className="text-center text-[1.15rem] font-medium tracking-[-0.03em] text-white/88">
+          <p className="text-center text-[1.15rem] font-medium tracking-[-0.03em] text-white/90">
             Aylıq kredit ödənişi
           </p>
           <p className="num mt-5 text-center text-[clamp(3rem,6vw,4.6rem)] font-black tracking-[-0.08em]">
@@ -209,7 +209,7 @@ export function IsmayilBankCalculator() {
             </div>
           </div>
 
-          <p className="mt-6 text-center text-sm leading-6 tracking-[-0.01em] text-white/72">
+          <p className="mt-6 text-center text-sm leading-6 tracking-[-0.01em] text-white/75">
             İlkin hesablama. Yekun şərtlər müraciət zamanı təsdiqlənir.
           </p>
         </div>

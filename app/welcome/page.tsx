@@ -76,7 +76,7 @@ function ProductCard({
         };
 
   return (
-    <article className="flex h-full flex-col rounded-hero border border-brand-green-ring bg-white/72 p-7 shadow-[0_22px_65px_rgba(83,131,101,0.12)] backdrop-blur-xl sm:p-10">
+    <article className="flex h-full flex-col rounded-hero border border-brand-green-ring bg-white/70 p-7 shadow-[0_22px_65px_rgba(83,131,101,0.12)] backdrop-blur-xl sm:p-10">
       {headerVisual ? (
         <div>
           {headerVisual}
@@ -140,7 +140,7 @@ export default async function WelcomePage({
 
   return (
     <main className="min-h-screen overflow-hidden p-1.5 sm:p-2">
-      <section className="relative mx-auto min-h-[calc(100vh-0.75rem)] max-w-[1920px] overflow-hidden rounded-3xl border border-black/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.8),rgba(242,250,245,0.88)_48%,rgba(229,246,235,0.9))] shadow-[0_28px_90px_rgba(48,94,63,0.08)]">
+      <section className="relative mx-auto min-h-[calc(100vh-0.75rem)] max-w-[1920px] overflow-hidden rounded-3xl border border-black/12 bg-[linear-gradient(135deg,rgba(255,255,255,0.8),rgba(242,250,245,0.88)_48%,rgba(229,246,235,0.9))] shadow-[0_28px_90px_rgba(48,94,63,0.08)]">
         <div
           aria-hidden
           className="absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(255,255,255,0.76),rgba(255,255,255,0)_30%),radial-gradient(circle_at_74%_78%,rgba(205,244,219,0.54),rgba(205,244,219,0)_26%)]"
@@ -189,7 +189,7 @@ export default async function WelcomePage({
             brand="IRF"
             description="Şəxsi investisiya portfelinizi real vaxt rejimində izləyin. Aktivlər, gəlirlilik və bölgü bir baxışda."
             headerVisual={
-              <div className="inline-flex rounded-card border border-brand-green-ring bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(22,163,74,0.12)]">
+              <div className="inline-flex rounded-card border border-brand-green-ring bg-white/90 px-4 py-3 shadow-[0_16px_38px_rgba(22,163,74,0.12)]">
                 <div className="w-[180px] sm:w-[210px]">
                   <Logo width={210} priority />
                 </div>
@@ -204,7 +204,7 @@ export default async function WelcomePage({
             brand="ISMAYILBANK"
             description="Depozit və kredit faizlərini müqayisə edin. Ən sərfəli şərtləri tapın və qərarlarınızı daha ağıllı verin."
             headerVisual={
-              <div className="inline-flex rounded-card border border-blue-200/70 bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
+              <div className="inline-flex rounded-card border border-blue-200/70 bg-white/90 px-4 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
                 <IsmayilBankLogo size={38} />
               </div>
             }

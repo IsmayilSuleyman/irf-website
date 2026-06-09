@@ -40,7 +40,7 @@ export function DebtNoticePanel({ debtors }: { debtors: Debtor[] }) {
   };
 
   return (
-    <section className="rounded-2xl border border-black/6 bg-white/90">
+    <section className="rounded-2xl border border-black/8 bg-white/90">
       <header className="flex items-center justify-between gap-3 px-5 py-4">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-bank-blue">
@@ -69,7 +69,7 @@ export function DebtNoticePanel({ debtors }: { debtors: Debtor[] }) {
           Borclu yoxdur.
         </div>
       ) : (
-        <div className="divide-y divide-black/6 border-t border-black/6">
+        <div className="divide-y divide-black/6 border-t border-black/8">
           {debtors.map((d) => (
             <div
               key={d.name}
