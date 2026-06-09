@@ -10,7 +10,9 @@ export function PageBackground() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+      // Orbs are tuned for the light gradient; dim them in dark mode so
+      // they read as a faint glow instead of bright green patches.
+      className="pointer-events-none fixed inset-0 -z-10 overflow-hidden dark:opacity-35"
     >
       <motion.div
         className="absolute -top-40 -left-32 h-[520px] w-[520px] rounded-full"

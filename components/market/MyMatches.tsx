@@ -45,9 +45,9 @@ export function MyMatches({
       <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
         Uyğunlaşmalarım
       </div>
-      {error && <div className="text-xs text-brand-red">{error}</div>}
+      {error && <div className="text-xs text-brand-red dark:text-red-400">{error}</div>}
       {visible.length === 0 ? (
-        <div className="py-4 text-center text-xs text-black/35">
+        <div className="py-4 text-center text-xs text-black/45 dark:text-white/50">
           Hələ uyğunlaşma yoxdur.
         </div>
       ) : (
@@ -61,14 +61,14 @@ export function MyMatches({
             return (
               <div key={t.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-sm text-black">
-                    <span className={isBuyer ? "text-brand-green" : "text-brand-red"}>
+                  <span className="text-sm text-black dark:text-white/90">
+                    <span className={isBuyer ? "text-brand-green dark:text-emerald-400" : "text-brand-red dark:text-red-400"}>
                       {isBuyer ? "Aldınız" : "Satdınız"}
                     </span>{" "}
                     <span className="num">{formatUnits(t.units)}</span> pay ·{" "}
                     <span className="num">{price2(t.price)}</span>
                   </span>
-                  <span className="text-[11px] text-black/45">
+                  <span className="text-[11px] text-black/45 dark:text-white/50">
                     {counterparty}
                     {pending ? " · İsmayıl ilə hesablaşma gözlənilir" : " · tamamlandı"}
                   </span>
@@ -77,7 +77,7 @@ export function MyMatches({
                   <button
                     onClick={() => reject(t.id)}
                     disabled={busy === t.id}
-                    className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                    className="rounded-full border border-black/10 dark:border-white/15 px-3 py-1.5 text-[11px] font-medium text-black/55 dark:text-white/60 transition hover:border-brand-red hover:text-brand-red dark:hover:text-red-400 disabled:opacity-50"
                   >
                     {busy === t.id ? "..." : "Ləğv et"}
                   </button>

@@ -34,19 +34,19 @@ function PersonRow({
 }) {
   const pillClass =
     pill?.tone === "paid"
-      ? "bg-[#e9f7ee] text-[#128342]"
+      ? "bg-brand-green-mist dark:bg-brand-green/15 text-status-paid dark:text-emerald-400"
       : pill?.tone === "due"
-        ? "bg-[#fdecee] text-[#c74252]"
-        : "bg-[#eef2fb] text-[#2F61D8]";
+        ? "bg-status-late-soft dark:bg-status-late/20 text-status-late dark:text-rose-400"
+        : "bg-bank-blue-soft dark:bg-bank-blue/20 text-bank-blue dark:text-blue-400";
 
   return (
     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-5 py-3.5">
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-[#161616]">
+        <p className="truncate text-sm font-medium text-ink dark:text-white/90">
           {azTitleCase(name)}
         </p>
         {secondary ? (
-          <p className="mt-0.5 truncate text-xs text-black/48">{secondary}</p>
+          <p className="mt-0.5 truncate text-xs text-black/45 dark:text-white/50">{secondary}</p>
         ) : null}
       </div>
       {pill ? (
@@ -60,7 +60,7 @@ function PersonRow({
       )}
       <p
         className={`text-sm font-semibold tabular-nums ${
-          primaryMuted ? "text-black/35" : "text-[#111111]"
+          primaryMuted ? "text-black/45 dark:text-white/50" : "text-ink dark:text-white/90"
         }`}
       >
         {primary}
@@ -83,24 +83,24 @@ function ListSection({
   children?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-black/6 bg-white/90">
+    <section className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10">
       <header className="flex items-baseline justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-[#111111]">
+          <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-ink dark:text-white/90">
             {title}
           </h2>
           {subtitle ? (
-            <p className="mt-0.5 truncate text-xs text-black/48">{subtitle}</p>
+            <p className="mt-0.5 truncate text-xs text-black/45 dark:text-white/50">{subtitle}</p>
           ) : null}
         </div>
         {headerRight}
       </header>
       {children ? (
-        <div className="divide-y divide-black/6 border-t border-black/6">
+        <div className="divide-y divide-black/5 border-t border-black/10 dark:border-white/10">
           {children}
         </div>
       ) : empty ? (
-        <p className="px-5 pb-5 text-sm text-black/48">{empty}</p>
+        <p className="px-5 pb-5 text-sm text-black/45 dark:text-white/50">{empty}</p>
       ) : null}
     </section>
   );
@@ -135,68 +135,68 @@ export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
           without the 4-tile grid competing for attention. */}
       <section className="space-y-3">
         <div className="flex items-baseline justify-between gap-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
             Xalis likvidlik
           </p>
-          <span className="text-[11px] font-medium text-black/45">
+          <span className="text-[11px] font-medium text-black/45 dark:text-white/50">
             {depositors.length} depozitor · {borrowers.length} borc alan
           </span>
         </div>
 
         <div
-          className="num font-black leading-none tracking-tight text-[#111111]"
+          className="num font-black leading-none tracking-tight text-ink dark:text-white/90"
           style={{ fontSize: "clamp(3.25rem, 10vw, 6.5rem)" }}
         >
           <Odometer value={netLiquidityAzn} fractionDigits={2} suffix="₼" />
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/50">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/45 dark:text-white/50">
           <span>
             cəmi depozit{" "}
-            <span className="font-medium text-black/75">
+            <span className="font-medium text-black/70 dark:text-white/75">
               {formatAzn(totalDepositsAzn)}
             </span>
           </span>
           {totalLoansAzn > 0 ? (
             <span>
               · cəmi kredit{" "}
-              <span className="font-medium text-[#c74252]">
+              <span className="font-medium text-status-late dark:text-rose-400">
                 {formatAzn(totalLoansAzn)}
               </span>
             </span>
           ) : null}
           <span>
             · likvidlik nisbəti{" "}
-            <span className="font-medium text-black/75">
+            <span className="font-medium text-black/70 dark:text-white/75">
               {liquidityPctLabel}
             </span>
           </span>
         </div>
 
         <div className="space-y-1.5 pt-2">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-black/6">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
             <div
-              className="h-full rounded-l-full bg-[#c74252]/70 transition-all"
+              className="h-full rounded-l-full bg-status-late/70 transition-all"
               style={{ width: `${loanShareOfDepositsPct}%` }}
             />
           </div>
-          <div className="flex gap-4 text-[11px] font-medium text-black/42">
+          <div className="flex gap-4 text-[11px] font-medium text-black/45 dark:text-white/50">
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 rounded-full bg-[#c74252]/70" />
+              <span className="inline-block h-2 w-2 rounded-full bg-status-late/70" />
               Kredit
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block h-2 w-2 rounded-full bg-black/12" />
+              <span className="inline-block h-2 w-2 rounded-full bg-black/10 dark:bg-white/15" />
               Azad likvidlik
             </span>
           </div>
         </div>
 
         {totalPendingBonusAzn > 0 ? (
-          <div className="space-y-1 pt-1 text-xs leading-5 text-black/48">
+          <div className="space-y-1 pt-1 text-xs leading-5 text-black/45 dark:text-white/50">
             <p>
               Depozitlər üzrə cəmi faiz qazancı:{" "}
-              <span className="font-semibold text-[#111111]">
+              <span className="font-semibold text-ink dark:text-white/90">
                 {formatAzn(totalPendingBonusAzn)}
               </span>
               . Bu məbləğ müvafiq müddətlərin sonunda depozitorlara ödəniləcək.
@@ -204,13 +204,13 @@ export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
             {totalAccruedInterestAzn > 0 || totalMonthlyInterestAzn > 0 ? (
               <p>
                 Bu günə artıq aylıq qazanılıb:{" "}
-                <span className="font-semibold text-[#128342]">
+                <span className="font-semibold text-brand-green-deep dark:text-emerald-400">
                   {formatAzn(totalAccruedInterestAzn)}
                 </span>
                 {totalMonthlyInterestAzn > 0 ? (
                   <>
                     {" "}· cari aylıq qazanc:{" "}
-                    <span className="font-semibold text-[#111111]">
+                    <span className="font-semibold text-ink dark:text-white/90">
                       {formatAzn(totalMonthlyInterestAzn)}
                     </span>
                     /ay
@@ -228,7 +228,7 @@ export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
         title="30 gün ərzində ödəniləcək faiz"
         subtitle="Müddəti yaxınlaşan depozitlərə görə bankın çıxış axını"
         headerRight={
-          <span className="text-sm font-semibold tabular-nums text-[#c74252]">
+          <span className="text-sm font-semibold tabular-nums text-status-late dark:text-rose-400">
             {next30dPayouts.items.length > 0
               ? `−${formatAzn(next30dPayouts.totalAzn)}`
               : "—"}
@@ -256,15 +256,15 @@ export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
         subtitle="Ödəniş cədvəlinə əsasən bankın giriş axını"
         headerRight={
           next30dInflow.items.length === 0 ? (
-            <span className="text-sm font-semibold tabular-nums text-black/35">
+            <span className="text-sm font-semibold tabular-nums text-black/45 dark:text-white/50">
               —
             </span>
           ) : next30dInflow.totalAzn > 0 ? (
-            <span className="text-sm font-semibold tabular-nums text-[#128342]">
+            <span className="text-sm font-semibold tabular-nums text-brand-green-deep dark:text-emerald-400">
               +{formatAzn(next30dInflow.totalAzn)}
             </span>
           ) : (
-            <span className="text-sm font-semibold tabular-nums text-black/45">
+            <span className="text-sm font-semibold tabular-nums text-black/45 dark:text-white/50">
               {formatAzn(0)}
             </span>
           )
@@ -289,7 +289,7 @@ export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
       <ListSection
         title="Depozitorlar"
         headerRight={
-          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-black/42">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
             {depositors.length}
           </span>
         }
@@ -327,7 +327,7 @@ export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
       <ListSection
         title="Borc alanlar"
         headerRight={
-          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-black/42">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
             {borrowers.length}
           </span>
         }

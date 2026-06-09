@@ -77,7 +77,7 @@ function SliderField({
   return (
     <div className="space-y-3">
       <div className="flex items-end justify-between gap-4">
-        <p className="text-[1.1rem] tracking-[-0.03em] text-black/56">{label}</p>
+        <p className="text-[1.1rem] tracking-[-0.03em] text-black/55 dark:text-white/60">{label}</p>
         {editable ? (
           <div className="flex items-center gap-0.5">
             <input
@@ -97,12 +97,12 @@ function SliderField({
                 onChange(n);
                 setInputValue(String(n));
               }}
-              className="num w-[5ch] bg-transparent text-right text-[2rem] font-semibold tracking-[-0.06em] text-[#111827] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-b-2 focus:border-blue-500"
+              className="num w-[5ch] bg-transparent text-right text-[2rem] font-semibold tracking-[-0.06em] text-ink dark:text-white/90 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-b-2 focus:border-blue-500 dark:border-blue-400"
             />
-            <span className="num text-[2rem] font-semibold tracking-[-0.06em] text-[#111827]">₼</span>
+            <span className="num text-[2rem] font-semibold tracking-[-0.06em] text-ink dark:text-white/90">₼</span>
           </div>
         ) : (
-          <p className="num text-[2rem] font-semibold tracking-[-0.06em] text-[#111827]">
+          <p className="num text-[2rem] font-semibold tracking-[-0.06em] text-ink dark:text-white/90">
             {valueLabel}
           </p>
         )}
@@ -120,7 +120,7 @@ function SliderField({
         aria-label={label}
       />
 
-      <div className="flex items-center justify-between text-[1.05rem] tracking-[-0.03em] text-black/48">
+      <div className="flex items-center justify-between text-[1.05rem] tracking-[-0.03em] text-black/45 dark:text-white/50">
         <span>{minLabel}</span>
         <span>{maxLabel}</span>
       </div>
@@ -137,8 +137,8 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm font-medium tracking-[-0.01em] text-black/70">{label}</span>
-      <span className="num text-base font-semibold tracking-[-0.03em] text-black">
+      <span className="text-sm font-medium tracking-[-0.01em] text-black/70 dark:text-white/75">{label}</span>
+      <span className="num text-base font-semibold tracking-[-0.03em] text-black dark:text-white/90">
         {value}
       </span>
     </div>
@@ -166,7 +166,7 @@ export function IsmayilBankCalculator() {
   return (
     <div>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.82fr)] lg:gap-8">
-        <div className="rounded-[2rem] border border-white/70 bg-white/70 p-6 shadow-[0_24px_60px_rgba(98,126,187,0.08)] backdrop-blur-xl sm:p-8">
+        <div className="rounded-hero border border-white/70 dark:border-white/10 bg-white/70 dark:bg-white/10 p-6 shadow-[0_24px_60px_rgba(98,126,187,0.08)] backdrop-blur-xl sm:p-8">
           <div className="space-y-8">
             <SliderField
               editable
@@ -193,15 +193,15 @@ export function IsmayilBankCalculator() {
           </div>
         </div>
 
-        <div className="rounded-[2rem] bg-[linear-gradient(160deg,#2F61D8_0%,#2758D0_60%,#214CBD_100%)] p-8 text-white shadow-[0_30px_70px_rgba(47,97,216,0.28)] sm:p-10">
-          <p className="text-center text-[1.15rem] font-medium tracking-[-0.03em] text-white/88">
+        <div className="rounded-hero bg-[linear-gradient(160deg,#2f61d8_0%,#2854be_100%)] p-8 text-white shadow-[0_30px_70px_rgba(47,97,216,0.28)] sm:p-10">
+          <p className="text-center text-[1.15rem] font-medium tracking-[-0.03em] text-white/90">
             Aylıq kredit ödənişi
           </p>
           <p className="num mt-5 text-center text-[clamp(3rem,6vw,4.6rem)] font-black tracking-[-0.08em]">
             {formatMoney(monthlyPayment)}
           </p>
 
-          <div className="mt-8 rounded-[1.5rem] bg-white px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_18px_38px_rgba(23,59,149,0.16)] sm:px-6">
+          <div className="mt-8 rounded-3xl bg-white dark:bg-white/10 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_18px_38px_rgba(23,59,149,0.16)] sm:px-6">
             <div className="space-y-4">
               <SummaryRow label="Ümumi ödəniş" value={formatMoney(totalRepayment)} />
               <SummaryRow label="Ümumi faiz" value={formatMoney(totalInterest)} />
@@ -209,7 +209,7 @@ export function IsmayilBankCalculator() {
             </div>
           </div>
 
-          <p className="mt-6 text-center text-sm leading-6 tracking-[-0.01em] text-white/72">
+          <p className="mt-6 text-center text-sm leading-6 tracking-[-0.01em] text-white/75">
             İlkin hesablama. Yekun şərtlər müraciət zamanı təsdiqlənir.
           </p>
         </div>

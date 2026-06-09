@@ -25,12 +25,12 @@ export function WelcomeAnimations({
       {showSetupNotice ? (
         <motion.div
           {...riseIn(0.03, 12)}
-          className="mt-6 max-w-3xl rounded-[1.6rem] border border-[#B6CDFE] bg-white/78 px-5 py-4 shadow-[0_18px_44px_rgba(66,96,175,0.12)] backdrop-blur-md sm:px-6"
+          className="mt-6 max-w-3xl rounded-3xl border border-bank-blue-ring dark:border-bank-blue/40 bg-white/80 dark:bg-white/10 px-5 py-4 shadow-[0_18px_44px_rgba(66,96,175,0.12)] backdrop-blur-md sm:px-6"
         >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#2F61D8]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
             Qurasdirma xetasi
           </p>
-          <p className="mt-2 text-sm leading-6 text-black/58 sm:text-[0.98rem]">
+          <p className="mt-2 text-sm leading-6 text-black/55 dark:text-white/60 sm:text-[0.98rem]">
             Supabase ayarlari Vercel-de tam qurasdirilmayib. Buna gore giris hissesi
             mueqqeti olaraq deaktivdir. `NEXT_PUBLIC_SUPABASE_URL` ve
             `NEXT_PUBLIC_SUPABASE_ANON_KEY` deyerlerini Vercel project settings-e
@@ -41,17 +41,17 @@ export function WelcomeAnimations({
 
       <motion.div
         {...riseIn(0.06)}
-        className="mt-6 max-w-[60rem] rounded-[2.25rem] bg-[linear-gradient(135deg,rgba(255,255,255,0.62),rgba(255,255,255,0.34))] px-5 py-5 shadow-[0_18px_60px_rgba(106,149,121,0.06)] backdrop-blur-[10px] sm:px-8 sm:py-7 lg:px-10"
+        className="mt-6 max-w-[60rem] rounded-hero bg-[linear-gradient(135deg,rgba(255,255,255,0.62),rgba(255,255,255,0.34))] px-5 py-5 shadow-[0_18px_60px_rgba(106,149,121,0.06)] backdrop-blur-[10px] dark:bg-none dark:bg-white/5 sm:px-8 sm:py-7 lg:px-10"
       >
-        <h1 className="text-[clamp(3.5rem,7.2vw,6.1rem)] font-black leading-[0.92] tracking-[-0.08em] text-[#222222]">
+        <h1 className="text-[clamp(3.5rem,7.2vw,6.1rem)] font-black leading-[0.92] tracking-[-0.08em] text-ink dark:text-white/90">
           İsmayıl Maliyyə Xidmətləri
         </h1>
-        <p className="mt-5 max-w-[46rem] text-[clamp(1.35rem,2.3vw,2.2rem)] leading-[1.15] tracking-[-0.05em] text-black/40">
+        <p className="mt-5 max-w-[46rem] text-[clamp(1.35rem,2.3vw,2.2rem)] leading-[1.15] tracking-[-0.05em] text-black/45 dark:text-white/50">
           Portfel idarəetməsi və bank məhsulları, hamısı bir yerdə.
         </p>
         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
           {ctaButton}
-          <p className="max-w-xs text-sm leading-6 text-black/48">
+          <p className="max-w-xs text-sm leading-6 text-black/45 dark:text-white/50">
             Bir girişlə həm IRF portfeliniz, həm də IsmayılBank hesabınız açılır.
           </p>
         </div>
@@ -67,7 +67,7 @@ export function WelcomeAnimations({
 
       <motion.p
         {...riseIn(0.22, 16)}
-        className="mt-auto pt-10 text-center text-sm tracking-[-0.02em] text-black/28"
+        className="mt-auto pt-10 text-center text-sm tracking-[-0.02em] text-black/30 dark:text-white/35"
       >
         © {new Date().getFullYear()} Ismayıl Süleyman. Bütün hüquqlar qorunur
       </motion.p>

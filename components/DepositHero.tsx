@@ -45,28 +45,28 @@ export function DepositHero({
 
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#2F61D8]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
         Depozit balansım
       </p>
 
       <div
-        className="num mt-2 font-black leading-none tracking-tight text-[#111111]"
+        className="num mt-2 font-black leading-none tracking-tight text-ink dark:text-white/90"
         style={{ fontSize: "clamp(3.25rem, 10vw, 6.5rem)" }}
       >
         <Odometer value={depositedAzn} fractionDigits={2} suffix="₼" />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/55">
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/55 dark:text-white/60">
         {termMonths != null ? (
           <span>
             müddət{" "}
-            <span className="font-medium text-black/75">{termMonths} ay</span>
+            <span className="font-medium text-black/70 dark:text-white/75">{termMonths} ay</span>
           </span>
         ) : null}
         {annualRatePct != null ? (
           <span>
             · illik{" "}
-            <span className="font-medium text-black/75">
+            <span className="font-medium text-black/70 dark:text-white/75">
               {formatPercent(annualRatePct)}
             </span>
           </span>
@@ -74,11 +74,11 @@ export function DepositHero({
         {maturityEndAmount != null ? (
           <span>
             müddət sonu{" "}
-            <span className="font-medium text-[#128342]">
+            <span className="font-medium text-brand-green-deep dark:text-emerald-400">
               {formatAmount(maturityEndAmount)}₼
             </span>
             {maturityDateLabel ? (
-              <span className="text-black/45"> ({maturityDateLabel})</span>
+              <span className="text-black/45 dark:text-white/50"> ({maturityDateLabel})</span>
             ) : null}
           </span>
         ) : null}

@@ -88,11 +88,11 @@ function ChangeBadge({
   const cls =
     variant === "filled"
       ? up
-        ? "bg-brand-green/15 text-brand-green"
-        : "bg-brand-red/15 text-brand-red"
+        ? "bg-brand-green/15 text-brand-green dark:text-emerald-400"
+        : "bg-brand-red/15 text-brand-red dark:text-red-400"
       : up
-        ? "border border-brand-green/40 text-brand-green"
-        : "border border-brand-red/40 text-brand-red";
+        ? "border border-brand-green/40 text-brand-green dark:text-emerald-400"
+        : "border border-brand-red/40 text-brand-red dark:text-red-400";
   const label = showAmount
     ? formatSignedAzn(amountAzn as number)
     : `${up ? "+" : ""}${(pct * 100).toFixed(1)}%`;
@@ -134,7 +134,7 @@ function yesterdayValueOf(item: Item): number {
 
 function RankBadge({ rank, delta }: { rank: number; delta: number }) {
   return (
-    <div className="num flex w-7 shrink-0 items-center text-xs text-black/55">
+    <div className="num flex w-7 shrink-0 items-center text-xs text-black/55 dark:text-white/60">
       <span className="w-3 text-right tabular-nums">{rank}</span>
       <span className="flex flex-1 items-center justify-center">
         {delta > 0 ? (
@@ -178,7 +178,7 @@ export function AllocationList({ items }: { items: Item[] }) {
   );
 
   if (!items || items.length === 0) {
-    return <div className="text-black/40">Məlumat yoxdur.</div>;
+    return <div className="text-black/45 dark:text-white/50">Məlumat yoxdur.</div>;
   }
 
   const todayRanked = [...items].sort((a, b) => b.valueAzn - a.valueAzn);
@@ -208,8 +208,8 @@ export function AllocationList({ items }: { items: Item[] }) {
               aria-pressed={on}
               className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
                 on
-                  ? "bg-brand-green/15 text-brand-green"
-                  : "border border-black/10 text-black/40 hover:text-black/70"
+                  ? "bg-brand-green/15 text-brand-green dark:text-emerald-400"
+                  : "border border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
               }`}
             >
               {col.label}
@@ -258,19 +258,19 @@ export function AllocationList({ items }: { items: Item[] }) {
                   />
                 )}
                 <div className="flex min-w-0 flex-1 flex-col gap-0">
-                  <span className="num text-lg font-semibold leading-tight tracking-wide text-black/85">
+                  <span className="num text-lg font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90">
                     {primary}
                   </span>
                   <div className="-mt-1 flex min-w-0 items-baseline gap-2">
                     {secondary && (
-                      <span className="min-w-0 truncate text-[11px] leading-tight text-black/50">
+                      <span className="min-w-0 truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
                         {secondary}
                       </span>
                     )}
                     <AnimatePresence initial={false}>
                       {visible.percent && (
                         <AnimatedFigure keyName="percent" inline>
-                          <span className="num shrink-0 text-[11px] text-black/40">
+                          <span className="num shrink-0 text-[11px] text-black/45 dark:text-white/50">
                             {(item.percent * 100).toFixed(1)}%
                           </span>
                         </AnimatedFigure>
@@ -285,7 +285,7 @@ export function AllocationList({ items }: { items: Item[] }) {
                   a fixed width so the value + total-change column lands on the
                   same vertical line across every row regardless of price width. */}
               <div className="grid shrink-0 grid-cols-[auto_52px] items-center gap-x-4 gap-y-1 text-right">
-                <div className="num text-[13px] font-medium text-black/80">
+                <div className="num text-[13px] font-medium text-black/85 dark:text-white/90">
                   <AnimatePresence initial={false}>
                     {visible.value && (
                       <AnimatedFigure keyName="value" inline>
@@ -294,7 +294,7 @@ export function AllocationList({ items }: { items: Item[] }) {
                     )}
                   </AnimatePresence>
                 </div>
-                <div className="num text-[13px] text-black/45">
+                <div className="num text-[13px] text-black/45 dark:text-white/50">
                   <AnimatePresence initial={false}>
                     {showPrice && (
                       <AnimatedFigure keyName="price" inline>

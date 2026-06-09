@@ -51,18 +51,18 @@ export function BroadcastPanel({ recipients }: { recipients: string[] }) {
   };
 
   return (
-    <section className="rounded-2xl border border-black/6 bg-white/90 p-5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#2F61D8]">
+    <section className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 p-5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-bank-blue dark:text-blue-400">
         İdarəetmə · Bildiriş göndər
       </p>
-      <p className="mt-1 text-[12px] text-black/45">
+      <p className="mt-1 text-[12px] text-black/45 dark:text-white/50">
         Hamıya və ya bir şəxsə xüsusi bildiriş göndər.
       </p>
 
       <select
         value={target}
         onChange={(e) => setTarget(e.target.value)}
-        className="mt-3 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#2F61D8]"
+        className="mt-3 w-full rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/10 px-3 py-2 text-sm outline-none transition focus:border-bank-blue"
       >
         <option value="">Hamıya (bütün istifadəçilər)</option>
         {recipients.map((name) => (
@@ -77,7 +77,7 @@ export function BroadcastPanel({ recipients }: { recipients: string[] }) {
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Başlıq (istəyə bağlı — default: Elan)"
         maxLength={80}
-        className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#2F61D8]"
+        className="mt-2 w-full rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/10 px-3 py-2 text-sm outline-none transition focus:border-bank-blue"
       />
       <textarea
         value={message}
@@ -85,16 +85,16 @@ export function BroadcastPanel({ recipients }: { recipients: string[] }) {
         placeholder="Mesaj..."
         rows={3}
         maxLength={500}
-        className="mt-2 w-full resize-y rounded-xl border border-black/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-[#2F61D8]"
+        className="mt-2 w-full resize-y rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/10 px-3 py-2 text-sm outline-none transition focus:border-bank-blue"
       />
 
-      {msg && <div className="mt-2 text-xs text-[#128342]">{msg}</div>}
-      {error && <div className="mt-2 text-xs text-[#c74252]">{error}</div>}
+      {msg && <div className="mt-2 text-xs text-brand-green-deep dark:text-emerald-400">{msg}</div>}
+      {error && <div className="mt-2 text-xs text-status-late dark:text-rose-400">{error}</div>}
 
       <button
         onClick={send}
         disabled={busy || !message.trim()}
-        className="mt-3 rounded-full bg-[#2F61D8] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-[#2854be] disabled:opacity-50"
+        className="mt-3 rounded-full bg-bank-blue px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-bank-blue-deep disabled:opacity-50"
       >
         {busy ? "Göndərilir..." : target === "" ? "Hamıya göndər" : "Göndər"}
       </button>

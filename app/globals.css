@@ -9,12 +9,42 @@
   --hairline: rgba(0, 0, 0, 0.08);
   --brand-green: #16a34a;
   --brand-red: #dc2626;
+  --bank-blue: #2f61d8;
   --accent: #16a34a;
   --accent-light: #22c55e;
   --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.7);
+  --glass-tint: rgba(22, 163, 74, 0.06);
   --glass-border: rgba(22, 163, 74, 0.18);
   --glass-blur: 14px;
+  --glass-shadow: 0 8px 32px rgba(22, 163, 74, 0.1),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7);
+  color-scheme: light;
 }
+
+/* Dark theme — `dark` class is applied to <html> before paint by the
+   inline script in app/layout.tsx (localStorage choice, else system). */
+.dark {
+  --bg: #0c120e;
+  --fg: #edf2ee;
+  --muted: #94a39a;
+  --hairline: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-bg-strong: rgba(255, 255, 255, 0.08);
+  --glass-tint: rgba(34, 197, 94, 0.08);
+  --glass-border: rgba(34, 197, 94, 0.2);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  color-scheme: dark;
+}
+
+/* Text-emphasis scale (use these steps only):
+   text-black/20 decorative dots · /30 watermark · /45 muted labels (WCAG floor) ·
+   /55 secondary copy · /70 body emphasis · /85 strong.
+   Hairline borders: border-black/10 (alpha modifiers must be multiples of 5 —
+   others silently fall back to the preflight gray).
+   Glass surfaces: bg-white/55 (.glass) · /60 · /70 (.glass-strong) · /80 · /90 · /95.
+   Color tokens live in tailwind.config.ts (brand-*, bank-*, status-*, ink). */
 
 html {
   scroll-behavior: smooth;
@@ -28,12 +58,17 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
-    "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  /* font-family comes from the Tailwind font-sans class on <body>
+     (Inter via next/font, with the Apple/Segoe stack as fallback). */
   min-height: 100vh;
   background: linear-gradient(135deg, #ffffff 0%, #f4fdf7 50%, #e8faee 100%);
   background-attachment: fixed;
   overflow-x: hidden;
+}
+
+.dark body {
+  background: linear-gradient(135deg, #0b0f0c 0%, #0d1410 50%, #0b1810 100%);
+  background-attachment: fixed;
 }
 
 /* Bank-section background — same shape as the site-wide green gradient but
@@ -45,27 +80,37 @@ body {
   background-attachment: fixed;
 }
 
+.dark .bg-bank-section {
+  background: linear-gradient(135deg, #0a0d12 0%, #0c1120 50%, #0b1226 100%);
+  background-attachment: fixed;
+}
+
 @layer components {
+  /* Glass surfaces read their colors from the theme vars above so the same
+     class works in light and dark without per-usage dark: variants. */
   .glass {
-    @apply rounded-2xl border bg-white/55 shadow-glass-green backdrop-blur-md;
+    @apply rounded-2xl border backdrop-blur-md;
+    background: var(--glass-bg);
     border-color: var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 
   .glass-strong {
-    @apply rounded-2xl border bg-white/70 shadow-glass-green backdrop-blur-md;
+    @apply rounded-2xl border backdrop-blur-md;
+    background: var(--glass-bg-strong);
     border-color: var(--glass-border);
+    box-shadow: var(--glass-shadow);
   }
 
   .glass-tinted {
     @apply rounded-2xl border backdrop-blur-md;
-    background: rgba(22, 163, 74, 0.06);
+    background: var(--glass-tint);
     border-color: var(--glass-border);
   }
 
+  /* Numeric figures: lining tabular digits so money values align. */
   .num {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
-      "SF Pro Text", "Segoe UI", system-ui, sans-serif !important;
-    @apply tabular-nums tracking-tight;
+    @apply font-sans tabular-nums tracking-tight;
   }
 
 .hairline {
@@ -92,8 +137,8 @@ body {
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    #2f61d8 0%,
-    #2f61d8 var(--range-progress),
+    var(--bank-blue) 0%,
+    var(--bank-blue) var(--range-progress),
     rgba(15, 23, 42, 0.08) var(--range-progress),
     rgba(15, 23, 42, 0.08) 100%
   );
@@ -105,7 +150,7 @@ body {
   height: 32px;
   margin-top: -8px;
   border-radius: 999px;
-  border: 4px solid #2f61d8;
+  border: 4px solid var(--bank-blue);
   background: #ffffff;
   box-shadow: 0 10px 22px rgba(47, 97, 216, 0.16);
 }
@@ -119,14 +164,14 @@ body {
 .bank-range::-moz-range-progress {
   height: 16px;
   border-radius: 999px;
-  background: #2f61d8;
+  background: var(--bank-blue);
 }
 
 .bank-range::-moz-range-thumb {
   width: 14px;
   height: 32px;
   border-radius: 999px;
-  border: 4px solid #2f61d8;
+  border: 4px solid var(--bank-blue);
   background: #ffffff;
   box-shadow: 0 10px 22px rgba(47, 97, 216, 0.16);
 }
@@ -134,6 +179,11 @@ body {
 ::selection {
   background: rgba(22, 163, 74, 0.20);
   color: #0a1a10;
+}
+
+.dark ::selection {
+  background: rgba(34, 197, 94, 0.35);
+  color: #eafff1;
 }
 
 :focus-visible {
@@ -152,4 +202,49 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(22, 163, 74, 0.32);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(34, 197, 94, 0.25);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 197, 94, 0.4);
+}
+
+/* Dark slider track (thumb/progress already follow --bank-blue). */
+.dark .bank-range::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    90deg,
+    var(--bank-blue) 0%,
+    var(--bank-blue) var(--range-progress),
+    rgba(255, 255, 255, 0.12) var(--range-progress),
+    rgba(255, 255, 255, 0.12) 100%
+  );
+}
+.dark .bank-range::-moz-range-track {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Recharts theming. The components pass light-theme inline styles
+   (tooltip contentStyle, tick fills); these !important overrides win
+   over inline styles, so charts follow the theme without prop changes. */
+.dark .recharts-text,
+.dark .recharts-cartesian-axis-tick-value {
+  fill: rgba(255, 255, 255, 0.5) !important;
+}
+.dark .recharts-cartesian-grid line {
+  stroke: rgba(255, 255, 255, 0.08) !important;
+}
+.dark .recharts-tooltip-wrapper .recharts-default-tooltip,
+.dark .recharts-tooltip-wrapper > div {
+  background: rgba(18, 24, 20, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+.dark .recharts-tooltip-wrapper .recharts-tooltip-label,
+.dark .recharts-tooltip-wrapper .recharts-tooltip-item {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+.dark .recharts-pie path,
+.dark .recharts-sector {
+  stroke: #10150f !important;
 }

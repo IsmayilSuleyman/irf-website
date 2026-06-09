@@ -19,7 +19,7 @@ export function ShareholdersList({ holders }: { holders: Shareholder[] }) {
         Pay sahibləri
       </div>
       {sorted.length === 0 ? (
-        <div className="text-sm text-black/40">Sahib yoxdur.</div>
+        <div className="text-sm text-black/45 dark:text-white/50">Sahib yoxdur.</div>
       ) : (
         <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1 text-sm">
           {sorted.map((h, i) => (
@@ -27,14 +27,14 @@ export function ShareholdersList({ holders }: { holders: Shareholder[] }) {
               key={`${h.name}-${i}`}
               className="flex items-baseline justify-between gap-3"
             >
-              <span className="min-w-0 truncate text-black/70">
+              <span className="min-w-0 truncate text-black/70 dark:text-white/75">
                 {toTitleCaseAz(h.name)}
               </span>
               <span className="flex shrink-0 items-baseline gap-2">
-                <span className="num font-medium text-black">
+                <span className="num font-medium text-black dark:text-white/90">
                   {formatAzn(h.valueAzn)}
                 </span>
-                <span className="num w-14 text-right text-[11px] text-black/40">
+                <span className="num w-14 text-right text-[11px] text-black/45 dark:text-white/50">
                   {formatPct(h.percent)}
                 </span>
               </span>

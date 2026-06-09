@@ -60,17 +60,17 @@ export function AdminSettlements({ pending }: { pending: TradeRow[] }) {
         <button
           onClick={sync}
           disabled={busy === "sync"}
-          className="rounded-full border border-[rgba(22,163,74,0.3)] bg-white/70 px-3 py-1.5 text-[11px] font-medium text-black/70 transition hover:border-brand-green hover:text-brand-green disabled:opacity-50"
+          className="rounded-full border border-brand-green/30 bg-white/70 dark:bg-white/10 px-3 py-1.5 text-[11px] font-medium text-black/70 dark:text-white/75 transition hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400 disabled:opacity-50"
         >
           {busy === "sync" ? "Sinxronlaşır..." : "Cədvəldən sinxronla"}
         </button>
       </div>
 
-      {syncMsg && <div className="text-xs text-brand-green">{syncMsg}</div>}
-      {error && <div className="text-xs text-brand-red">{error}</div>}
+      {syncMsg && <div className="text-xs text-brand-green dark:text-emerald-400">{syncMsg}</div>}
+      {error && <div className="text-xs text-brand-red dark:text-red-400">{error}</div>}
 
       {pending.length === 0 ? (
-        <div className="py-3 text-center text-xs text-black/35">
+        <div className="py-3 text-center text-xs text-black/45 dark:text-white/50">
           Təsdiq gözləyən uyğunlaşma yoxdur.
         </div>
       ) : (
@@ -78,12 +78,12 @@ export function AdminSettlements({ pending }: { pending: TradeRow[] }) {
           {pending.map((t) => (
             <div key={t.id} className="flex items-center justify-between gap-3 py-3">
               <div className="flex flex-col gap-0.5">
-                <span className="text-sm text-black">
+                <span className="text-sm text-black dark:text-white/90">
                   <span className="font-medium">{t.seller_name}</span>
                   {" → "}
                   <span className="font-medium">{t.buyer_name}</span>
                 </span>
-                <span className="text-[11px] text-black/45">
+                <span className="text-[11px] text-black/45 dark:text-white/50">
                   <span className="num">{formatUnits(t.units)}</span> pay ·{" "}
                   <span className="num">{price2(t.price)}</span> · {KIND_LABEL[t.counterparty_kind]}
                 </span>
@@ -99,7 +99,7 @@ export function AdminSettlements({ pending }: { pending: TradeRow[] }) {
                 <button
                   onClick={() => act(t.id, "reject")}
                   disabled={busy === t.id + "reject"}
-                  className="rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/60 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                  className="rounded-full border border-black/10 dark:border-white/15 px-3 py-1.5 text-[11px] font-medium text-black/55 dark:text-white/60 transition hover:border-brand-red hover:text-brand-red dark:hover:text-red-400 disabled:opacity-50"
                 >
                   {busy === t.id + "reject" ? "..." : "Rədd et"}
                 </button>

@@ -11,7 +11,9 @@ export function Logo({
     <img
       src="/images/irf-logo.png"
       alt="Ismayil Rifah Fondu logo"
-      className={className}
+      // invert+hue-rotate flips the black wordmark to white in dark mode
+      // while keeping the green cross close to its brand hue.
+      className={`dark:invert dark:hue-rotate-180 ${className}`}
       style={{ width: "100%", maxWidth: width, height: "auto" }}
       loading={priority ? "eager" : "lazy"}
       fetchPriority={priority ? "high" : "auto"}

@@ -97,7 +97,7 @@ export function NotificationsBell() {
       <button
         onClick={toggle}
         aria-label="Bildirişlər"
-        className="relative flex items-center text-black/55 transition hover:text-brand-green"
+        className="relative flex items-center text-black/55 dark:text-white/60 transition hover:text-brand-green dark:hover:text-emerald-400"
       >
         <svg
           width="18"
@@ -121,7 +121,7 @@ export function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-xl border border-black/10 bg-white/95 shadow-[0_18px_50px_rgba(48,94,63,0.18)] backdrop-blur-md sm:absolute sm:inset-x-auto sm:right-0 sm:top-9 sm:w-72 sm:max-w-[85vw]">
+        <div className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-white/15 shadow-[0_18px_50px_rgba(48,94,63,0.18)] backdrop-blur-md sm:absolute sm:inset-x-auto sm:right-0 sm:top-9 sm:w-72 sm:max-w-[85vw]">
           <div className="flex items-center justify-between gap-2 border-b border-black/[0.07] px-4 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-green/80">
               Bildirişlər
@@ -129,7 +129,7 @@ export function NotificationsBell() {
             {items.length > 0 && (
               <button
                 onClick={clearAll}
-                className="text-[10px] font-medium text-black/40 transition hover:text-brand-red"
+                className="text-[10px] font-medium text-black/45 dark:text-white/50 transition hover:text-brand-red dark:hover:text-red-400"
               >
                 Təmizlə
               </button>
@@ -137,7 +137,7 @@ export function NotificationsBell() {
           </div>
           <PushControls />
           {items.length === 0 ? (
-            <div className="px-4 py-6 text-center text-xs text-black/40">
+            <div className="px-4 py-6 text-center text-xs text-black/45 dark:text-white/50">
               Bildiriş yoxdur.
             </div>
           ) : (
@@ -145,10 +145,10 @@ export function NotificationsBell() {
               {items.map((n) => (
                 <li key={n.id} className={`px-4 py-3 ${n.read ? "" : "bg-brand-green/[0.04]"}`}>
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-semibold text-black">{n.title}</span>
-                    <span className="shrink-0 text-[10px] text-black/35">{timeAgo(n.created_at)}</span>
+                    <span className="text-xs font-semibold text-black dark:text-white/90">{n.title}</span>
+                    <span className="shrink-0 text-[10px] text-black/45 dark:text-white/50">{timeAgo(n.created_at)}</span>
                   </div>
-                  <p className="mt-0.5 text-[11px] leading-snug text-black/55">{n.body}</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-black/55 dark:text-white/60">{n.body}</p>
                 </li>
               ))}
             </ul>

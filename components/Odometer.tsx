@@ -1,5 +1,7 @@
 "use client";
 
+import { formatGrouped } from "@/lib/portfolio";
+
 type Props = {
   value: number;
   fractionDigits?: number;
@@ -17,7 +19,8 @@ export function Odometer({
 }: Props) {
   const safe = Number.isFinite(value) ? value : 0;
   const sign = safe < 0 ? "-" : "";
-  const formatted = Math.abs(safe).toFixed(fractionDigits);
+  // House AZN style: "." thousands separator, "," decimal (1.234,56).
+  const formatted = formatGrouped(Math.abs(safe), fractionDigits);
   const chars = formatted.split("");
 
   return (

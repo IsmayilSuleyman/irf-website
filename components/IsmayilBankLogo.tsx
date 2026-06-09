@@ -18,7 +18,9 @@ export function IsmayilBankLogo({
       alt="IsmayilBank logo"
       width={IMAGE_WIDTH}
       height={IMAGE_HEIGHT}
-      className={className}
+      // invert+hue-rotate flips the dark wordmark to white in dark mode
+      // while keeping the blue mark close to its brand hue.
+      className={`dark:invert dark:hue-rotate-180 ${className}`}
       // Width caps at `width`; height stays proportional so the wordmark never
       // gets squished when the flex row is tight on small screens.
       style={{ width, height: "auto", maxWidth: "100%" }}

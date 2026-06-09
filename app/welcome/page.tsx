@@ -14,7 +14,7 @@ function GlassLayer({
   return (
     <div
       aria-hidden
-      className={`absolute border border-white/35 bg-[linear-gradient(135deg,rgba(255,255,255,0.34),rgba(255,255,255,0.1))] shadow-[0_24px_70px_rgba(74,121,90,0.08)] backdrop-blur-[16px] ${className}`}
+      className={`absolute border border-white/35 bg-[linear-gradient(135deg,rgba(255,255,255,0.34),rgba(255,255,255,0.1))] shadow-[0_24px_70px_rgba(74,121,90,0.08)] backdrop-blur-[16px] dark:border-white/15 dark:bg-none dark:bg-white/5 ${className}`}
       style={style}
     />
   );
@@ -62,26 +62,26 @@ function ProductCard({
     tone === "green"
       ? {
           action:
-            "bg-[#1FA447] shadow-[0_16px_36px_rgba(31,164,71,0.24)] hover:bg-[#19903d]",
-          brand: "text-[#14A44D]",
-          iconShell: "bg-[#EAF7EF]",
-          pill: "border-[#BDE5CA] bg-[#F4FBF6] text-black/40",
+            "bg-brand-green shadow-[0_16px_36px_rgba(22,163,74,0.24)] hover:bg-brand-green-deep",
+          brand: "text-brand-green dark:text-emerald-400",
+          iconShell: "bg-brand-green-mist dark:bg-brand-green/15",
+          pill: "border-brand-green-ring dark:border-brand-green/30 bg-brand-green-mist dark:bg-brand-green/15 text-black/45 dark:text-white/50",
         }
       : {
           action:
-            "bg-[#2F61D8] shadow-[0_16px_36px_rgba(47,97,216,0.24)] hover:bg-[#2854be]",
-          brand: "text-[#2F61D8]",
-          iconShell: "bg-[#EAF1FF]",
-          pill: "border-[#B6CDFE] bg-[#F3F7FF] text-black/40",
+            "bg-bank-blue shadow-[0_16px_36px_rgba(47,97,216,0.24)] hover:bg-bank-blue-deep",
+          brand: "text-bank-blue dark:text-blue-400",
+          iconShell: "bg-bank-blue-soft dark:bg-bank-blue/20",
+          pill: "border-bank-blue-ring dark:border-bank-blue/40 bg-bank-blue-soft dark:bg-bank-blue/20 text-black/45 dark:text-white/50",
         };
 
   return (
-    <article className="flex h-full flex-col rounded-[2rem] border border-[#CFE8D8] bg-white/72 p-7 shadow-[0_22px_65px_rgba(83,131,101,0.12)] backdrop-blur-xl sm:p-10">
+    <article className="flex h-full flex-col rounded-hero border border-brand-green-ring dark:border-brand-green/30 bg-white/70 dark:bg-white/10 p-7 shadow-[0_22px_65px_rgba(83,131,101,0.12)] backdrop-blur-xl sm:p-10">
       {headerVisual ? (
         <div>
           {headerVisual}
           {title ? (
-            <h2 className="mt-5 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-[#2A2A2A]">
+            <h2 className="mt-5 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-ink dark:text-white/90">
               {title}
             </h2>
           ) : null}
@@ -97,14 +97,14 @@ function ProductCard({
             <p className={`text-[0.68rem] font-bold uppercase tracking-[0.14em] ${palette.brand}`}>
               {brand}
             </p>
-            <h2 className="mt-1 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-[#2A2A2A]">
+            <h2 className="mt-1 text-[2rem] font-extrabold leading-none tracking-[-0.05em] text-ink dark:text-white/90">
               {title}
             </h2>
           </div>
         </div>
       )}
 
-      <p className="mt-7 max-w-[20rem] text-[1.05rem] leading-[1.7] tracking-[-0.02em] text-black/48">
+      <p className="mt-7 max-w-[20rem] text-[1.05rem] leading-[1.7] tracking-[-0.02em] text-black/45 dark:text-white/50">
         {description}
       </p>
 
@@ -121,7 +121,7 @@ function ProductCard({
 
       <Link
         href={href}
-        className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-[1.05rem] px-6 py-4 text-lg font-semibold tracking-[-0.03em] text-white transition duration-300 hover:-translate-y-0.5 ${palette.action}`}
+        className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-card px-6 py-4 text-lg font-semibold tracking-[-0.03em] text-white transition duration-300 hover:-translate-y-0.5 ${palette.action}`}
       >
         <span>{action}</span>
         <ArrowIcon />
@@ -140,16 +140,16 @@ export default async function WelcomePage({
 
   return (
     <main className="min-h-screen overflow-hidden p-1.5 sm:p-2">
-      <section className="relative mx-auto min-h-[calc(100vh-0.75rem)] max-w-[1920px] overflow-hidden rounded-[1.7rem] border border-black/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.8),rgba(242,250,245,0.88)_48%,rgba(229,246,235,0.9))] shadow-[0_28px_90px_rgba(48,94,63,0.08)]">
+      <section className="relative mx-auto min-h-[calc(100vh-0.75rem)] max-w-[1920px] overflow-hidden rounded-3xl border border-black/10 dark:border-white/15 bg-[linear-gradient(135deg,rgba(255,255,255,0.8),rgba(242,250,245,0.88)_48%,rgba(229,246,235,0.9))] shadow-[0_28px_90px_rgba(48,94,63,0.08)] dark:bg-none dark:bg-white/5">
         <div
           aria-hidden
-          className="absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(255,255,255,0.76),rgba(255,255,255,0)_30%),radial-gradient(circle_at_74%_78%,rgba(205,244,219,0.54),rgba(205,244,219,0)_26%)]"
+          className="absolute inset-0 bg-[radial-gradient(circle_at_14%_12%,rgba(255,255,255,0.76),rgba(255,255,255,0)_30%),radial-gradient(circle_at_74%_78%,rgba(205,244,219,0.54),rgba(205,244,219,0)_26%)] dark:opacity-[0.07]"
         />
         <GlassLayer className="left-[2.5%] top-[4.5%] hidden h-[9rem] w-[58rem] rounded-full lg:block" />
         <GlassLayer className="left-[5.5%] top-[17.5%] hidden h-[4.75rem] w-[34rem] rounded-full lg:block" />
         <div
           aria-hidden
-          className="absolute left-[4%] top-[29%] hidden h-[25rem] w-[54rem] rounded-full bg-[radial-gradient(circle_at_35%_35%,rgba(214,245,223,0.76),rgba(214,245,223,0.2)_48%,rgba(255,255,255,0)_76%)] blur-3xl lg:block"
+          className="absolute left-[4%] top-[29%] hidden h-[25rem] w-[54rem] rounded-full bg-[radial-gradient(circle_at_35%_35%,rgba(214,245,223,0.76),rgba(214,245,223,0.2)_48%,rgba(255,255,255,0)_76%)] blur-3xl dark:opacity-10 lg:block"
         />
         <GlassLayer
           className="right-[6%] top-[18%] hidden h-[35rem] w-[36rem] lg:block"
@@ -160,7 +160,7 @@ export default async function WelcomePage({
         />
         <div
           aria-hidden
-          className="absolute right-[8%] top-[20%] hidden h-[31rem] w-[31rem] rounded-full border border-white/30 bg-[radial-gradient(circle_at_28%_28%,rgba(255,255,255,0.58),rgba(255,255,255,0.08)_54%,rgba(255,255,255,0)_72%)] shadow-[0_18px_60px_rgba(92,132,106,0.08)] backdrop-blur-md lg:block"
+          className="absolute right-[8%] top-[20%] hidden h-[31rem] w-[31rem] rounded-full border border-white/30 bg-[radial-gradient(circle_at_28%_28%,rgba(255,255,255,0.58),rgba(255,255,255,0.08)_54%,rgba(255,255,255,0)_72%)] shadow-[0_18px_60px_rgba(92,132,106,0.08)] backdrop-blur-md dark:opacity-15 lg:block"
         />
         <GlassLayer
           className="right-[11%] top-[28%] hidden h-[14rem] w-[27rem] rounded-full lg:block"
@@ -168,17 +168,17 @@ export default async function WelcomePage({
         />
         <div
           aria-hidden
-          className="absolute right-[13%] bottom-[11%] hidden h-[9rem] w-[9rem] rounded-full border border-white/25 bg-white/22 shadow-[0_18px_50px_rgba(101,144,118,0.08)] backdrop-blur-md lg:block"
+          className="absolute right-[13%] bottom-[11%] hidden h-[9rem] w-[9rem] rounded-full border border-white/25 bg-white/20 dark:bg-white/10 shadow-[0_18px_50px_rgba(101,144,118,0.08)] backdrop-blur-md lg:block"
         />
         <div
           aria-hidden
-          className="absolute left-[50%] top-[22%] hidden h-11 w-11 rounded-full border border-white/40 bg-white/42 shadow-[0_10px_25px_rgba(255,255,255,0.6)] backdrop-blur-md lg:block"
+          className="absolute left-[50%] top-[22%] hidden h-11 w-11 rounded-full border border-white/40 bg-white/40 dark:bg-white/10 shadow-[0_10px_25px_rgba(255,255,255,0.6)] backdrop-blur-md lg:block"
         />
 
         <WelcomeAnimations showSetupNotice={showSetupNotice}>
           <Link
             href="/login"
-            className="inline-flex items-center justify-center gap-2 rounded-[1rem] bg-[#1FA447] px-6 py-4 text-base font-semibold tracking-[-0.03em] text-white shadow-[0_16px_36px_rgba(31,164,71,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#19903d]"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-green px-6 py-4 text-base font-semibold tracking-[-0.03em] text-white shadow-[0_16px_36px_rgba(22,163,74,0.24)] transition duration-300 hover:-translate-y-0.5 hover:bg-brand-green-deep"
           >
             <span>Daxil ol</span>
             <ArrowIcon />
@@ -189,7 +189,7 @@ export default async function WelcomePage({
             brand="IRF"
             description="Şəxsi investisiya portfelinizi real vaxt rejimində izləyin. Aktivlər, gəlirlilik və bölgü bir baxışda."
             headerVisual={
-              <div className="inline-flex rounded-[1.2rem] border border-[#BDE5CA] bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(31,164,71,0.12)]">
+              <div className="inline-flex rounded-card border border-brand-green-ring dark:border-brand-green/30 bg-white/90 dark:bg-white/10 px-4 py-3 shadow-[0_16px_38px_rgba(22,163,74,0.12)]">
                 <div className="w-[180px] sm:w-[210px]">
                   <Logo width={210} priority />
                 </div>
@@ -204,7 +204,7 @@ export default async function WelcomePage({
             brand="ISMAYILBANK"
             description="Depozit və kredit faizlərini müqayisə edin. Ən sərfəli şərtləri tapın və qərarlarınızı daha ağıllı verin."
             headerVisual={
-              <div className="inline-flex rounded-[1.2rem] border border-blue-200/70 bg-white/88 px-4 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
+              <div className="inline-flex rounded-card border border-blue-200/70 dark:border-blue-400/25 bg-white/90 dark:bg-white/10 px-4 py-3 shadow-[0_16px_38px_rgba(66,96,175,0.12)]">
                 <IsmayilBankLogo size={38} />
               </div>
             }
