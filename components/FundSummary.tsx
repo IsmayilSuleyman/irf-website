@@ -24,10 +24,10 @@ export function FundSummary({
   const gainPct = totalCostBasis > 0 ? gain / totalCostBasis : 0;
   const gainTone =
     gain > 0
-      ? "text-brand-green"
+      ? "text-brand-green dark:text-emerald-400"
       : gain < 0
-        ? "text-brand-red"
-        : "text-black/55";
+        ? "text-brand-red dark:text-red-400"
+        : "text-black/55 dark:text-white/60";
   const sign = gain > 0 ? "+" : "";
 
   return (
@@ -38,11 +38,11 @@ export function FundSummary({
           <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
             Ümumi dəyəri
           </div>
-          <div className="num text-4xl font-bold text-black md:text-5xl">
+          <div className="num text-4xl font-bold text-black dark:text-white/90 md:text-5xl">
             {formatAzn(totalCapital)}
           </div>
           {totalCostBasis > 0 && (
-            <div className="flex flex-col gap-0.5 text-xs text-black/55">
+            <div className="flex flex-col gap-0.5 text-xs text-black/55 dark:text-white/60">
               <div>Maya dəyəri: {formatAzn(totalCostBasis)}</div>
               <div className={gainTone}>
                 {sign}
@@ -57,10 +57,10 @@ export function FundSummary({
           <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
             Xalis dəyəri
           </div>
-          <div className="num text-4xl font-bold text-black md:text-5xl">
+          <div className="num text-4xl font-bold text-black dark:text-white/90 md:text-5xl">
             {formatAzn(netCapital)}
           </div>
-          <div className="max-w-xs text-xs leading-snug text-black/45">
+          <div className="max-w-xs text-xs leading-snug text-black/45 dark:text-white/50">
             Bütün borclar çıxılandan sonrakı nəticə.
           </div>
         </div>

@@ -71,10 +71,10 @@ export default async function DashboardPage({
       <main className="px-6">
         <Header dateLabel={dateLabel} />
         <div className="mx-auto max-w-5xl py-16 text-center">
-          <h2 className="mb-2 text-lg font-semibold text-black">
+          <h2 className="mb-2 text-lg font-semibold text-black dark:text-white/90">
             Sahiblik tapılmadı
           </h2>
-          <p className="text-sm text-black/55">
+          <p className="text-sm text-black/55 dark:text-white/60">
             Hesabınız ({user.email}) hələ heç bir sahibə bağlanmayıb.
           </p>
         </div>
@@ -179,7 +179,7 @@ export default async function DashboardPage({
               {!fundView && (
                 <Link
                   href="/market"
-                  className="group inline-flex items-center gap-1.5 rounded-full border border-brand-green/28 bg-brand-green/5 px-3 py-1.5 text-[11px] font-medium text-brand-green shadow-sm transition hover:bg-brand-green/10"
+                  className="group inline-flex items-center gap-1.5 rounded-full border border-brand-green/30 bg-brand-green/5 px-3 py-1.5 text-[11px] font-medium text-brand-green dark:text-emerald-400 shadow-sm transition hover:bg-brand-green/10"
                 >
                   <span>Bazar</span>
                   <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>

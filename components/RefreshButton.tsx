@@ -23,7 +23,7 @@ export function RefreshButton() {
       onClick={handleRefresh}
       disabled={isPending}
       title="Məlumatı yenilə"
-      className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-brand-green/60 hover:text-brand-green transition-colors disabled:opacity-40"
+      className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-brand-green/60 hover:text-brand-green dark:hover:text-emerald-400 transition-colors disabled:opacity-40"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

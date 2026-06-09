@@ -5,6 +5,9 @@ const config: Config = {
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
   ],
+  // Theme is applied as a `dark` class on <html> by the inline script in
+  // app/layout.tsx (localStorage override, falls back to system preference).
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -40,6 +43,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
+          "var(--font-inter)",
           "-apple-system",
           "BlinkMacSystemFont",
           "SF Pro Display",

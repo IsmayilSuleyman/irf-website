@@ -17,10 +17,10 @@ export function StatTile({
 }) {
   const toneClass =
     tone === "positive"
-      ? "text-brand-green"
+      ? "text-brand-green dark:text-emerald-400"
       : tone === "negative"
-        ? "text-brand-red"
-        : "text-black";
+        ? "text-brand-red dark:text-red-400"
+        : "text-black dark:text-white/90";
 
   return (
     <div className={className ?? "glass flex flex-col gap-2 p-6"}>
@@ -33,7 +33,7 @@ export function StatTile({
         </div>
       )}
       {sub && (
-        <div className="text-xs text-black/45 leading-snug max-w-xs">{sub}</div>
+        <div className="text-xs text-black/45 dark:text-white/50 leading-snug max-w-xs">{sub}</div>
       )}
     </div>
   );

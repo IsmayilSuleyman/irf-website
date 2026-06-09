@@ -49,7 +49,7 @@ export function StrategyStatementCard({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="text-[11px] uppercase tracking-[0.18em] text-brand-green hover:text-brand-green-deep transition-colors"
+            className="text-[11px] uppercase tracking-[0.18em] text-brand-green dark:text-emerald-400 hover:text-brand-green-deep dark:hover:text-emerald-400 transition-colors"
           >
             {hasValue ? "Redaktə et" : "Yaz"}
           </button>
@@ -58,7 +58,7 @@ export function StrategyStatementCard({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="text-[11px] uppercase tracking-[0.18em] text-brand-green hover:text-brand-green-deep transition-colors"
+            className="text-[11px] uppercase tracking-[0.18em] text-brand-green dark:text-emerald-400 hover:text-brand-green-deep dark:hover:text-emerald-400 transition-colors"
           >
             {expanded ? "Gizlət" : "Göstər"}
           </button>
@@ -73,16 +73,16 @@ export function StrategyStatementCard({
             rows={6}
             maxLength={4000}
             placeholder="Növbəti hərəkətləriniz barədə səhmdarlara məlumat..."
-            className="w-full resize-y rounded-lg border border-black/12 bg-white/60 p-3 text-sm text-black/85 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30"
+            className="w-full resize-y rounded-lg border border-black/10 dark:border-white/15 bg-white/60 dark:bg-white/5 p-3 text-sm text-black/85 dark:text-white/90 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30"
             disabled={pending}
           />
-          {error && <div className="text-xs text-brand-red">{error}</div>}
+          {error && <div className="text-xs text-brand-red dark:text-red-400">{error}</div>}
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onCancel}
               disabled={pending}
-              className="rounded-md px-3 py-1.5 text-xs text-black/55 hover:text-black/85 transition-colors disabled:opacity-50"
+              className="rounded-md px-3 py-1.5 text-xs text-black/55 dark:text-white/60 hover:text-black/85 dark:hover:text-white/90 transition-colors disabled:opacity-50"
             >
               Ləğv et
             </button>
@@ -98,12 +98,12 @@ export function StrategyStatementCard({
         </div>
       ) : hasValue ? (
         showContent && (
-          <p className="whitespace-pre-line text-sm leading-relaxed text-black/70">
+          <p className="whitespace-pre-line text-sm leading-relaxed text-black/70 dark:text-white/75">
             {value}
           </p>
         )
       ) : (
-        <p className="text-sm text-black/35">
+        <p className="text-sm text-black/45 dark:text-white/50">
           {canEdit
             ? "Səhmdarlara növbəti hərəkətləriniz barədə məlumat vermək üçün yazın."
             : "Hələ bəyanat yoxdur."}

@@ -32,19 +32,19 @@ export function MarketCountdown() {
 
   return (
     <span
-      className="inline-flex items-center gap-2 rounded-full border border-black/8 bg-white/70 px-3 py-1.5 text-[11px] font-medium shadow-sm"
+      className="inline-flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-3 py-1.5 text-[11px] font-medium shadow-sm"
       title="ABŞ fond bazarları (NYSE/NASDAQ) iş saatları"
     >
       <RefreshTimer />
-      <span className={open ? "text-brand-green" : "text-black/45"}>
+      <span className={open ? "text-brand-green dark:text-emerald-400" : "text-black/45 dark:text-white/50"}>
         {open ? "ABŞ bazarları açıqdır" : "ABŞ bazarları bağlıdır"}
       </span>
-      <span className="text-black/20">·</span>
-      <span className="text-black/45">
+      <span className="text-black/20 dark:text-white/30">·</span>
+      <span className="text-black/45 dark:text-white/50">
         <span className="hidden sm:inline">
           {open ? "Bağlanmağa" : "Açılmağa"}{" "}
         </span>
-        <span className="num tabular-nums text-black/70">
+        <span className="num tabular-nums text-black/70 dark:text-white/75">
           {formatRemaining(remaining)}
         </span>
         <span className="hidden sm:inline"> qalıb</span>

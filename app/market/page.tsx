@@ -22,7 +22,7 @@ export default async function MarketPage() {
     return (
       <main className="px-6">
         <Header dateLabel={dateLabel} />
-        <div className="mx-auto max-w-5xl py-16 text-center text-sm text-black/55">
+        <div className="mx-auto max-w-5xl py-16 text-center text-sm text-black/55 dark:text-white/60">
           Bazar məlumatları yüklənmədi.
         </div>
       </main>
@@ -45,9 +45,9 @@ export default async function MarketPage() {
         {/* Intro + price band */}
         <MotionSection className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-end">
           <div className="lg:col-span-2 flex flex-col gap-3">
-            <h1 className="text-3xl font-black tracking-tight text-black">Bazar</h1>
-            <p className="max-w-xl text-sm leading-relaxed text-black/55">
-              Payları alıb-satın. Fond hər zaman <span className="font-medium text-brand-red">Satış</span>{" "}
+            <h1 className="text-3xl font-black tracking-tight text-black dark:text-white/90">Bazar</h1>
+            <p className="max-w-xl text-sm leading-relaxed text-black/55 dark:text-white/60">
+              Payları alıb-satın. Fond hər zaman <span className="font-medium text-brand-red dark:text-red-400">Satış</span>{" "}
               qiyməti ilə geri alır; daha yüksək qiymətə satmaq üçün alıcı tapılmalıdır.
               Uyğunlaşmalar İsmayıl tərəfindən təsdiqlənənə qədər gözləmədə qalır.
             </p>
@@ -65,7 +65,7 @@ export default async function MarketPage() {
 
         {notConfigured ? (
           <MotionSection delay={0.1}>
-            <div className="glass p-8 text-center text-sm text-black/55">
+            <div className="glass p-8 text-center text-sm text-black/55 dark:text-white/60">
               {data.isAdmin
                 ? "Bazar hələ qurulmayıb. Başlamaq üçün yuxarıdakı “Cədvəldən sinxronla” düyməsinə basın."
                 : "Bazar hələ aktiv deyil. Zəhmət olmasa İsmayıl ilə əlaqə saxlayın."}

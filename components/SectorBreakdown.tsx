@@ -29,11 +29,11 @@ export function SectorBreakdown({ rows }: { rows: SectorRow[] }) {
                   style={{ backgroundColor: r.color }}
                 />
               )}
-              <span className="truncate text-sm text-black/85">{r.sector}</span>
+              <span className="truncate text-sm text-black/85 dark:text-white/90">{r.sector}</span>
             </div>
-            <div className="num shrink-0 text-sm text-black/70">
+            <div className="num shrink-0 text-sm text-black/70 dark:text-white/75">
               {formatAzn(r.valueAzn)}
-              <span className="ml-2 text-black/45">
+              <span className="ml-2 text-black/45 dark:text-white/50">
                 {(r.percent * 100).toFixed(1)}%
               </span>
             </div>

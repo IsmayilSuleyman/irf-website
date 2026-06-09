@@ -45,14 +45,14 @@ function statusStyles(status: string | null | undefined): string {
   const n = normalizeStatus(status);
 
   if (n.includes("oden") || n.includes("paid")) {
-    return "bg-brand-green-mist text-status-paid";
+    return "bg-brand-green-mist dark:bg-brand-green/15 text-status-paid dark:text-emerald-400";
   }
 
   if (n.includes("gec") || n.includes("late")) {
-    return "bg-status-late-soft text-status-late";
+    return "bg-status-late-soft dark:bg-status-late/20 text-status-late dark:text-rose-400";
   }
 
-  return "bg-bank-blue-soft text-bank-blue";
+  return "bg-bank-blue-soft dark:bg-bank-blue/20 text-bank-blue dark:text-blue-400";
 }
 
 function StatTile({
@@ -68,14 +68,14 @@ function StatTile({
 }) {
   const valueTone =
     tone === "positive"
-      ? "text-status-paid"
+      ? "text-status-paid dark:text-emerald-400"
       : tone === "negative"
-        ? "text-status-late"
-        : "text-ink";
+        ? "text-status-late dark:text-rose-400"
+        : "text-ink dark:text-white/90";
 
   return (
-    <div className="rounded-2xl border border-black/8 bg-white/90 px-5 py-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45">
+    <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
         {label}
       </p>
       {children ?? (
@@ -95,9 +95,9 @@ function ScheduleRow({ item }: { item: BankPaymentScheduleItem }) {
   return (
     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-3.5">
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-ink">{dateLabel}</p>
+        <p className="truncate text-sm font-medium text-ink dark:text-white/90">{dateLabel}</p>
         {item.label ? (
-          <p className="mt-0.5 truncate text-xs text-black/45">{item.label}</p>
+          <p className="mt-0.5 truncate text-xs text-black/45 dark:text-white/50">{item.label}</p>
         ) : null}
       </div>
       <span
@@ -105,23 +105,23 @@ function ScheduleRow({ item }: { item: BankPaymentScheduleItem }) {
       >
         {statusLabel}
       </span>
-      <p className="text-sm font-semibold tabular-nums text-ink">{amountLabel}</p>
+      <p className="text-sm font-semibold tabular-nums text-ink dark:text-white/90">{amountLabel}</p>
     </div>
   );
 }
 
 function PaymentSchedule({ schedule }: { schedule: BankPaymentScheduleItem[] }) {
   return (
-    <section className="rounded-2xl border border-black/8 bg-white/90">
+    <section className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10">
       <header className="flex items-baseline justify-between px-5 py-4">
-        <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-ink">
+        <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-ink dark:text-white/90">
           Ödəniş cədvəli
         </h2>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
           {schedule.length} ödəniş
         </span>
       </header>
-      <div className="divide-y divide-black/6 border-t border-black/8">
+      <div className="divide-y divide-black/5 border-t border-black/10 dark:border-white/10">
         {schedule.map((item, index) => (
           <ScheduleRow key={`${item.date}-${index}`} item={item} />
         ))}
@@ -155,7 +155,7 @@ export default async function BankPage({
           </div>
           <MotionSection>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
                 ÜMUMBANK BAXIŞI
               </p>
               <BankViewToggle active={bankView} compact className="sm:hidden" />
@@ -192,19 +192,19 @@ export default async function BankPage({
         </div>
         <section className="mx-auto max-w-[680px] px-5 py-20 text-center sm:py-28">
           <MotionSection>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-green">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-green dark:text-emerald-400">
               Hesab tapılmadı
             </p>
-            <h1 className="mt-4 text-[clamp(1.9rem,3vw,2.5rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink">
+            <h1 className="mt-4 text-[clamp(1.9rem,3vw,2.5rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink dark:text-white/90">
               Bu giriş hələ bank cədvəlinə bağlanmayıb
             </h1>
-            <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-black/55">
+            <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-black/55 dark:text-white/60">
               {user.email} hesabı üçün uyğun bank sətri tapılmadı.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-2 sm:flex-row">
               <Link
                 href="/portal"
-                className="inline-flex items-center justify-center rounded-xl border border-black/12 bg-white px-5 py-3 text-sm font-medium text-black/70 transition hover:border-bank-blue/30 hover:text-bank-blue"
+                className="inline-flex items-center justify-center rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/10 px-5 py-3 text-sm font-medium text-black/70 dark:text-white/75 transition hover:border-bank-blue/30 hover:text-bank-blue dark:hover:text-blue-400"
               >
                 Portala qayıt
               </Link>
@@ -241,7 +241,7 @@ export default async function BankPage({
         </div>
         <MotionSection>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
               XOŞ GƏLDİN, {account.name}
             </p>
             <BankViewToggle active={bankView} compact className="sm:hidden" />
@@ -252,10 +252,10 @@ export default async function BankPage({
         {hasNoProducts ? (
           <MotionSection delay={0.04}>
             <div className="mt-16 flex flex-col items-start sm:mt-24">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/35">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
                 Hələlik heç nə yoxdur
               </p>
-              <p className="mt-3 max-w-sm text-sm leading-6 text-black/55">
+              <p className="mt-3 max-w-sm text-sm leading-6 text-black/55 dark:text-white/60">
                 Depozit və ya kredit məhsullarımızla tanış olmaq üçün kalkulyatora keç.
               </p>
               <Link
@@ -280,7 +280,7 @@ export default async function BankPage({
                 maturityDate={account.maturityDate}
               />
             </div>
-            <p className="mt-4 text-xs leading-5 text-black/45">
+            <p className="mt-4 text-xs leading-5 text-black/45 dark:text-white/50">
               Qeyd: depozit üzrə hesablanmış faiz yalnız depozit müddətinin
               sonunda{account.maturityDate ? ` (${formatDisplayDate(account.maturityDate)})` : ""} ödənilir.
               Vaxtından əvvəl çıxarılan depozitlərə faiz gəliri verilmir.
@@ -291,7 +291,7 @@ export default async function BankPage({
         {/* ── Credits Section ── */}
         {account.outstandingLoanAzn > 0 ? (
           <MotionSection delay={0.08}>
-            <h2 className="mt-10 text-[15px] font-semibold tracking-[-0.01em] text-ink">
+            <h2 className="mt-10 text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
               İsmayılBank ilə olan kreditlərim:
             </h2>
             <div className="mt-3 grid grid-cols-3 gap-3">

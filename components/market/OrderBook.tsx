@@ -98,22 +98,22 @@ export function OrderBook({
       {/* Fund quotes + current price (legend for the bars below) */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-green/10 px-2.5 py-1">
-          <span className="font-semibold text-brand-green">Fonda satış</span>
-          <span className="num text-brand-green">{price2(bid)}</span>
-          <span className="text-black/45">· limitsiz</span>
+          <span className="font-semibold text-brand-green dark:text-emerald-400">Fonda satış</span>
+          <span className="num text-brand-green dark:text-emerald-400">{price2(bid)}</span>
+          <span className="text-black/45 dark:text-white/50">· limitsiz</span>
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.04] px-2.5 py-1">
-          <span className="text-[9px] uppercase tracking-[0.14em] text-black/45">Hazırki</span>
-          <span className="num font-semibold text-black">{price2(current)}</span>
+          <span className="text-[9px] uppercase tracking-[0.14em] text-black/45 dark:text-white/50">Hazırki</span>
+          <span className="num font-semibold text-black dark:text-white/90">{price2(current)}</span>
         </span>
         {ask != null ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-red/10 px-2.5 py-1">
-            <span className="font-semibold text-brand-red">Fonddan alış</span>
-            <span className="num text-brand-red">{price2(ask)}</span>
-            <span className="text-black/45">· {formatUnits(status.fund_sell_capacity)}</span>
+            <span className="font-semibold text-brand-red dark:text-red-400">Fonddan alış</span>
+            <span className="num text-brand-red dark:text-red-400">{price2(ask)}</span>
+            <span className="text-black/45 dark:text-white/50">· {formatUnits(status.fund_sell_capacity)}</span>
           </span>
         ) : (
-          <span className="inline-flex items-center rounded-full bg-black/[0.04] px-2.5 py-1 text-black/35">
+          <span className="inline-flex items-center rounded-full bg-black/[0.04] px-2.5 py-1 text-black/45 dark:text-white/50">
             Fond hazırda satmır
           </span>
         )}
@@ -124,11 +124,11 @@ export function OrderBook({
         <div className="relative h-44">
           {/* current price marker */}
           <div
-            className="absolute bottom-0 top-0 w-px -translate-x-1/2 bg-black/40"
+            className="absolute bottom-0 top-0 w-px -translate-x-1/2 bg-black/40 dark:bg-white/40"
             style={{ left: `${pos(current)}%` }}
           />
           {/* baseline */}
-          <div className="absolute inset-x-0 bottom-0 h-px bg-black/15" />
+          <div className="absolute inset-x-0 bottom-0 h-px bg-black/15 dark:bg-white/15" />
           {/* bars */}
           {bars.map((b, i) => (
             <button
@@ -148,7 +148,7 @@ export function OrderBook({
                 background: barBackground(b.side, b.fund),
               }}
             >
-              <span className="num pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-black/55">
+              <span className="num pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-black/55 dark:text-white/60">
                 {topLabel(b)}
               </span>
             </button>
@@ -159,7 +159,7 @@ export function OrderBook({
           {axisPrices.map((p, i) => (
             <span
               key={i}
-              className="num absolute -translate-x-1/2 text-[9px] text-black/45"
+              className="num absolute -translate-x-1/2 text-[9px] text-black/45 dark:text-white/50"
               style={{ left: `${pos(p)}%` }}
             >
               {p.toFixed(2)}
@@ -168,7 +168,7 @@ export function OrderBook({
         </div>
       </div>
 
-      <p className="text-[10px] leading-relaxed text-black/45">
+      <p className="text-[10px] leading-relaxed text-black/45 dark:text-white/50">
         Zolaqlı sütunlar Fondun daimi qiymətləridir, dolu sütunlar isə digər iştirakçıların
         sifarişləri — ətraflı üçün üzərinə klikləyin.
         {participants.length === 0 && " Hələ iştirakçı sifarişi yoxdur."}
@@ -189,7 +189,7 @@ function OrderPopup({
   onClose: () => void;
 }) {
   const isBuy = bar.side === "buy";
-  const color = isBuy ? "text-brand-green" : "text-brand-red";
+  const color = isBuy ? "text-brand-green dark:text-emerald-400" : "text-brand-red dark:text-red-400";
 
   let title: string;
   let meta: ReactNode;
@@ -199,7 +199,7 @@ function OrderPopup({
     title = isBuy ? "Fonda satış" : "Fonddan alış";
     meta = <>Fond · {bar.units == null ? "limitsiz" : `${formatUnits(bar.units)} pay`}</>;
     body = (
-      <p className="mt-3 border-t border-black/12 pt-3 text-xs leading-relaxed text-black/55">
+      <p className="mt-3 border-t border-black/10 dark:border-white/15 pt-3 text-xs leading-relaxed text-black/55 dark:text-white/60">
         {isBuy
           ? "Fond payları bu qiymətə həmişə geri alır — istənilən vaxt limitsiz sata bilərsiniz."
           : `Fond bu qiymətə ${formatUnits(status.fund_sell_capacity)} paya qədər satır.`}
@@ -209,17 +209,17 @@ function OrderPopup({
     title = isBuy ? "Alış sifarişi" : "Satış sifarişi";
     meta = (
       <>
-        Cəmi <span className="num text-black/70">{formatUnits(bar.units ?? 0)}</span> pay ·{" "}
+        Cəmi <span className="num text-black/70 dark:text-white/75">{formatUnits(bar.units ?? 0)}</span> pay ·{" "}
         {bar.orders.length} sifariş
       </>
     );
     const orders = [...bar.orders].sort((a, b) => b.units - a.units);
     body = (
-      <div className="mt-4 flex flex-col gap-1.5 border-t border-black/12 pt-3">
+      <div className="mt-4 flex flex-col gap-1.5 border-t border-black/10 dark:border-white/15 pt-3">
         {orders.map((o, i) => (
           <div key={i} className="flex items-center justify-between gap-3 text-xs">
-            <span className="truncate text-black/70">{o.holderName || "Naməlum"}</span>
-            <span className="num shrink-0 text-black/45">{formatUnits(o.units)} pay</span>
+            <span className="truncate text-black/70 dark:text-white/75">{o.holderName || "Naməlum"}</span>
+            <span className="num shrink-0 text-black/45 dark:text-white/50">{formatUnits(o.units)} pay</span>
           </div>
         ))}
       </div>
@@ -233,7 +233,7 @@ function OrderPopup({
       aria-modal="true"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/30 dark:bg-white/30 backdrop-blur-sm" />
       <div
         className="glass-strong relative w-full max-w-[260px] rounded-2xl p-5"
         onClick={(e) => e.stopPropagation()}
@@ -242,7 +242,7 @@ function OrderPopup({
           type="button"
           onClick={onClose}
           aria-label="Bağla"
-          className="absolute right-3 top-3 text-black/45 transition hover:text-black/70"
+          className="absolute right-3 top-3 text-black/45 dark:text-white/50 transition hover:text-black/70 dark:hover:text-white/75"
         >
           ✕
         </button>
@@ -251,7 +251,7 @@ function OrderPopup({
         <div className="mt-1">
           <span className={`num text-2xl font-bold ${color}`}>{price2(bar.price)}</span>
         </div>
-        <div className="mt-1 text-[11px] text-black/45">{meta}</div>
+        <div className="mt-1 text-[11px] text-black/45 dark:text-white/50">{meta}</div>
         {body}
       </div>
     </div>

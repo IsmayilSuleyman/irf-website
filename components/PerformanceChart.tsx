@@ -44,7 +44,7 @@ export function PerformanceChart({ data }: { data: Point[] }) {
 
   if (!data || data.length === 0) {
     return (
-      <div className="glass flex h-72 items-center justify-center text-black/45">
+      <div className="glass flex h-72 items-center justify-center text-black/45 dark:text-white/50">
         Tarixçə yoxdur.
       </div>
     );
@@ -57,7 +57,7 @@ export function PerformanceChart({ data }: { data: Point[] }) {
           <span className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
             Sahiblik dəyərinin tarixçəsi
           </span>
-          <span className="text-[10px] text-black/35 sm:hidden">₼</span>
+          <span className="text-[10px] text-black/45 dark:text-white/50 sm:hidden">₼</span>
         </div>
         <div className="grid grid-cols-5 gap-1 sm:flex sm:items-center">
           {RANGES.map((r) => (
@@ -69,18 +69,18 @@ export function PerformanceChart({ data }: { data: Point[] }) {
               className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
                 range === r.key
                   ? "border-brand-green bg-brand-green text-white shadow-sm"
-                  : "border-brand-green/28 bg-white/60 text-black/55 hover:border-brand-green hover:text-brand-green"
+                  : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
               }`}
             >
               {r.label}
             </button>
           ))}
-          <span className="ml-1 hidden text-[10px] text-black/35 sm:inline">₼</span>
+          <span className="ml-1 hidden text-[10px] text-black/45 dark:text-white/50 sm:inline">₼</span>
         </div>
       </div>
       <div className="h-72">
         {filtered.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-black/45">
+          <div className="flex h-full items-center justify-center text-sm text-black/45 dark:text-white/50">
             Bu dövr üçün məlumat yoxdur.
           </div>
         ) : (

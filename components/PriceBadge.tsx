@@ -34,8 +34,8 @@ function Row({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-6">
-      <span className="text-black/55">{label}</span>
-      <span className={`num text-black ${bold ? "font-bold" : ""}`}>
+      <span className="text-black/55 dark:text-white/60">{label}</span>
+      <span className={`num text-black dark:text-white/90 ${bold ? "font-bold" : ""}`}>
         {value != null ? (
           <Odometer value={value} fractionDigits={2} suffix=" ₼" />
         ) : (

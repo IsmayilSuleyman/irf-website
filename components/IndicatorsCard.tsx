@@ -36,14 +36,14 @@ function Indicator({
   const isPositive = !isNull && pct >= 0;
 
   const toneText = isNull
-    ? "text-black/30"
+    ? "text-black/30 dark:text-white/35"
     : isPositive
-      ? "text-brand-green"
-      : "text-brand-red";
+      ? "text-brand-green dark:text-emerald-400"
+      : "text-brand-red dark:text-red-400";
 
   return (
     <div className="flex flex-col items-start gap-2 md:px-4 md:first:pl-0 md:last:pr-0">
-      <div className="text-[10px] uppercase tracking-[0.14em] whitespace-nowrap text-black/45">
+      <div className="text-[10px] uppercase tracking-[0.14em] whitespace-nowrap text-black/45 dark:text-white/50">
         {label}
       </div>
 
@@ -62,7 +62,7 @@ function Indicator({
         )}
       </div>
 
-      <div className="num text-xs text-black/45">
+      <div className="num text-xs text-black/45 dark:text-white/50">
         {pastPrice != null ? `${pastPrice.toFixed(2)} ₼ əvvəl` : "—"}
       </div>
     </div>

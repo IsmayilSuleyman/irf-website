@@ -44,17 +44,17 @@ export function FundViewToggle({
           compact
             ? "text-[8px] tracking-[0.14em]"
             : "text-[9px] tracking-[0.22em] sm:text-[10px]"
-        } ${active ? "text-brand-green" : "text-black/45 group-hover:text-black/70"}`}
+        } ${active ? "text-brand-green dark:text-emerald-400" : "text-black/45 dark:text-white/50 group-hover:text-black/70 dark:group-hover:text-white/75"}`}
       >
         Ümumfond baxış
       </span>
       <span
         className={`relative inline-flex shrink-0 items-center rounded-full transition-colors ${
           compact ? "h-3.5 w-6" : "h-5 w-9"
-        } ${active ? "bg-brand-green" : "bg-black/15 group-hover:bg-black/25"}`}
+        } ${active ? "bg-brand-green" : "bg-black/15 dark:bg-white/15 group-hover:bg-black/25 dark:bg-white/25"}`}
       >
         <span
-          className={`inline-block rounded-full bg-white shadow-sm transition-transform ${
+          className={`inline-block rounded-full bg-white dark:bg-white/10 shadow-sm transition-transform ${
             compact ? "h-2.5 w-2.5" : "h-4 w-4"
           } ${
             active

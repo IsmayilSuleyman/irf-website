@@ -58,9 +58,9 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
       <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
         Sifarişlərim
       </div>
-      {error && <div className="text-xs text-brand-red">{error}</div>}
+      {error && <div className="text-xs text-brand-red dark:text-red-400">{error}</div>}
       {orders.length === 0 ? (
-        <div className="py-4 text-center text-xs text-black/35">Hələ sifariş yoxdur.</div>
+        <div className="py-4 text-center text-xs text-black/45 dark:text-white/50">Hələ sifariş yoxdur.</div>
       ) : (
         <div className="flex flex-col divide-y divide-[rgba(22,163,74,0.12)]">
           {orders.map((o) => {
@@ -71,17 +71,17 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${
                       o.side === "sell"
-                        ? "bg-brand-red/10 text-brand-red"
-                        : "bg-brand-green/10 text-brand-green"
+                        ? "bg-brand-red/10 text-brand-red dark:text-red-400"
+                        : "bg-brand-green/10 text-brand-green dark:text-emerald-400"
                     }`}
                   >
                     {o.side === "sell" ? "Sat" : "Al"}
                   </span>
                   <div className="flex min-w-0 flex-col">
-                    <span className="num truncate text-sm text-black">
+                    <span className="num truncate text-sm text-black dark:text-white/90">
                       {formatUnits(o.remaining_units)} / {formatUnits(o.units)} pay
                     </span>
-                    <span className="truncate text-[11px] text-black/45">
+                    <span className="truncate text-[11px] text-black/45 dark:text-white/50">
                       {price2(o.price)} · {STATUS_LABEL[o.status]}
                     </span>
                   </div>
@@ -90,7 +90,7 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
                   <button
                     onClick={() => cancel(o.id)}
                     disabled={busy === o.id}
-                    className="shrink-0 rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/55 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                    className="shrink-0 rounded-full border border-black/10 dark:border-white/15 px-3 py-1.5 text-[11px] font-medium text-black/55 dark:text-white/60 transition hover:border-brand-red hover:text-brand-red dark:hover:text-red-400 disabled:opacity-50"
                   >
                     {busy === o.id ? "..." : "Ləğv et"}
                   </button>
@@ -99,7 +99,7 @@ export function MyOrders({ orders }: { orders: OrderRow[] }) {
                     onClick={() => remove(o.id)}
                     disabled={busy === o.id}
                     aria-label="Sifarişi sil"
-                    className="shrink-0 rounded-full border border-black/12 px-3 py-1.5 text-[11px] font-medium text-black/55 transition hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                    className="shrink-0 rounded-full border border-black/10 dark:border-white/15 px-3 py-1.5 text-[11px] font-medium text-black/55 dark:text-white/60 transition hover:border-brand-red hover:text-brand-red dark:hover:text-red-400 disabled:opacity-50"
                   >
                     {busy === o.id ? "..." : "Sil"}
                   </button>

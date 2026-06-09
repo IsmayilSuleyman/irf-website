@@ -62,7 +62,7 @@ export function LoginForm() {
       className="flex flex-col gap-5"
     >
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] uppercase tracking-[0.22em] text-black/45">
+        <label className="text-[10px] uppercase tracking-[0.22em] text-black/45 dark:text-white/50">
           E-poct
         </label>
         <input
@@ -71,13 +71,13 @@ export function LoginForm() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="border-b border-brand-green/28 bg-transparent px-0 py-2 text-black outline-none transition focus:border-brand-green"
+          className="border-b border-brand-green/30 bg-transparent px-0 py-2 text-black dark:text-white/90 outline-none transition focus:border-brand-green"
           placeholder="ad@example.com"
         />
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] uppercase tracking-[0.22em] text-black/45">
+        <label className="text-[10px] uppercase tracking-[0.22em] text-black/45 dark:text-white/50">
           Sifre
         </label>
         <input
@@ -86,13 +86,13 @@ export function LoginForm() {
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border-b border-brand-green/28 bg-transparent px-0 py-2 text-black outline-none transition focus:border-brand-green"
+          className="border-b border-brand-green/30 bg-transparent px-0 py-2 text-black dark:text-white/90 outline-none transition focus:border-brand-green"
           placeholder="********"
         />
       </div>
 
       {!isConfigured ? (
-        <div className="text-xs leading-5 text-black/55">
+        <div className="text-xs leading-5 text-black/55 dark:text-white/60">
           Supabase ayarlari hazir deyil. Vercel-e
           {" "}
           <code>NEXT_PUBLIC_SUPABASE_URL</code>
@@ -105,7 +105,7 @@ export function LoginForm() {
         </div>
       ) : null}
 
-      {error ? <div className="text-xs text-brand-red">{error}</div> : null}
+      {error ? <div className="text-xs text-brand-red dark:text-red-400">{error}</div> : null}
 
       <button
         type="submit"

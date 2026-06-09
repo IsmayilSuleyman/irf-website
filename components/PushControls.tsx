@@ -91,7 +91,7 @@ export function PushControls() {
 
   if (state === "denied") {
     return (
-      <div className="border-b border-black/[0.06] px-4 py-2 text-[10px] text-black/45">
+      <div className="border-b border-black/[0.06] px-4 py-2 text-[10px] text-black/45 dark:text-white/50">
         Bildirişlər brauzer tərəfindən bloklanıb.
       </div>
     );
@@ -101,7 +101,7 @@ export function PushControls() {
     <button
       onClick={enable}
       disabled={busy}
-      className="w-full border-b border-black/[0.06] px-4 py-2 text-left text-[11px] font-medium text-brand-green transition hover:bg-brand-green/[0.06] disabled:opacity-50"
+      className="w-full border-b border-black/[0.06] px-4 py-2 text-left text-[11px] font-medium text-brand-green dark:text-emerald-400 transition hover:bg-brand-green/[0.06] disabled:opacity-50"
     >
       {busy ? "Aktivləşdirilir..." : "🔔 Push bildirişlərini aktiv et"}
     </button>
