@@ -4,6 +4,7 @@ import "./globals.css";
 import { PageBackground } from "@/components/PageBackground";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { MobileTabBar } from "@/components/MobileTabBar";
 
 // Runs before paint: applies the persisted theme (or the system preference)
 // as a `dark` class on <html> so there is no light-flash on load.
@@ -33,6 +34,9 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#16a34a" },
     { media: "(prefers-color-scheme: dark)", color: "#0c120e" },
   ],
+  // cover + env(safe-area-inset-bottom) keep the mobile tab bar clear of
+  // the iPhone home indicator when installed as a PWA.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -48,6 +52,7 @@ export default function RootLayout({
       <body className="relative isolate font-sans">
         <PageBackground />
         <div className="relative z-10 min-h-screen">{children}</div>
+        <MobileTabBar />
         <ThemeToggle />
         <ServiceWorkerRegister />
       </body>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { isAppRoute } from "@/components/MobileTabBar";
 
 // Floating light/dark switch, rendered once in the root layout so every
 // page (including the public welcome/login pages) gets it. The initial
@@ -8,6 +10,11 @@ import { useEffect, useState } from "react";
 // this button just flips the class and persists the choice.
 
 export function ThemeToggle() {
+  // On app routes the mobile tab bar occupies the bottom edge — float the
+  // toggle above it on phones (sm+ keeps the corner position).
+  const pathname = usePathname();
+  const lifted = isAppRoute(pathname);
+
   // null until mounted so the icon never disagrees with the real class
   // (the server doesn't know the theme).
   const [dark, setDark] = useState<boolean | null>(null);
@@ -32,7 +39,9 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={dark ? "İşıqlı temaya keç" : "Qaranlıq temaya keç"}
-      className="fixed bottom-5 right-5 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white/80 text-black/55 shadow-glass backdrop-blur-md transition hover:-translate-y-0.5 hover:text-black/85 dark:border-white/15 dark:bg-white/10 dark:text-white/65 dark:hover:text-white/90"
+      className={`fixed right-5 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-white/80 text-black/55 shadow-glass backdrop-blur-md transition hover:-translate-y-0.5 hover:text-black/85 dark:border-white/15 dark:bg-white/10 dark:text-white/65 dark:hover:text-white/90 ${
+        lifted ? "bottom-[5.5rem] sm:bottom-5" : "bottom-5"
+      }`}
     >
       {dark === null ? null : dark ? (
         // Sun — shown in dark mode (tap to go light)

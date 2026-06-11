@@ -37,6 +37,7 @@ import { MarketCountdown } from "@/components/MarketCountdown";
 import { DebtPanel } from "@/components/DebtPanel";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
 import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule";
+import { SectionNav } from "@/components/SectionNav";
 
 export const dynamic = "force-dynamic";
 
@@ -138,9 +139,21 @@ export default async function DashboardPage({
       )
     : { ask: buyPrice(fund.unitPrice), bid: sellPrice(fund.unitPrice) };
 
+  // Jump-chips for the section nav — only sections actually rendered below.
+  const navItems = [
+    { id: "icmal", label: "İcmal" },
+    ...(!fundView ? [{ id: "tarixce", label: "Tarixçə" }] : []),
+    ...(!fundView ? [{ id: "fond", label: "Fond" }] : []),
+    ...(!fundView && isAdmin && debts.length > 0
+      ? [{ id: "borclar", label: "Borclar" }]
+      : []),
+    ...(holdings.length > 0 ? [{ id: "portfel", label: "Portfel" }] : []),
+  ];
+
   return (
     <main className="px-6 pb-24">
       <Header dateLabel={dateLabel} />
+      {navItems.length > 2 && <SectionNav items={navItems} />}
 
       <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
         <div className="hidden justify-end sm:-mb-12 sm:flex">
@@ -148,7 +161,7 @@ export default async function DashboardPage({
         </div>
 
         {/* Hero */}
-        <MotionSection className="grid grid-cols-1 lg:grid-cols-3 gap-x-12 gap-y-6 items-end">
+        <MotionSection id="icmal" className="scroll-mt-36 grid grid-cols-1 lg:grid-cols-3 gap-x-12 gap-y-6 items-end">
           <div className="lg:col-span-2 flex flex-col gap-5">
             {fundView ? (
               <HeroPrice
@@ -199,14 +212,14 @@ export default async function DashboardPage({
         {/* Chart — personal holding history. The whole-fund view will get a
             dedicated "Ümumfond dəyər tarixçəsi" chart later; hidden for now. */}
         {!fundView && (
-          <MotionSection delay={0.05} className="-mt-10">
+          <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-10">
             <PerformanceChart data={chartData} />
           </MotionSection>
         )}
 
         {/* Fund info — hidden in the whole-fund view; the hero already shows the totals. */}
         {!fundView && (
-        <MotionSection delay={0.1} className="hairline -mt-8 pt-6">
+        <MotionSection id="fond" delay={0.1} className="scroll-mt-32 hairline -mt-8 pt-6">
           <FundSummary
             totalCapital={fund.totalCapital}
             totalCostBasis={totalCostBasis}
@@ -228,7 +241,7 @@ export default async function DashboardPage({
 
         {/* Debt panel — admin only, personal view only */}
         {!fundView && isAdmin && debts.length > 0 && (
-          <MotionSection delay={0.13} className="hairline -mt-8 pt-6">
+          <MotionSection id="borclar" delay={0.13} className="scroll-mt-32 hairline -mt-8 pt-6">
             <DebtPanel
               projections={computeDebtProjections(debts)}
               schedule={computeDebtSchedule(debts)}
@@ -314,7 +327,7 @@ export default async function DashboardPage({
           ];
 
           return (
-            <MotionSection delay={0.15} className="hairline -mt-8 pt-6">
+            <MotionSection id="portfel" delay={0.15} className="scroll-mt-32 hairline -mt-8 pt-6">
               <div className="glass p-6 flex flex-col gap-6">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">

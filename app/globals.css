@@ -113,6 +113,14 @@ body {
     @apply font-sans tabular-nums tracking-tight;
   }
 
+  /* Horizontal chip rows scroll without showing a scrollbar. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
 .hairline {
     @apply border-t;
     border-color: var(--glass-border);
