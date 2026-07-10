@@ -172,8 +172,11 @@ export default async function DashboardPage({
 
       <PrivacyProvider initialHidden={amountsHidden}>
       <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
-        <div className="hidden justify-end sm:-mb-12 sm:flex">
+        {/* Desktop top-right controls: fund-view toggle with the hide-amounts
+            eye directly beneath it. On mobile both live in the greeting rows. */}
+        <div className="hidden flex-col items-end gap-2 sm:-mb-12 sm:flex">
           <FundViewToggle active={fundView} />
+          <PrivacyToggle />
         </div>
 
         {/* Hero */}

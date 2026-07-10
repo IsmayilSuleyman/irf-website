@@ -37,9 +37,11 @@ const MASK_TONE = "text-black/35 dark:text-white/40";
 function Greeting({
   holderName,
   toggle,
+  privacyToggle,
 }: {
   holderName: string;
   toggle?: ReactNode;
+  privacyToggle?: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-0.5">
@@ -52,8 +54,14 @@ function Greeting({
         </div>
         {toggle}
       </div>
-      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400 sm:hidden">
-        {holderName}
+      {/* Row 2 (mobile only): the name, with the hide-amounts eye sitting
+          right-aligned — directly under the Ümumfond toggle above it. On
+          desktop the eye lives under the toggle in the page's top-right row. */}
+      <div className="flex items-center justify-between gap-2 sm:hidden">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400">
+          {holderName}
+        </div>
+        {privacyToggle}
       </div>
     </div>
   );
@@ -80,7 +88,11 @@ export function HeroPrice(props: PersonalProps | FundProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Greeting holderName={holderName} toggle={toggle} />
+      <Greeting
+        holderName={holderName}
+        toggle={toggle}
+        privacyToggle={privacyToggle}
+      />
       <div className="flex items-end gap-4">
         <div
           className="num font-black leading-none tracking-tight"
@@ -90,9 +102,6 @@ export function HeroPrice(props: PersonalProps | FundProps) {
             <Odometer value={holdingValue} fractionDigits={2} suffix="₼" />
           </Masked>
         </div>
-        {privacyToggle ? (
-          <div className="pb-1 sm:pb-2">{privacyToggle}</div>
-        ) : null}
       </div>
       <div className="flex flex-col gap-1 text-xs text-black/45 dark:text-white/50">
         <div>
@@ -140,7 +149,11 @@ function FundHero({
 
   return (
     <div className="flex flex-col gap-4">
-      <Greeting holderName={holderName} toggle={toggle} />
+      <Greeting
+        holderName={holderName}
+        toggle={toggle}
+        privacyToggle={privacyToggle}
+      />
       <div className="flex items-end gap-4">
         <div
           className="num font-black leading-none tracking-tight"
@@ -150,9 +163,6 @@ function FundHero({
             <Odometer value={value} fractionDigits={2} suffix="₼" />
           </Masked>
         </div>
-        {privacyToggle ? (
-          <div className="pb-1 sm:pb-2">{privacyToggle}</div>
-        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/45 dark:text-white/50">
         {dayStr ? (

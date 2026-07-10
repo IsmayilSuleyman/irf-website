@@ -27,8 +27,8 @@ const RANGES = [
 type RangeKey = (typeof RANGES)[number]["key"];
 
 const MODES = [
-  { key: "value", label: "Sahiblik dəyəri" },
-  { key: "price", label: "1 payın qiyməti" },
+  { key: "value", label: "SAHİBLİK DƏYƏRİ" },
+  { key: "price", label: "PAY QİYMƏTİ" },
 ] as const;
 
 type ModeKey = (typeof MODES)[number]["key"];
@@ -77,58 +77,59 @@ export function PerformanceChart({
 
   return (
     <div className="glass w-full p-6">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center justify-between gap-2">
-          {hasValue && hasPrice ? (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {MODES.map((m, i) => (
-                <span key={m.key} className="flex items-center gap-2">
-                  {i > 0 && (
-                    <span className="text-[10px] text-black/20 dark:text-white/20">
-                      ·
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setMode(m.key)}
-                    aria-pressed={mode === m.key}
-                    className={`text-[10px] uppercase tracking-[0.22em] transition ${
-                      mode === m.key
-                        ? "text-brand-green/80 dark:text-emerald-400/90"
-                        : "text-black/30 hover:text-black/55 dark:text-white/35 dark:hover:text-white/60"
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                </span>
-              ))}
-            </div>
-          ) : (
-            <span className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-              {mode === "price"
-                ? "1 payın qiymətinin tarixçəsi"
-                : "Sahiblik dəyərinin tarixçəsi"}
-            </span>
-          )}
+          <span className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+            {mode === "price"
+              ? "1 payın qiymətinin tarixçəsi"
+              : "Sahiblik dəyərinin tarixçəsi"}
+          </span>
           <span className="text-[10px] text-black/45 dark:text-white/50 sm:hidden">₼</span>
         </div>
-        <div className="grid grid-cols-5 gap-1 sm:flex sm:items-center">
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              onClick={() => setRange(r.key)}
-              aria-pressed={range === r.key}
-              className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
-                range === r.key
-                  ? "border-brand-green bg-brand-green text-white shadow-sm"
-                  : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
-              }`}
-            >
-              {r.label}
-            </button>
-          ))}
-          <span className="ml-1 hidden text-[10px] text-black/45 dark:text-white/50 sm:inline">₼</span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+          {/* Series switch — same button language as the range buttons so it
+              reads as a control, not a label. */}
+          {hasValue && hasPrice && (
+            <div className="grid grid-cols-2 gap-1 sm:flex sm:items-center">
+              {MODES.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => setMode(m.key)}
+                  aria-pressed={mode === m.key}
+                  className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
+                    mode === m.key
+                      ? "border-brand-green bg-brand-green text-white shadow-sm"
+                      : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+              <span
+                aria-hidden
+                className="mx-1 hidden h-4 w-px bg-black/10 dark:bg-white/15 sm:inline-block"
+              />
+            </div>
+          )}
+          <div className="grid grid-cols-5 gap-1 sm:flex sm:items-center">
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                onClick={() => setRange(r.key)}
+                aria-pressed={range === r.key}
+                className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
+                  range === r.key
+                    ? "border-brand-green bg-brand-green text-white shadow-sm"
+                    : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+            <span className="ml-1 hidden text-[10px] text-black/45 dark:text-white/50 sm:inline">₼</span>
+          </div>
         </div>
       </div>
       <div className="h-72">

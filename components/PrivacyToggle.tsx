@@ -14,7 +14,7 @@ export function PrivacyToggle({ className }: { className?: string }) {
       aria-pressed={hidden}
       aria-label={label}
       title={label}
-      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border shadow-sm transition ${
+      className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border shadow-sm transition ${
         hidden
           ? "border-brand-green/40 bg-brand-green/10 text-brand-green dark:text-emerald-400"
           : "border-black/12 bg-white/70 text-black/45 hover:border-brand-green/40 hover:text-brand-green dark:border-white/15 dark:bg-white/5 dark:text-white/50 dark:hover:text-emerald-400"
@@ -28,8 +28,8 @@ export function PrivacyToggle({ className }: { className?: string }) {
 function EyeIcon() {
   return (
     <svg
-      width="17"
-      height="17"
+      width="15"
+      height="15"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -47,8 +47,8 @@ function EyeIcon() {
 function EyeOffIcon() {
   return (
     <svg
-      width="17"
-      height="17"
+      width="15"
+      height="15"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
