@@ -172,11 +172,11 @@ export default async function DashboardPage({
 
       <PrivacyProvider initialHidden={amountsHidden}>
       <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
-        {/* Desktop top-right controls: fund-view toggle with the hide-amounts
-            eye directly beneath it. On mobile both live in the greeting rows. */}
-        <div className="hidden flex-col items-end gap-2 sm:-mb-12 sm:flex">
-          <FundViewToggle active={fundView} />
+        {/* Desktop top-right controls: hide-amounts eye + fund-view toggle in
+            one row (no extra height). On mobile both live in the greeting row. */}
+        <div className="hidden items-center justify-end gap-3 sm:-mb-12 sm:flex">
           <PrivacyToggle />
+          <FundViewToggle active={fundView} />
         </div>
 
         {/* Hero */}
@@ -189,7 +189,7 @@ export default async function DashboardPage({
                 value={fund.totalCapital}
                 dayChange={fundDayChange}
                 totalChange={fundTotalChange}
-                privacyToggle={<PrivacyToggle />}
+                privacyToggle={<PrivacyToggle className="sm:hidden" />}
                 toggle={
                   <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
                 }
@@ -202,7 +202,7 @@ export default async function DashboardPage({
                 dayChange={dayChange}
                 units={effectiveUnits}
                 avgBuyPrice={perf.avgBuyPrice}
-                privacyToggle={<PrivacyToggle />}
+                privacyToggle={<PrivacyToggle className="sm:hidden" />}
                 toggle={
                   <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
                 }

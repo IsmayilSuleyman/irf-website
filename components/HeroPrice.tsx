@@ -45,23 +45,21 @@ function Greeting({
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      {/* Row 1: greeting + toggle. On mobile the name drops to its own row
-          below (so it never truncates); on desktop it stays inline here. */}
+      {/* Row 1: greeting + right-corner controls (eye + toggle in one cluster,
+          so the eye adds no extra row height). On mobile the name drops to its
+          own row below (so it never truncates); on desktop it stays inline. */}
       <div className="flex items-center justify-between gap-2">
         <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400">
           Xoş gəldin,
           <span className="hidden sm:inline"> {holderName}</span>
         </div>
-        {toggle}
-      </div>
-      {/* Row 2 (mobile only): the name, with the hide-amounts eye sitting
-          right-aligned — directly under the Ümumfond toggle above it. On
-          desktop the eye lives under the toggle in the page's top-right row. */}
-      <div className="flex items-center justify-between gap-2 sm:hidden">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400">
-          {holderName}
+        <div className="flex shrink-0 items-center gap-2">
+          {privacyToggle}
+          {toggle}
         </div>
-        {privacyToggle}
+      </div>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400 sm:hidden">
+        {holderName}
       </div>
     </div>
   );
