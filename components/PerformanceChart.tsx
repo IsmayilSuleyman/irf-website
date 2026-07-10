@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { formatAzn, formatGrouped } from "@/lib/portfolio";
+import { usePrivacy } from "@/components/PrivacyProvider";
 
 type Point = { label: string; value: number; date?: string };
 
@@ -25,24 +26,44 @@ const RANGES = [
 
 type RangeKey = (typeof RANGES)[number]["key"];
 
-export function PerformanceChart({ data }: { data: Point[] }) {
+const MODES = [
+  { key: "value", label: "Sahiblik dəyəri" },
+  { key: "price", label: "1 payın qiyməti" },
+] as const;
+
+type ModeKey = (typeof MODES)[number]["key"];
+
+export function PerformanceChart({
+  data,
+  priceData,
+}: {
+  data: Point[];
+  priceData?: Point[];
+}) {
+  const { hidden } = usePrivacy();
+  const hasValue = data != null && data.length > 0;
+  const hasPrice = priceData != null && priceData.length > 0;
+  // New holders with no transactions still get the public price series.
+  const [mode, setMode] = useState<ModeKey>(hasValue ? "value" : "price");
   const [range, setRange] = useState<RangeKey>("all");
 
+  const source = mode === "price" ? (priceData ?? []) : data;
+
   const filtered = useMemo(() => {
-    if (!data || data.length === 0) return [];
+    if (!source || source.length === 0) return [];
     const days = RANGES.find((r) => r.key === range)?.days ?? null;
-    if (days == null) return data;
+    if (days == null) return source;
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    return data.filter((p) => {
+    return source.filter((p) => {
       if (!p.date) return true;
       const t = new Date(p.date).getTime();
       return Number.isFinite(t) && t >= cutoff;
     });
-  }, [data, range]);
+  }, [source, range]);
 
   const last = filtered.length > 0 ? filtered[filtered.length - 1] : null;
 
-  if (!data || data.length === 0) {
+  if (!hasValue && !hasPrice) {
     return (
       <div className="glass flex h-72 items-center justify-center text-black/45 dark:text-white/50">
         Tarixçə yoxdur.
@@ -50,13 +71,45 @@ export function PerformanceChart({ data }: { data: Point[] }) {
     );
   }
 
+  // Your holding value is personal — masked in hide-amounts mode. The unit
+  // price is the same for every holder (public), so it never gets masked.
+  const masked = hidden && mode === "value";
+
   return (
     <div className="glass w-full p-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-            Sahiblik dəyərinin tarixçəsi
-          </span>
+          {hasValue && hasPrice ? (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {MODES.map((m, i) => (
+                <span key={m.key} className="flex items-center gap-2">
+                  {i > 0 && (
+                    <span className="text-[10px] text-black/20 dark:text-white/20">
+                      ·
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setMode(m.key)}
+                    aria-pressed={mode === m.key}
+                    className={`text-[10px] uppercase tracking-[0.22em] transition ${
+                      mode === m.key
+                        ? "text-brand-green/80 dark:text-emerald-400/90"
+                        : "text-black/30 hover:text-black/55 dark:text-white/35 dark:hover:text-white/60"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+              {mode === "price"
+                ? "1 payın qiymətinin tarixçəsi"
+                : "Sahiblik dəyərinin tarixçəsi"}
+            </span>
+          )}
           <span className="text-[10px] text-black/45 dark:text-white/50 sm:hidden">₼</span>
         </div>
         <div className="grid grid-cols-5 gap-1 sm:flex sm:items-center">
@@ -105,6 +158,7 @@ export function PerformanceChart({ data }: { data: Point[] }) {
                 minTickGap={24}
               />
               <YAxis
+                hide={masked}
                 domain={["auto", "auto"]}
                 width={52}
                 tick={{ fontSize: 10, fill: "rgba(0,0,0,0.4)" }}
@@ -123,7 +177,10 @@ export function PerformanceChart({ data }: { data: Point[] }) {
                   color: "#0a0a0a",
                 }}
                 labelStyle={{ color: "rgba(0,0,0,0.55)" }}
-                formatter={(v: number) => [formatAzn(v), "Dəyər"]}
+                formatter={(v: number) => [
+                  masked ? "••••" : formatAzn(v),
+                  mode === "price" ? "1 payın qiyməti" : "Dəyər",
+                ]}
               />
               <Area
                 type="monotone"

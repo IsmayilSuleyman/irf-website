@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { formatAzn, formatUnits } from "@/lib/portfolio";
 import { Odometer } from "@/components/Odometer";
+import { Masked } from "@/components/Masked";
 
 type PersonalProps = {
   variant?: "personal";
@@ -11,6 +12,7 @@ type PersonalProps = {
   units: number;
   avgBuyPrice: number | null;
   toggle?: ReactNode;
+  privacyToggle?: ReactNode;
 };
 
 type FundProps = {
@@ -20,6 +22,7 @@ type FundProps = {
   dayChange: number | null;
   totalChange: number | null;
   toggle?: ReactNode;
+  privacyToggle?: ReactNode;
 };
 
 const changeTone = (n: number | null) =>
@@ -27,6 +30,9 @@ const changeTone = (n: number | null) =>
 
 const changeText = (n: number | null) =>
   n == null ? null : `${n >= 0 ? "+" : ""}${formatAzn(n)}`;
+
+// Neutral colour for masked amounts — the dots must not leak the sign.
+const MASK_TONE = "text-black/35 dark:text-white/40";
 
 function Greeting({
   holderName,
@@ -66,6 +72,7 @@ export function HeroPrice(props: PersonalProps | FundProps) {
     units,
     avgBuyPrice,
     toggle,
+    privacyToggle,
   } = props;
 
   const dayChangeStr = changeText(dayChange);
@@ -77,31 +84,42 @@ export function HeroPrice(props: PersonalProps | FundProps) {
       <div className="flex items-end gap-4">
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(3.25rem, 10vw, 6.5rem)" }}
+          style={{ fontSize: "clamp(4rem, 13vw, 8rem)" }}
         >
-          <Odometer value={holdingValue} fractionDigits={2} suffix="₼" />
+          <Masked mask="••••">
+            <Odometer value={holdingValue} fractionDigits={2} suffix="₼" />
+          </Masked>
         </div>
+        {privacyToggle ? (
+          <div className="pb-1 sm:pb-2">{privacyToggle}</div>
+        ) : null}
       </div>
       <div className="flex flex-col gap-1 text-xs text-black/45 dark:text-white/50">
         <div>
           {dayChangeStr ? (
             <>
               günlük dəyişim{" "}
-              <span className={changeTone(dayChange)}>{dayChangeStr}</span>
+              <Masked mask="••••" className={MASK_TONE}>
+                <span className={changeTone(dayChange)}>{dayChangeStr}</span>
+              </Masked>
             </>
           ) : null}
           {dayChangeStr && overallStr ? " · " : null}
           {overallStr ? (
             <>
               ümumi dəyişim{" "}
-              <span className={changeTone(holdingPnl)}>{overallStr}</span>
+              <Masked mask="••••" className={MASK_TONE}>
+                <span className={changeTone(holdingPnl)}>{overallStr}</span>
+              </Masked>
             </>
           ) : null}
         </div>
         <div>
-          {formatUnits(units)} pay · ortalama alış qiyməti{" "}
+          <Masked mask="••">{formatUnits(units)}</Masked> pay · ortalama alış qiyməti{" "}
           <span className="text-black/70 dark:text-white/75">
-            {avgBuyPrice != null ? formatAzn(avgBuyPrice) : "N/A"}
+            <Masked mask="••••">
+              {avgBuyPrice != null ? formatAzn(avgBuyPrice) : "N/A"}
+            </Masked>
           </span>
         </div>
       </div>
@@ -115,6 +133,7 @@ function FundHero({
   dayChange,
   totalChange,
   toggle,
+  privacyToggle,
 }: FundProps) {
   const dayStr = changeText(dayChange);
   const totalStr = changeText(totalChange);
@@ -125,22 +144,31 @@ function FundHero({
       <div className="flex items-end gap-4">
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(3.25rem, 10vw, 6.5rem)" }}
+          style={{ fontSize: "clamp(4rem, 13vw, 8rem)" }}
         >
-          <Odometer value={value} fractionDigits={2} suffix="₼" />
+          <Masked mask="••••">
+            <Odometer value={value} fractionDigits={2} suffix="₼" />
+          </Masked>
         </div>
+        {privacyToggle ? (
+          <div className="pb-1 sm:pb-2">{privacyToggle}</div>
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/45 dark:text-white/50">
         {dayStr ? (
           <span>
             günlük dəyişim{" "}
-            <span className={changeTone(dayChange)}>{dayStr}</span>
+            <Masked mask="••••" className={MASK_TONE}>
+              <span className={changeTone(dayChange)}>{dayStr}</span>
+            </Masked>
           </span>
         ) : null}
         {totalStr ? (
           <span>
             ümumi dəyişim{" "}
-            <span className={changeTone(totalChange)}>{totalStr}</span>
+            <Masked mask="••••" className={MASK_TONE}>
+              <span className={changeTone(totalChange)}>{totalStr}</span>
+            </Masked>
           </span>
         ) : null}
       </div>

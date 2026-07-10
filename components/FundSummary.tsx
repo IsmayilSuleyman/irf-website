@@ -1,5 +1,6 @@
 import { formatAzn, formatPct } from "@/lib/portfolio";
 import { PeriodIndicators } from "@/components/IndicatorsCard";
+import { Masked } from "@/components/Masked";
 import type { PeriodChanges } from "@/lib/priceHistory";
 
 /**
@@ -8,6 +9,8 @@ import type { PeriodChanges } from "@/lib/priceHistory";
  *   • top  — the two headline figures as a pair: Ümumi dəyəri (gross) and
  *            Xalis dəyəri (net), split by a vertical divider on wide screens;
  *   • below a horizontal divider — Göstəricilər (performance over time).
+ * AZN figures respect hide-amounts mode; the period returns are unit-price
+ * percentages (public market info), so they stay visible.
  */
 export function FundSummary({
   totalCapital,
@@ -39,15 +42,21 @@ export function FundSummary({
             Ümumi dəyəri
           </div>
           <div className="num text-4xl font-bold text-black dark:text-white/90 md:text-5xl">
-            {formatAzn(totalCapital)}
+            <Masked>{formatAzn(totalCapital)}</Masked>
           </div>
           {totalCostBasis > 0 && (
             <div className="flex flex-col gap-0.5 text-xs text-black/55 dark:text-white/60">
-              <div>Maya dəyəri: {formatAzn(totalCostBasis)}</div>
+              <div>
+                Maya dəyəri: <Masked>{formatAzn(totalCostBasis)}</Masked>
+              </div>
               <div className={gainTone}>
-                {sign}
-                {formatAzn(gain)} ({sign}
-                {formatPct(gainPct)})
+                <Masked className="text-black/35 dark:text-white/40">
+                  <>
+                    {sign}
+                    {formatAzn(gain)} ({sign}
+                    {formatPct(gainPct)})
+                  </>
+                </Masked>
               </div>
             </div>
           )}
@@ -58,7 +67,7 @@ export function FundSummary({
             Xalis dəyəri
           </div>
           <div className="num text-4xl font-bold text-black dark:text-white/90 md:text-5xl">
-            {formatAzn(netCapital)}
+            <Masked>{formatAzn(netCapital)}</Masked>
           </div>
           <div className="max-w-xs text-xs leading-snug text-black/45 dark:text-white/50">
             Bütün borclar çıxılandan sonrakı nəticə.
