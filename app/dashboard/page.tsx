@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import {
   getFundData,
   getHolderByName,
@@ -33,6 +34,8 @@ import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
 import { FundViewToggle } from "@/components/FundViewToggle";
 import { ShareholdersList } from "@/components/ShareholdersList";
+import { PrivacyProvider } from "@/components/PrivacyProvider";
+import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { MarketCountdown } from "@/components/MarketCountdown";
 import { DebtPanel } from "@/components/DebtPanel";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
@@ -48,6 +51,10 @@ export default async function DashboardPage({
 }) {
   const user = await requireUser();
   const sp = await searchParams;
+  // Hide-amounts (eye button) state — read server-side so SSR renders the
+  // masked state directly, with no flash of visible amounts on load.
+  const amountsHidden =
+    (await cookies()).get("irf-hide-amounts")?.value === "1";
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
@@ -116,6 +123,14 @@ export default async function DashboardPage({
     priceHistory,
   );
 
+  // Unit-price series for the chart's "1 payın qiyməti" mode — same public
+  // price every holder sees.
+  const priceChartData = priceHistory.map((p) => ({
+    label: p.label,
+    value: p.price,
+    date: p.recordedAt,
+  }));
+
   // Whole-fund view, available to every signed-in holder. The mode is encoded
   // in the URL (?view=fund) so the server renders the correct dataset.
   const fundView = sp?.view === "fund";
@@ -155,6 +170,7 @@ export default async function DashboardPage({
       <Header dateLabel={dateLabel} />
       {navItems.length > 2 && <SectionNav items={navItems} />}
 
+      <PrivacyProvider initialHidden={amountsHidden}>
       <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
         <div className="hidden justify-end sm:-mb-12 sm:flex">
           <FundViewToggle active={fundView} />
@@ -170,6 +186,7 @@ export default async function DashboardPage({
                 value={fund.totalCapital}
                 dayChange={fundDayChange}
                 totalChange={fundTotalChange}
+                privacyToggle={<PrivacyToggle />}
                 toggle={
                   <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
                 }
@@ -182,6 +199,7 @@ export default async function DashboardPage({
                 dayChange={dayChange}
                 units={effectiveUnits}
                 avgBuyPrice={perf.avgBuyPrice}
+                privacyToggle={<PrivacyToggle />}
                 toggle={
                   <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
                 }
@@ -213,7 +231,7 @@ export default async function DashboardPage({
             dedicated "Ümumfond dəyər tarixçəsi" chart later; hidden for now. */}
         {!fundView && (
           <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-10">
-            <PerformanceChart data={chartData} />
+            <PerformanceChart data={chartData} priceData={priceChartData} />
           </MotionSection>
         )}
 
@@ -370,6 +388,7 @@ export default async function DashboardPage({
           );
         })()}
       </div>
+      </PrivacyProvider>
     </main>
   );
 }

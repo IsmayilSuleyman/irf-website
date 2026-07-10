@@ -1,12 +1,13 @@
 import { formatAzn, formatPct } from "@/lib/portfolio";
 import { toTitleCaseAz } from "@/lib/user";
+import { Masked } from "@/components/Masked";
 
 type Shareholder = { name: string; valueAzn: number; percent: number };
 
 /**
  * Whole-fund view only: every shareholder and how much of the Fund they own in
  * AZN (largest first), with their share of the Fund as a muted suffix.
- * Owner-gated upstream, so showing all holders here is fine.
+ * Amounts respect hide-amounts mode (they are positions, someone's).
  */
 export function ShareholdersList({ holders }: { holders: Shareholder[] }) {
   const sorted = [...holders]
@@ -32,10 +33,10 @@ export function ShareholdersList({ holders }: { holders: Shareholder[] }) {
               </span>
               <span className="flex shrink-0 items-baseline gap-2">
                 <span className="num font-medium text-black dark:text-white/90">
-                  {formatAzn(h.valueAzn)}
+                  <Masked>{formatAzn(h.valueAzn)}</Masked>
                 </span>
                 <span className="num w-14 text-right text-[11px] text-black/45 dark:text-white/50">
-                  {formatPct(h.percent)}
+                  <Masked mask="••">{formatPct(h.percent)}</Masked>
                 </span>
               </span>
             </div>
