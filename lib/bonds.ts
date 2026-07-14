@@ -155,6 +155,42 @@ export const getBondFundingAzn = unstable_cache(
   { revalidate: 60, tags: ["bond-funding"] },
 );
 
+export type BondFundingSeries = {
+  name: string;
+  settledUnits: number;
+  proceedsAzn: number;
+  faceValueAzn: number;
+  couponRatePct: number;
+  couponPeriodMonths: number;
+  issueDate: string;
+  maturityDate: string;
+};
+
+/**
+ * Per-active-series funding breakdown (settled primary units, cash raised,
+ * coupon/maturity parameters) for the liquidity projection. Runs under the
+ * caller's session — the RPC is granted to authenticated users only.
+ */
+export async function getBondFundingBreakdown(): Promise<BondFundingSeries[]> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("bond_funding_breakdown");
+  if (error) {
+    console.error("[bonds] bond_funding_breakdown failed:", error);
+    return [];
+  }
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    name: String(r.name ?? ""),
+    settledUnits: num(r.settled_units),
+    proceedsAzn: num(r.proceeds_azn),
+    faceValueAzn: num(r.face_value_azn),
+    couponRatePct: num(r.coupon_rate_pct),
+    couponPeriodMonths: num(r.coupon_period_months),
+    issueDate: (r.issue_date as string) ?? "",
+    maturityDate: (r.maturity_date as string) ?? "",
+  }));
+}
+
 /** Loads everything the /bonds page needs for the current user in one pass. */
 export async function getBondMarketData(): Promise<BondMarketData | null> {
   const supabase = await createSupabaseServerClient();
