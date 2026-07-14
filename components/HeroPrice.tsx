@@ -153,9 +153,11 @@ function FundHero({
         privacyToggle={privacyToggle}
       />
       <div className="flex items-end gap-4">
+        {/* One notch below the personal hero — the whole-fund total reads
+            calmer slightly smaller. */}
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(4rem, 13vw, 8rem)" }}
+          style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)" }}
         >
           <Masked mask="••••">
             <Odometer value={value} fractionDigits={2} suffix="₼" />
