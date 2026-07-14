@@ -8,12 +8,12 @@ export default function BankLoading() {
       <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
         <Bone className="h-3 w-64" />
 
-        {/* Quick actions row (İstiqrazlar / Bazar / Kalkulyator) */}
-        <div className="mt-6 grid grid-cols-3 gap-3">
-          {Array.from({ length: 3 }, (_, i) => (
+        {/* Quick actions row (Depozitlərim / Kreditlərim / İstiqrazlar / Bazar / Kalkulyator) */}
+        <div className="mt-6 flex flex-wrap gap-3">
+          {Array.from({ length: 5 }, (_, i) => (
             <div
               key={i}
-              className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-4 py-4 sm:px-5"
+              className="min-w-[8.5rem] flex-1 basis-[calc(33%-0.75rem)] rounded-2xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-4 py-4 sm:basis-0 sm:px-5"
             >
               <Bone className="h-5 w-5" />
               <Bone className="mt-2 h-4 w-20" />
