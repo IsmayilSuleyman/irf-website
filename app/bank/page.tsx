@@ -11,7 +11,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { formatGrouped } from "@/lib/portfolio";
 import { getBankProductTerms } from "@/lib/bankTerms";
-import { getBondFundingAzn } from "@/lib/bonds";
+import { getBondFundingAzn, getBondFundingBreakdown } from "@/lib/bonds";
+import { computeLiquidityProjection } from "@/lib/liquidityProjection";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 import { BankViewToggle } from "@/components/BankViewToggle";
@@ -250,11 +251,18 @@ export default async function BankPage({
   const dateLabel = formatBakuDate(new Date());
 
   if (bankView) {
-    const [accounts, bondFundingAzn] = await Promise.all([
+    const [accounts, bondFundingAzn, bondBreakdown] = await Promise.all([
       getBankAccounts(),
       getBondFundingAzn(),
+      getBondFundingBreakdown(),
     ]);
     const aggregate = computeBankWide(accounts, new Date(), bondFundingAzn);
+    const projection = computeLiquidityProjection(
+      accounts,
+      bondBreakdown,
+      aggregate.netLiquidityAzn,
+      new Date(),
+    );
     return (
       <main className="min-h-screen bg-bank-section">
         <BankHeader dateLabel={dateLabel} />
@@ -271,7 +279,7 @@ export default async function BankPage({
             </div>
           </MotionSection>
           <MotionSection delay={0.04}>
-            <BankWideView aggregate={aggregate} />
+            <BankWideView aggregate={aggregate} projection={projection} />
           </MotionSection>
         </section>
       </main>

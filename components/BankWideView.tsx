@@ -1,6 +1,8 @@
 import { formatAzn, formatGroupedTrim } from "@/lib/portfolio";
 import { formatBakuDate } from "@/lib/user";
 import { azTitleCase, type BankWideAggregate } from "@/lib/bank";
+import type { LiquidityProjectionPoint } from "@/lib/liquidityProjection";
+import { LiquidityProjectionChart } from "@/components/LiquidityProjectionChart";
 import { Odometer } from "@/components/Odometer";
 
 // === Tiny presentational helpers (component-local on purpose) ===
@@ -108,7 +110,13 @@ function ListSection({
 
 // === Main view ===
 
-export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
+export function BankWideView({
+  aggregate,
+  projection,
+}: {
+  aggregate: BankWideAggregate;
+  projection?: LiquidityProjectionPoint[];
+}) {
   const {
     totalDepositsAzn,
     bondFundingAzn,
@@ -231,6 +239,41 @@ export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
           </div>
         ) : null}
       </section>
+
+      {/* Projected liquidity — cumulative walk over every known scheduled
+          cash event. Rendered only when there is at least one future event. */}
+      {projection && projection.length >= 2 ? (
+        <section className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 p-6">
+          <div className="flex items-baseline justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-ink dark:text-white/90">
+                Proqnozlaşdırılan likvidlik
+              </h2>
+              <p className="mt-0.5 text-xs text-black/45 dark:text-white/50">
+                Cədvəl üzrə kredit qaytarımları, depozit çıxışları və istiqraz
+                ödənişləri əsasında — nöqtənin üzərinə gələrək günün hadisələrini görün
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
+                Dövr sonu
+              </p>
+              <p
+                className={`num text-sm font-semibold ${
+                  projection[projection.length - 1].valueAzn < 0
+                    ? "text-status-late dark:text-rose-400"
+                    : "text-ink dark:text-white/90"
+                }`}
+              >
+                {formatAzn(projection[projection.length - 1].valueAzn)}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <LiquidityProjectionChart points={projection} />
+          </div>
+        </section>
+      ) : null}
 
       {/* 30-day depositor payouts (interest out) */}
       <ListSection
