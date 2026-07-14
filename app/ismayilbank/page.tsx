@@ -5,6 +5,7 @@ import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 import { getSupabaseServerUser } from "@/lib/supabase/server";
 import { getBankAccounts } from "@/lib/bank";
 import { getBankProductTerms } from "@/lib/bankTerms";
+import { getBondFundingAzn } from "@/lib/bonds";
 import { formatGrouped } from "@/lib/portfolio";
 
 function liquidityTileColor(pct: number): string {
@@ -21,17 +22,20 @@ function joinMonths(months: number[]): string {
 }
 
 export default async function IsmayilBankPage() {
-  const [{ user }, accounts, terms] = await Promise.all([
+  const [{ user }, accounts, terms, bondFunding] = await Promise.all([
     getSupabaseServerUser(),
     getBankAccounts(),
     getBankProductTerms(),
+    getBondFundingAzn(),
   ]);
 
   const totalDeposits = accounts.reduce((s, a) => s + a.depositedAzn, 0);
   const totalLoans    = accounts.reduce((s, a) => s + a.outstandingLoanAzn, 0);
-  const netLiquidity  = totalDeposits - totalLoans;
-  const liquidityPct  = totalDeposits > 0 ? (netLiquidity / totalDeposits) * 100 : 0;
-  const loanBarPct    = totalDeposits > 0 ? Math.min((totalLoans / totalDeposits) * 100, 100) : 0;
+  // Bond primary-sale proceeds are lendable funding alongside deposits.
+  const totalFunding  = totalDeposits + bondFunding;
+  const netLiquidity  = totalFunding - totalLoans;
+  const liquidityPct  = totalFunding > 0 ? (netLiquidity / totalFunding) * 100 : 0;
+  const loanBarPct    = totalFunding > 0 ? Math.min((totalLoans / totalFunding) * 100, 100) : 0;
 
   const creditMonths = [...terms.credit]
     .map((t) => t.termMonths)
@@ -143,22 +147,29 @@ export default async function IsmayilBankPage() {
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
                 Bank likvidliyi
               </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4">
+              {/* flex-wrap so the row balances with or without the bond tile */}
+              <div className="flex flex-wrap gap-3">
+                <div className="min-w-[9rem] flex-1 basis-[calc(50%-0.75rem)] rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4 sm:basis-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">Ümumi depozit</p>
                   <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-ink dark:text-white/90">{formatGrouped(totalDeposits, 0)} ₼</p>
                 </div>
-                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4">
+                {bondFunding > 0 ? (
+                  <div className="min-w-[9rem] flex-1 basis-[calc(50%-0.75rem)] rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4 sm:basis-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">İstiqraz vəsaiti</p>
+                    <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-bank-blue dark:text-blue-400">{formatGrouped(bondFunding, 0)} ₼</p>
+                  </div>
+                ) : null}
+                <div className="min-w-[9rem] flex-1 basis-[calc(50%-0.75rem)] rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4 sm:basis-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">Cəmi kredit</p>
                   <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalLoans > 0 ? "text-status-late dark:text-rose-400" : "text-ink dark:text-white/90"}`}>{formatGrouped(totalLoans, 0)} ₼</p>
                 </div>
-                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4">
+                <div className="min-w-[9rem] flex-1 basis-[calc(50%-0.75rem)] rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4 sm:basis-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">Xalis likvidlik</p>
                   <p className="mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] text-brand-green-deep dark:text-emerald-400">{formatGrouped(netLiquidity, 0)} ₼</p>
                 </div>
-                <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4">
+                <div className="min-w-[9rem] flex-1 basis-[calc(50%-0.75rem)] rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4 sm:basis-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">Likvidlik nisbəti</p>
-                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalDeposits > 0 ? liquidityTileColor(liquidityPct) : "text-ink dark:text-white/90"}`}>{totalDeposits > 0 ? `${formatGrouped(liquidityPct, 0)}%` : "—"}</p>
+                  <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${totalFunding > 0 ? liquidityTileColor(liquidityPct) : "text-ink dark:text-white/90"}`}>{totalFunding > 0 ? `${formatGrouped(liquidityPct, 0)}%` : "—"}</p>
                 </div>
               </div>
               <div className="space-y-1.5">

@@ -1,5 +1,8 @@
 import type { User } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 import { FUND_PRINCIPAL_NAME } from "@/lib/holdings";
 
 // İsmayılBank bonds (istiqraz): server data layer for /bonds, modeled on
@@ -128,6 +131,29 @@ function parseSeries(raw: unknown): BondSeries[] {
     my_available: num(s.my_available),
   }));
 }
+
+/**
+ * Cash the bank has raised from settled primary bond sales of active series —
+ * counted into the bank's liquidity next to deposits (bond money can be lent
+ * out too). Anon read of an identity-free aggregate RPC, so it works on the
+ * public /ismayilbank page; cached like the other bank reads.
+ */
+export const getBondFundingAzn = unstable_cache(
+  async (): Promise<number> => {
+    const config = getSupabaseConfig();
+    if (!config) return 0;
+    const supabase = createClient(config.url, config.anonKey);
+    const { data, error } = await supabase.rpc("bond_funding_azn");
+    if (error) {
+      console.error("[bonds] bond_funding_azn failed:", error);
+      return 0;
+    }
+    const n = Number(data);
+    return Number.isFinite(n) ? n : 0;
+  },
+  ["bond-funding"],
+  { revalidate: 60, tags: ["bond-funding"] },
+);
 
 /** Loads everything the /bonds page needs for the current user in one pass. */
 export async function getBondMarketData(): Promise<BondMarketData | null> {
