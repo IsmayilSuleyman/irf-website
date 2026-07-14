@@ -8,7 +8,14 @@ import type { BondSeries } from "@/lib/bonds";
 
 const price2 = (n: number) => `${n.toFixed(2)} ₼`;
 
-export function BondTicket({ series }: { series: BondSeries }) {
+export function BondTicket({
+  series,
+  isPrincipal = false,
+}: {
+  series: BondSeries;
+  /** The bank's owner can't buy his own primary issue — explain instead of offering it. */
+  isPrincipal?: boolean;
+}) {
   const router = useRouter();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [units, setUnits] = useState("");
@@ -130,7 +137,7 @@ export function BondTicket({ series }: { series: BondSeries }) {
               label={`Nominal dəyər — ${price2(series.face_value_azn)}`}
               onClick={() => setPrice(String(series.face_value_azn))}
             />
-          ) : (
+          ) : isPrincipal ? null : (
             <Shortcut
               label={
                 primaryActive
@@ -142,6 +149,14 @@ export function BondTicket({ series }: { series: BondSeries }) {
             />
           )}
         </div>
+
+        {side === "buy" && isPrincipal && (
+          <div className="rounded-xl bg-bank-blue-soft dark:bg-bank-blue/20 px-3 py-2 text-xs leading-5 text-bank-blue dark:text-blue-400">
+            Bank öz buraxılışından ala bilməz — ilkin buraxılış digər iştirakçılar
+            üçündür. Sizin alış sifarişiniz yalnız iştirakçıların satış təklifləri
+            ilə uyğunlaşa bilər.
+          </div>
+        )}
 
         <div className="flex items-baseline justify-between border-t border-black/10 dark:border-white/10 pt-3 text-sm">
           <span className="text-black/55 dark:text-white/60">Cəmi (təxmini)</span>

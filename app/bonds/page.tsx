@@ -256,7 +256,7 @@ export default async function BondsPage({
                 </div>
                 {selected.status === "active" ? (
                   <div className="mt-3 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                    <BondTicket series={selected} />
+                    <BondTicket series={selected} isPrincipal={data.isAdmin} />
                     <BondBook series={selected} book={data.books[selected.id] ?? []} />
                   </div>
                 ) : (
