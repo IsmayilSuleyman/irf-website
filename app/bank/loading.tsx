@@ -7,6 +7,21 @@ export default function BankLoading() {
       <HeaderBones tint="blue" />
       <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
         <Bone className="h-3 w-64" />
+
+        {/* Quick actions row (İstiqrazlar / Bazar / Kalkulyator) */}
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-4 py-4 sm:px-5"
+            >
+              <Bone className="h-5 w-5" />
+              <Bone className="mt-2 h-4 w-20" />
+              <Bone className="mt-2 hidden h-3 w-full sm:block" />
+            </div>
+          ))}
+        </div>
+
         <Bone className="mt-8 h-3 w-36" />
         <Bone className="mt-4 h-12 w-60 sm:h-16 sm:w-72" />
         <Bone className="mt-4 h-3 w-80 max-w-full" />

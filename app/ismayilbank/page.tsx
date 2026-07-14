@@ -4,6 +4,7 @@ import { IsmayilBankDepositCalculator } from "@/components/IsmayilBankDepositCal
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 import { getSupabaseServerUser } from "@/lib/supabase/server";
 import { getBankAccounts } from "@/lib/bank";
+import { getBankProductTerms } from "@/lib/bankTerms";
 import { formatGrouped } from "@/lib/portfolio";
 
 function liquidityTileColor(pct: number): string {
@@ -12,10 +13,18 @@ function liquidityTileColor(pct: number): string {
   return "text-status-late dark:text-rose-400";
 }
 
+// "3, 6, 9 və ya 12" — for the deposit copy, from the live tier list.
+function joinMonths(months: number[]): string {
+  if (months.length === 0) return "";
+  if (months.length === 1) return String(months[0]);
+  return `${months.slice(0, -1).join(", ")} və ya ${months[months.length - 1]}`;
+}
+
 export default async function IsmayilBankPage() {
-  const [{ user }, accounts] = await Promise.all([
+  const [{ user }, accounts, terms] = await Promise.all([
     getSupabaseServerUser(),
     getBankAccounts(),
+    getBankProductTerms(),
   ]);
 
   const totalDeposits = accounts.reduce((s, a) => s + a.depositedAzn, 0);
@@ -23,6 +32,21 @@ export default async function IsmayilBankPage() {
   const netLiquidity  = totalDeposits - totalLoans;
   const liquidityPct  = totalDeposits > 0 ? (netLiquidity / totalDeposits) * 100 : 0;
   const loanBarPct    = totalDeposits > 0 ? Math.min((totalLoans / totalDeposits) * 100, 100) : 0;
+
+  const creditMonths = [...terms.credit]
+    .map((t) => t.termMonths)
+    .sort((a, b) => a - b);
+  const creditContiguous = creditMonths.every(
+    (m, i) => i === 0 || m === creditMonths[i - 1] + 1,
+  );
+  // "1-12 ay" for a gapless list, "3, 6 və ya 12 ay" otherwise.
+  const creditRangeLabel =
+    creditContiguous && creditMonths.length > 1
+      ? `${creditMonths[0]}-${creditMonths[creditMonths.length - 1]}`
+      : joinMonths(creditMonths);
+  const depositMonths = [...terms.deposit]
+    .sort((a, b) => a.termMonths - b.termMonths)
+    .map((t) => t.termMonths);
 
   const backHref = user ? "/bank" : "/welcome";
   const backLabel = user ? "Hesabıma qayıt" : "Geri qayıt";
@@ -58,6 +82,62 @@ export default async function IsmayilBankPage() {
           </p>
 
           <div className="mt-12 space-y-12">
+            <section className="space-y-5">
+              <div className="max-w-2xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-bank-blue/75 dark:text-blue-400/75">
+                  Kredit
+                </p>
+                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-ink dark:text-white/90">
+                  Kredit kalkulyatoru
+                </h2>
+                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/55 dark:text-white/60">
+                  50-2000 AZN arasındakı məbləği və {creditRangeLabel} ay müddəti seçin. İllik
+                  faiz dərəcəsi seçdiyiniz müddətə uyğun tətbiq olunur.
+                </p>
+              </div>
+              <IsmayilBankCalculator terms={terms.credit} />
+            </section>
+
+            <section className="space-y-5">
+              <div className="max-w-2xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-green/75 dark:text-emerald-400/75">
+                  Depozit
+                </p>
+                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-ink dark:text-white/90">
+                  Depozit kalkulyatoru
+                </h2>
+                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/55 dark:text-white/60">
+                  50-2000 AZN arasındakı depozit məbləğini seçin və {joinMonths(depositMonths)} ay
+                  müddətlər üzrə müddət sonu qazancını görün.
+                </p>
+              </div>
+              <IsmayilBankDepositCalculator terms={terms.deposit} />
+            </section>
+
+            {/* ── Bonds teaser ── */}
+            <section className="rounded-hero border border-blue-200/70 dark:border-blue-400/25 bg-white/80 dark:bg-white/10 p-6 sm:p-8">
+              <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                <div className="max-w-2xl">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-bank-blue/75 dark:text-blue-400/75">
+                    İstiqraz
+                  </p>
+                  <h2 className="mt-2 text-[clamp(1.6rem,3vw,2.2rem)] font-black tracking-[-0.06em] text-ink dark:text-white/90">
+                    İstiqraz bazarı
+                  </h2>
+                  <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/55 dark:text-white/60">
+                    Bankın kupon istiqrazları: dövri faiz ödənişi, müddət sonunda nominalın
+                    qaytarılması və iştirakçılar arasında alqı-satqı imkanı.
+                  </p>
+                </div>
+                <Link
+                  href="/bonds"
+                  className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-bank-blue px-6 py-4 text-base font-semibold tracking-[-0.03em] text-white transition hover:-translate-y-0.5 hover:bg-bank-blue-deep"
+                >
+                  Buraxılışlara bax
+                </Link>
+              </div>
+            </section>
+
             {/* ── Liquidity Snapshot ── */}
             <section className="space-y-4">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
@@ -93,38 +173,6 @@ export default async function IsmayilBankPage() {
                   <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-black/10 dark:bg-white/15" />Azad likvidlik</span>
                 </div>
               </div>
-            </section>
-
-            <section className="space-y-5">
-              <div className="max-w-2xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-bank-blue/75 dark:text-blue-400/75">
-                  Kredit
-                </p>
-                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-ink dark:text-white/90">
-                  Kredit kalkulyatoru
-                </h2>
-                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/55 dark:text-white/60">
-                  50-2000 AZN arasındakı məbləği və 1-12 ay müddəti seçin. İllik
-                  faiz dərəcəsi seçdiyiniz müddətə uyğun tətbiq olunur.
-                </p>
-              </div>
-              <IsmayilBankCalculator />
-            </section>
-
-            <section className="space-y-5">
-              <div className="max-w-2xl">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-brand-green/75 dark:text-emerald-400/75">
-                  Depozit
-                </p>
-                <h2 className="mt-2 text-[clamp(2rem,4vw,3rem)] font-black tracking-[-0.07em] text-ink dark:text-white/90">
-                  Depozit kalkulyatoru
-                </h2>
-                <p className="mt-3 text-[1.02rem] leading-7 tracking-[-0.02em] text-black/55 dark:text-white/60">
-                  50-2000 AZN arasındakı depozit məbləğini seçin və 3, 6, 9 və ya
-                  12 ay müddətlər üzrə müddət sonu qazancını görün.
-                </p>
-              </div>
-              <IsmayilBankDepositCalculator />
             </section>
           </div>
 
