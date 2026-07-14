@@ -111,10 +111,11 @@ function ListSection({
 export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
   const {
     totalDepositsAzn,
+    bondFundingAzn,
     totalLoansAzn,
     netLiquidityAzn,
     liquidityPct,
-    loanShareOfDepositsPct,
+    loanShareOfFundingPct,
     totalPendingBonusAzn,
     totalAccruedInterestAzn,
     totalMonthlyInterestAzn,
@@ -157,6 +158,14 @@ export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
               {formatAzn(totalDepositsAzn)}
             </span>
           </span>
+          {bondFundingAzn > 0 ? (
+            <span>
+              · istiqraz vəsaiti{" "}
+              <span className="font-medium text-bank-blue dark:text-blue-400">
+                {formatAzn(bondFundingAzn)}
+              </span>
+            </span>
+          ) : null}
           {totalLoansAzn > 0 ? (
             <span>
               · cəmi kredit{" "}
@@ -177,7 +186,7 @@ export function BankWideView({ aggregate }: { aggregate: BankWideAggregate }) {
           <div className="h-2 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
             <div
               className="h-full rounded-l-full bg-status-late/70 transition-all"
-              style={{ width: `${loanShareOfDepositsPct}%` }}
+              style={{ width: `${loanShareOfFundingPct}%` }}
             />
           </div>
           <div className="flex gap-4 text-[11px] font-medium text-black/45 dark:text-white/50">

@@ -11,6 +11,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { formatGrouped } from "@/lib/portfolio";
 import { getBankProductTerms } from "@/lib/bankTerms";
+import { getBondFundingAzn } from "@/lib/bonds";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 import { BankViewToggle } from "@/components/BankViewToggle";
@@ -249,8 +250,11 @@ export default async function BankPage({
   const dateLabel = formatBakuDate(new Date());
 
   if (bankView) {
-    const accounts = await getBankAccounts();
-    const aggregate = computeBankWide(accounts, new Date());
+    const [accounts, bondFundingAzn] = await Promise.all([
+      getBankAccounts(),
+      getBondFundingAzn(),
+    ]);
+    const aggregate = computeBankWide(accounts, new Date(), bondFundingAzn);
     return (
       <main className="min-h-screen bg-bank-section">
         <BankHeader dateLabel={dateLabel} />

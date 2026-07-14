@@ -498,10 +498,14 @@ export type BankWideUpcomingInflow = {
 
 export type BankWideAggregate = {
   totalDepositsAzn: number;
+  /** Cash raised from settled primary bond sales of active series. */
+  bondFundingAzn: number;
+  /** Deposits + bond funding — everything the bank can lend from. */
+  totalFundingAzn: number;
   totalLoansAzn: number;
   netLiquidityAzn: number;
   liquidityPct: number | null;
-  loanShareOfDepositsPct: number;
+  loanShareOfFundingPct: number;
   totalPendingBonusAzn: number;
   // Interest the depositors have already "earned" so far, summed across all
   // open deposits (display-only). Plus the current monthly accrual rate
@@ -557,6 +561,9 @@ function monthsBetween(start: Date, today: Date): number {
 export function computeBankWide(
   accounts: BankAccount[],
   today: Date,
+  // Bond primary-sale proceeds (Supabase) count as lendable funding next to
+  // the sheet's deposits; caller fetches it so this stays a pure function.
+  bondFundingAzn = 0,
 ): BankWideAggregate {
   // Anchor "today" at UTC midnight — diffs are then stable regardless of when
   // in the day the request hits.
@@ -721,20 +728,23 @@ export function computeBankWide(
   payouts.sort((a, b) => a.daysAway - b.daysAway);
   inflow.sort((a, b) => a.daysAway - b.daysAway);
 
-  const netLiquidityAzn = totalDepositsAzn - totalLoansAzn;
+  const totalFundingAzn = totalDepositsAzn + bondFundingAzn;
+  const netLiquidityAzn = totalFundingAzn - totalLoansAzn;
   const liquidityPct =
-    totalDepositsAzn > 0 ? (netLiquidityAzn / totalDepositsAzn) * 100 : null;
-  const loanShareOfDepositsPct =
-    totalDepositsAzn > 0
-      ? Math.min((totalLoansAzn / totalDepositsAzn) * 100, 100)
+    totalFundingAzn > 0 ? (netLiquidityAzn / totalFundingAzn) * 100 : null;
+  const loanShareOfFundingPct =
+    totalFundingAzn > 0
+      ? Math.min((totalLoansAzn / totalFundingAzn) * 100, 100)
       : 0;
 
   return {
     totalDepositsAzn,
+    bondFundingAzn,
+    totalFundingAzn,
     totalLoansAzn,
     netLiquidityAzn,
     liquidityPct,
-    loanShareOfDepositsPct,
+    loanShareOfFundingPct,
     totalPendingBonusAzn,
     totalAccruedInterestAzn,
     totalMonthlyInterestAzn,
