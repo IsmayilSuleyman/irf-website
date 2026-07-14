@@ -59,9 +59,49 @@ function statusStyles(status: string | null | undefined): string {
 
 // Bank-app style quick actions: the bank's products/venues one tap away.
 // Positioned right under the welcome line so primary navigation no longer
-// hides at the bottom of the page.
-function QuickActions() {
+// hides at the bottom of the page. "Depozitlərim" / "Kreditlərim" jump to
+// the matching sections further down and only show when the account
+// actually has that product.
+function QuickActions({
+  hasDeposit,
+  hasCredit,
+}: {
+  hasDeposit: boolean;
+  hasCredit: boolean;
+}) {
   const actions = [
+    ...(hasDeposit
+      ? [
+          {
+            href: "#depozitlerim",
+            label: "Depozitlərim",
+            desc: "Depozit balansım və şərtləri",
+            icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <circle cx="12" cy="12" r="3.5" />
+                <path d="M12 10.2v1.8l1.2 1.2" />
+              </svg>
+            ),
+          },
+        ]
+      : []),
+    ...(hasCredit
+      ? [
+          {
+            href: "#kreditlerim",
+            label: "Kreditlərim",
+            desc: "Kredit qalığı və ödəniş cədvəli",
+            icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2" />
+                <path d="M3 10h18" />
+                <path d="M7 15h4" />
+              </svg>
+            ),
+          },
+        ]
+      : []),
     {
       href: "/bonds",
       label: "İstiqrazlar",
@@ -98,13 +138,14 @@ function QuickActions() {
     },
   ];
 
+  // Flex-wrap instead of a fixed grid so 3, 4 or 5 cards all fill the row.
   return (
-    <div className="mt-6 grid grid-cols-3 gap-3">
+    <div className="mt-6 flex flex-wrap gap-3">
       {actions.map((a) => (
         <Link
           key={a.href}
           href={a.href}
-          className="group flex flex-col gap-2 rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-4 py-4 transition hover:-translate-y-0.5 hover:border-bank-blue/30 hover:shadow-sm sm:px-5"
+          className="group flex min-w-[8.5rem] flex-1 basis-[calc(33%-0.75rem)] flex-col gap-2 rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-4 py-4 transition hover:-translate-y-0.5 hover:border-bank-blue/30 hover:shadow-sm sm:basis-0 sm:px-5"
         >
           <span className="text-bank-blue dark:text-blue-400">{a.icon}</span>
           <span className="text-sm font-semibold tracking-[-0.02em] text-ink dark:text-white/90">
@@ -301,20 +342,23 @@ export default async function BankPage({
       <BankHeader dateLabel={dateLabel} />
 
       <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
-        <div className="hidden justify-end sm:-mb-12 sm:flex">
-          <BankViewToggle active={bankView} />
-        </div>
         <MotionSection>
+          {/* The toggle lives inside the greeting row (not a negative-margin
+              overlay) so it can never collide with the quick-actions cards. */}
           <div className="flex items-center justify-between gap-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
               XOŞ GƏLDİN, {account.name}
             </p>
             <BankViewToggle active={bankView} compact className="sm:hidden" />
+            <BankViewToggle active={bankView} className="hidden sm:inline-flex" />
           </div>
         </MotionSection>
 
         <MotionSection delay={0.02}>
-          <QuickActions />
+          <QuickActions
+            hasDeposit={account.depositedAzn > 0}
+            hasCredit={account.outstandingLoanAzn > 0 || account.paymentSchedule.length > 0}
+          />
         </MotionSection>
 
         {/* ── Empty state ── */}
@@ -340,7 +384,7 @@ export default async function BankPage({
         {/* ── Deposits Section — Fund-hero style headline ── */}
         {account.depositedAzn > 0 ? (
           <MotionSection delay={0.04}>
-            <div className="mt-8">
+            <div id="depozitlerim" className="mt-8 scroll-mt-6">
               <DepositHero
                 depositedAzn={account.depositedAzn}
                 termMonths={account.termMonths}
@@ -360,7 +404,10 @@ export default async function BankPage({
         {/* ── Credits Section ── */}
         {account.outstandingLoanAzn > 0 ? (
           <MotionSection delay={0.08}>
-            <h2 className="mt-10 text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
+            <h2
+              id="kreditlerim"
+              className="mt-10 scroll-mt-6 text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90"
+            >
               İsmayılBank ilə olan kreditlərim:
             </h2>
             <div className="mt-3 grid grid-cols-3 gap-3">
@@ -391,7 +438,12 @@ export default async function BankPage({
 
         {account.paymentSchedule.length > 0 ? (
           <MotionSection delay={0.12}>
-            <div className="mt-6">
+            {/* When the loan is fully paid the credits heading above doesn't
+                render, so the schedule card carries the anchor instead. */}
+            <div
+              id={account.outstandingLoanAzn > 0 ? undefined : "kreditlerim"}
+              className="mt-6 scroll-mt-6"
+            >
               <PaymentSchedule schedule={account.paymentSchedule} />
             </div>
           </MotionSection>
