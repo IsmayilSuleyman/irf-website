@@ -10,10 +10,12 @@ import { requireUser } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { formatGrouped } from "@/lib/portfolio";
+import { getBankProductTerms } from "@/lib/bankTerms";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 import { BankViewToggle } from "@/components/BankViewToggle";
 import { BankWideView } from "@/components/BankWideView";
+import { BankTermsPanel } from "@/components/BankTermsPanel";
 import { DepositHero } from "@/components/DepositHero";
 import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 import { BroadcastPanel } from "@/components/BroadcastPanel";
@@ -53,6 +55,68 @@ function statusStyles(status: string | null | undefined): string {
   }
 
   return "bg-bank-blue-soft dark:bg-bank-blue/20 text-bank-blue dark:text-blue-400";
+}
+
+// Bank-app style quick actions: the bank's products/venues one tap away.
+// Positioned right under the welcome line so primary navigation no longer
+// hides at the bottom of the page.
+function QuickActions() {
+  const actions = [
+    {
+      href: "/bonds",
+      label: "İstiqrazlar",
+      desc: "Kupon istiqrazları al və sat",
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="3" width="16" height="18" rx="2" />
+          <path d="M8 7h8M8 11h8M8 15h4" />
+          <circle cx="16" cy="16.5" r="1.6" />
+        </svg>
+      ),
+    },
+    {
+      href: "/market",
+      label: "Bazar",
+      desc: "Fond paylarının alqı-satqısı",
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M7 4v16m0-16L3 8m4-4 4 4" />
+          <path d="M17 20V4m0 16 4-4m-4 4-4-4" />
+        </svg>
+      ),
+    },
+    {
+      href: "/ismayilbank",
+      label: "Kalkulyator",
+      desc: "Kredit və depozit şərtləri",
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="5" y="3" width="14" height="18" rx="2" />
+          <path d="M9 7h6M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="mt-6 grid grid-cols-3 gap-3">
+      {actions.map((a) => (
+        <Link
+          key={a.href}
+          href={a.href}
+          className="group flex flex-col gap-2 rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-4 py-4 transition hover:-translate-y-0.5 hover:border-bank-blue/30 hover:shadow-sm sm:px-5"
+        >
+          <span className="text-bank-blue dark:text-blue-400">{a.icon}</span>
+          <span className="text-sm font-semibold tracking-[-0.02em] text-ink dark:text-white/90">
+            {a.label}
+          </span>
+          <span className="hidden text-[11px] leading-4 text-black/45 dark:text-white/50 sm:block">
+            {a.desc}
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 function StatTile({
@@ -182,6 +246,7 @@ export default async function BankPage({
     .filter((a) => a.outstandingLoanAzn > 0)
     .map((a) => ({ name: a.name, amount: a.outstandingLoanAzn }));
   const recipientNames = adminAccounts.map((a) => a.name);
+  const productTerms = isAdmin ? await getBankProductTerms() : null;
 
   if (!account) {
     return (
@@ -246,6 +311,10 @@ export default async function BankPage({
             </p>
             <BankViewToggle active={bankView} compact className="sm:hidden" />
           </div>
+        </MotionSection>
+
+        <MotionSection delay={0.02}>
+          <QuickActions />
         </MotionSection>
 
         {/* ── Empty state ── */}
@@ -330,9 +399,22 @@ export default async function BankPage({
 
         {isAdmin ? (
           <MotionSection delay={0.16}>
-            <div className="mt-8 flex flex-col gap-4">
-              <DebtNoticePanel debtors={debtors} />
-              <BroadcastPanel recipients={recipientNames} />
+            <div className="mt-12">
+              <div className="flex items-center gap-3">
+                <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
+                  İdarəetmə
+                </h2>
+                <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <DebtNoticePanel debtors={debtors} />
+                <BroadcastPanel recipients={recipientNames} />
+              </div>
+              {productTerms ? (
+                <div className="mt-4">
+                  <BankTermsPanel initial={productTerms} />
+                </div>
+              ) : null}
             </div>
           </MotionSection>
         ) : null}

@@ -2,16 +2,10 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { formatAzn, formatGrouped, NBSP } from "@/lib/portfolio";
+import { DEFAULT_TERMS, type ProductTerm } from "@/lib/bankTerms";
 
 const MIN_AMOUNT = 50;
 const MAX_AMOUNT = 2000;
-
-const PERIOD_OPTIONS = [
-  { months: 3, annualRate: 10 },
-  { months: 6, annualRate: 12 },
-  { months: 9, annualRate: 14 },
-  { months: 12, annualRate: 16 },
-] as const;
 
 function formatAmount(value: number) {
   return `${formatGrouped(value, 0)}${NBSP}₼`;
@@ -88,9 +82,11 @@ function AmountField({
 }
 
 function PeriodPicker({
+  options,
   value,
   onChange,
 }: {
+  options: ProductTerm[];
   value: number;
   onChange: (value: number) => void;
 }) {
@@ -104,14 +100,14 @@ function PeriodPicker({
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {PERIOD_OPTIONS.map((option) => {
-          const isActive = option.months === value;
+        {options.map((option) => {
+          const isActive = option.termMonths === value;
 
           return (
             <button
-              key={option.months}
+              key={option.termMonths}
               type="button"
-              onClick={() => onChange(option.months)}
+              onClick={() => onChange(option.termMonths)}
               className={`rounded-card border px-4 py-4 text-left transition ${
                 isActive
                   ? "border-brand-green bg-brand-green text-white shadow-[0_16px_32px_rgba(22,163,74,0.22)]"
@@ -119,10 +115,10 @@ function PeriodPicker({
               }`}
             >
               <div className="text-sm font-medium tracking-[-0.02em]">
-                {option.months} ay
+                {option.termMonths} ay
               </div>
               <div className={`num mt-2 text-lg font-semibold tracking-[-0.04em] ${isActive ? "text-white" : "text-brand-green-deep dark:text-emerald-400"}`}>
-                {formatRate(option.annualRate)}
+                {formatRate(option.annualRatePct)}
               </div>
             </button>
           );
@@ -149,30 +145,51 @@ function SummaryRow({
   );
 }
 
-export function IsmayilBankDepositCalculator() {
+export function IsmayilBankDepositCalculator({
+  terms,
+}: {
+  terms?: ProductTerm[];
+}) {
+  // Tiers come from Supabase (İsmayıl edits them any time); the constants are
+  // only a fallback if the caller passes nothing.
+  const options = useMemo(() => {
+    const list = (terms?.length ? terms : DEFAULT_TERMS.deposit)
+      .filter((t) => t.termMonths > 0)
+      .slice()
+      .sort((a, b) => a.termMonths - b.termMonths);
+    return list.length > 0 ? list : DEFAULT_TERMS.deposit;
+  }, [terms]);
+
   const [amount, setAmount] = useState(500);
-  const [period, setPeriod] = useState(6);
+  const [period, setPeriod] = useState(
+    () => options[Math.min(1, options.length - 1)].termMonths,
+  );
 
   const selectedOption =
-    PERIOD_OPTIONS.find((option) => option.months === period) ?? PERIOD_OPTIONS[1];
+    options.find((option) => option.termMonths === period) ??
+    options[Math.min(1, options.length - 1)];
 
-  const { annualRate } = selectedOption;
+  const annualRate = selectedOption.annualRatePct;
+
+  // If İsmayıl removes the selected tier, fall back to the option's months so
+  // the math always matches a real tier.
+  const effectivePeriod = selectedOption.termMonths;
 
   const { maturityAmount, gainAmount } = useMemo(() => {
-    const gain = amount * (annualRate / 100) * (period / 12);
+    const gain = amount * (annualRate / 100) * (effectivePeriod / 12);
 
     return {
       gainAmount: gain,
       maturityAmount: amount + gain,
     };
-  }, [amount, annualRate, period]);
+  }, [amount, annualRate, effectivePeriod]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.82fr)] lg:gap-8">
       <div className="rounded-hero border border-white/70 dark:border-white/10 bg-white/70 dark:bg-white/10 p-6 shadow-[0_24px_60px_rgba(74,150,102,0.08)] backdrop-blur-xl sm:p-8">
         <div className="space-y-8">
           <AmountField value={amount} onChange={setAmount} />
-          <PeriodPicker value={period} onChange={setPeriod} />
+          <PeriodPicker options={options} value={effectivePeriod} onChange={setPeriod} />
 
           <div className="rounded-3xl border border-amber-100 dark:border-amber-500/25 bg-[linear-gradient(135deg,rgba(255,251,235,0.95),rgba(240,253,244,0.8))] p-5 dark:bg-none dark:bg-amber-500/10 sm:p-6">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-brand-green-deep/75 dark:text-emerald-400/75">

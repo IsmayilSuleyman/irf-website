@@ -2,26 +2,10 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { formatAzn, formatGrouped, formatGroupedTrim, NBSP } from "@/lib/portfolio";
+import { DEFAULT_TERMS, type ProductTerm } from "@/lib/bankTerms";
 
 const MIN_AMOUNT = 50;
 const MAX_AMOUNT = 2000;
-const MIN_PERIOD = 1;
-const MAX_PERIOD = 12;
-
-const RATE_BY_PERIOD: Record<number, number> = {
-  1: 0,
-  2: 0,
-  3: 0,
-  4: 0.5,
-  5: 1,
-  6: 1.5,
-  7: 2.15,
-  8: 2.9,
-  9: 3.9,
-  10: 4.9,
-  11: 5.9,
-  12: 6.9,
-};
 
 function formatAmount(value: number) {
   return `${formatGrouped(value, 0)}${NBSP}₼`;
@@ -72,7 +56,8 @@ function SliderField({
     if (!isFocused) setInputValue(String(value));
   }, [value, isFocused]);
 
-  const progress = `${((value - min) / (max - min)) * 100}%`;
+  // Guard the degenerate single-option range (max === min) against NaN%.
+  const progress = `${max > min ? ((value - min) / (max - min)) * 100 : 0}%`;
 
   return (
     <div className="space-y-3">
@@ -145,11 +130,26 @@ function SummaryRow({
   );
 }
 
-export function IsmayilBankCalculator() {
-  const [amount, setAmount] = useState(250);
-  const [period, setPeriod] = useState(6);
+export function IsmayilBankCalculator({ terms }: { terms?: ProductTerm[] }) {
+  // Tiers come from Supabase (İsmayıl edits them any time). The slider moves
+  // over the available tiers by index, so gaps in the month list are fine.
+  const tiers = useMemo(() => {
+    const list = (terms?.length ? terms : DEFAULT_TERMS.credit)
+      .filter((t) => t.termMonths > 0)
+      .slice()
+      .sort((a, b) => a.termMonths - b.termMonths);
+    return list.length > 0 ? list : DEFAULT_TERMS.credit;
+  }, [terms]);
 
-  const annualRate = RATE_BY_PERIOD[period] ?? 0;
+  const [amount, setAmount] = useState(250);
+  const [tierIndex, setTierIndex] = useState(() => {
+    const i = tiers.findIndex((t) => t.termMonths === 6);
+    return i >= 0 ? i : Math.floor((tiers.length - 1) / 2);
+  });
+
+  const tier = tiers[Math.min(tierIndex, tiers.length - 1)];
+  const period = tier.termMonths;
+  const annualRate = tier.annualRatePct;
 
   const { monthlyPayment, totalInterest, totalRepayment } = useMemo(() => {
     const monthly = calculateMonthlyPayment(amount, period, annualRate);
@@ -182,12 +182,12 @@ export function IsmayilBankCalculator() {
 
             <SliderField
               label="Müddət"
-              min={MIN_PERIOD}
-              max={MAX_PERIOD}
-              value={period}
-              onChange={setPeriod}
-              minLabel={`${MIN_PERIOD} ay`}
-              maxLabel={`${MAX_PERIOD} ay`}
+              min={0}
+              max={tiers.length - 1}
+              value={Math.min(tierIndex, tiers.length - 1)}
+              onChange={setTierIndex}
+              minLabel={`${tiers[0].termMonths} ay`}
+              maxLabel={`${tiers[tiers.length - 1].termMonths} ay`}
               valueLabel={`${period} ay`}
             />
           </div>

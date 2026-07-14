@@ -9,7 +9,7 @@ import { usePathname } from "next/navigation";
 // links already cover navigation.
 
 export function isAppRoute(pathname: string): boolean {
-  return ["/dashboard", "/market", "/bank", "/ismayilbank"].some((p) =>
+  return ["/dashboard", "/market", "/bank", "/bonds", "/ismayilbank"].some((p) =>
     pathname.startsWith(p),
   );
 }
@@ -49,6 +49,19 @@ const TABS = [
         <path d="M3 9.5 12 4l9 5.5" />
         <path d="M5 10v8m4.5-8v8m5-8v8M19 10v8" />
         <path d="M3 20h18" />
+      </svg>
+    ),
+  },
+  {
+    href: "/bonds",
+    label: "İstiqraz",
+    isActive: (p: string) => p.startsWith("/bonds"),
+    active: "text-bank-blue dark:text-blue-400",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path d="M8 7h8M8 11h8M8 15h4" />
+        <circle cx="16" cy="16.5" r="1.6" />
       </svg>
     ),
   },
