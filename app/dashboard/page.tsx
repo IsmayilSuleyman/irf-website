@@ -43,6 +43,8 @@ import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule"
 import { SectionNav } from "@/components/SectionNav";
 import { after } from "next/server";
 import { refreshExtendedHours } from "@/lib/watchlistExtended";
+import { getExtendedPortfolio } from "@/lib/extendedPortfolio";
+import { ExtendedHoursBadge } from "@/components/ExtendedHoursBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +79,10 @@ export default async function DashboardPage({
       getMarketQuotes(),
     ]);
   const canEditStrategy = isAdmin;
+
+  // Whole-portfolio revaluation at Yahoo pre/after-market prices; null
+  // outside those sessions (quotes come from a shared 60s cache).
+  const extendedPortfolio = await getExtendedPortfolio(holdings);
 
   const dateLabel = formatBakuDate(new Date());
 
@@ -225,6 +231,7 @@ export default async function DashboardPage({
                   <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
                 </Link>
               )}
+              {extendedPortfolio && <ExtendedHoursBadge data={extendedPortfolio} />}
             </div>
           </div>
           <div className="lg:col-span-1 flex flex-col gap-3">

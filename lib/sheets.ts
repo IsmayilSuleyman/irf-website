@@ -55,7 +55,7 @@ export type Holding = {
 };
 
 // Official CBAR peg
-const USD_TO_AZN = 1.7;
+export const USD_TO_AZN = 1.7;
 
 function getAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
