@@ -9,6 +9,7 @@ const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 export type ExtendedQuote = {
   symbol: string;
   marketState: string | null; // PRE | REGULAR | POST | POSTPOST | CLOSED ...
+  regularMarketPrice: number | null;
   preMarketPrice: number | null;
   preMarketChangePercent: number | null;
   postMarketPrice: number | null;
@@ -58,6 +59,7 @@ export async function getExtendedQuotes(
     map.set(symbol, {
       symbol,
       marketState: q.marketState == null ? null : String(q.marketState),
+      regularMarketPrice: numOrNull(q.regularMarketPrice),
       preMarketPrice: numOrNull(q.preMarketPrice),
       preMarketChangePercent: numOrNull(q.preMarketChangePercent),
       postMarketPrice: numOrNull(q.postMarketPrice),
