@@ -41,6 +41,8 @@ import { DebtPanel } from "@/components/DebtPanel";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
 import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule";
 import { SectionNav } from "@/components/SectionNav";
+import { after } from "next/server";
+import { refreshExtendedHours } from "@/lib/watchlistExtended";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,10 @@ export default async function DashboardPage({
 }) {
   const user = await requireUser();
   const sp = await searchParams;
+
+  // Push Yahoo pre/after-market quotes into the Watchlist tab after the
+  // response is sent (throttled inside; a failure never affects the page).
+  after(() => refreshExtendedHours().catch(() => undefined));
   // Hide-amounts (eye button) state — read server-side so SSR renders the
   // masked state directly, with no flash of visible amounts on load.
   const amountsHidden =
