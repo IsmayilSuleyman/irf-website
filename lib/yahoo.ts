@@ -15,10 +15,20 @@ export type ExtendedQuote = {
   postMarketChangePercent: number | null;
 };
 
-// Sheet symbols are free-form ("nvda", "OPEN", "BRK.B"); Yahoo wants
-// uppercase with dashes for share classes.
+// Sheet symbols are free-form ("nvda", "OPEN", "BATS:DRAM", "BRK.B"); Yahoo
+// wants a bare uppercase ticker: exchange prefixes stripped, dots (share
+// classes) as dashes.
 export function toYahooSymbol(raw: string): string {
-  return raw.trim().toUpperCase().replace(/\./g, "-");
+  return raw.trim().toUpperCase().replace(/^.*:/, "").replace(/\./g, "-");
+}
+
+// Placeholder rows in the sheet that are not tickers (Yahoo would happily
+// match "CASH" to a real NASDAQ stock).
+const NON_TICKERS = new Set(["CASH"]);
+
+export function isTickerSymbol(raw: string): boolean {
+  const s = toYahooSymbol(raw);
+  return s.length > 0 && !NON_TICKERS.has(s);
 }
 
 const numOrNull = (v: unknown): number | null => {
