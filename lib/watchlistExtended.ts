@@ -1,5 +1,5 @@
 import { google, type sheets_v4 } from "googleapis";
-import { getExtendedQuotes, toYahooSymbol } from "@/lib/yahoo";
+import { getExtendedQuotes, isTickerSymbol, toYahooSymbol } from "@/lib/yahoo";
 
 // Writes Yahoo pre/after-market data into the Watchlist tab, columns L–Q
 // (the sheet's own columns end at K; the grid is expanded on first run).
@@ -108,14 +108,15 @@ export async function refreshExtendedHours(force = false): Promise<ExtendedHours
       range: `'${WATCHLIST_TAB}'!B${FIRST_DATA_ROW}:B${LAST_DATA_ROW}`,
     });
     const symbolRows = (symRes.data.values ?? []).map((r) => String(r?.[0] ?? "").trim());
-    const symbols = symbolRows.filter(Boolean);
+    const symbols = symbolRows.filter((s) => s && isTickerSymbol(s));
     if (symbols.length === 0) return { ok: false, reason: "no-symbols" };
 
     const quotes = await getExtendedQuotes(symbols);
 
     const stamp = bakuNow();
     const rows: (string | number)[][] = symbolRows.map((raw) => {
-      if (!raw) return ["", "", "", "", "", ""];
+      // Blank rows and placeholders like "Cash" stay untouched.
+      if (!raw || !isTickerSymbol(raw)) return ["", "", "", "", "", ""];
       const q = quotes.get(toYahooSymbol(raw));
       if (!q) return ["", "", "", "", "tapılmadı", stamp];
       return [
