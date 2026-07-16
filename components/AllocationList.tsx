@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { formatAzn } from "@/lib/portfolio";
+import { EXTENDED_META } from "@/components/extendedHoursMeta";
+import type { ExtendedMode, ExtendedSymbolQuote } from "@/lib/extendedPortfolio";
 
 type Item = {
   symbol?: string;
@@ -18,12 +20,19 @@ type Item = {
   color?: string;
 };
 
+/** Extended-hours quotes keyed by upper-cased holding symbol. */
+export type ExtendedListData = {
+  mode: ExtendedMode;
+  quotes: Record<string, ExtendedSymbolQuote>;
+};
+
 type ColumnKey =
   | "value"
   | "price"
   | "totalChange"
   | "dayChange"
-  | "percent";
+  | "percent"
+  | "extended";
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "value", label: "Ümumi Dəyəri" },
@@ -161,13 +170,21 @@ function RankBadge({ rank, delta }: { rank: number; delta: number }) {
   );
 }
 
-export function AllocationList({ items }: { items: Item[] }) {
+export function AllocationList({
+  items,
+  extended,
+}: {
+  items: Item[];
+  /** Present only while a pre/after-market or overnight window is active. */
+  extended?: ExtendedListData | null;
+}) {
   const [visible, setVisible] = useState<Record<ColumnKey, boolean>>({
     value: true,
     price: true,
     totalChange: true,
     dayChange: true,
     percent: true,
+    extended: true,
   });
   // Per-row mode for the two change badges: "pct" (default) vs "amount" (AZN).
   // Clicking a badge flips just that row's view so you can compare holdings
@@ -216,6 +233,22 @@ export function AllocationList({ items }: { items: Item[] }) {
             </button>
           );
         })}
+        {/* Session chip appears only while an extended window is active;
+            its label follows the window (Gecə / Açılışdan əvvəl / …). */}
+        {extended && (
+          <button
+            type="button"
+            onClick={() => toggle("extended")}
+            aria-pressed={visible.extended}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+              visible.extended
+                ? "bg-brand-green/15 text-brand-green dark:text-emerald-400"
+                : "border border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
+            }`}
+          >
+            {EXTENDED_META[extended.mode].label}
+          </button>
+        )}
       </div>
 
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
@@ -233,6 +266,10 @@ export function AllocationList({ items }: { items: Item[] }) {
             visible.totalChange && item.changePct != null && !item.isCash;
           const showDay =
             visible.dayChange && item.dayChangePct != null && !item.isCash;
+          const extQuote =
+            extended && visible.extended && !item.isCash
+              ? extended.quotes[ticker] ?? null
+              : null;
 
           return (
             <li
@@ -333,6 +370,31 @@ export function AllocationList({ items }: { items: Item[] }) {
                     )}
                   </AnimatePresence>
                 </div>
+
+                {/* Extended-hours line: session icon + the extended price
+                    itself + its move vs the regular price. The wrapper div is
+                    the grid item (col-span-2) so the line spans both columns;
+                    rows without an extended quote render no extra grid row. */}
+                {extQuote && extended && (
+                  <div className="col-span-2 flex justify-end">
+                    <AnimatePresence initial={false}>
+                      <AnimatedFigure keyName="extended">
+                        <span className="flex items-center gap-1.5">
+                          <span
+                            aria-hidden
+                            className={`shrink-0 ${EXTENDED_META[extended.mode].iconTint}`}
+                          >
+                            {EXTENDED_META[extended.mode].icon}
+                          </span>
+                          <span className="num text-[12px] text-black/55 dark:text-white/60">
+                            {usdFmt.format(extQuote.priceUsd)}
+                          </span>
+                          <ChangeBadge pct={extQuote.changePct} mode="pct" />
+                        </span>
+                      </AnimatedFigure>
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
             </li>
           );

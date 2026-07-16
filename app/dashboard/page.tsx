@@ -406,6 +406,14 @@ export default async function DashboardPage({
                           isCash: holding.isCash,
                           color,
                         }))}
+                      extended={
+                        extendedPortfolio
+                          ? {
+                              mode: extendedPortfolio.mode,
+                              quotes: extendedPortfolio.perSymbol,
+                            }
+                          : null
+                      }
                     />
                   </div>
                   <div className="lg:col-span-1 flex flex-col gap-6">

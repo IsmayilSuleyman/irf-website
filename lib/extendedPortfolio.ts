@@ -18,6 +18,13 @@ import {
 
 export type ExtendedMode = "pre" | "post" | "overnight";
 
+export type ExtendedSymbolQuote = {
+  /** The extended-hours price itself, USD. */
+  priceUsd: number;
+  /** Fraction vs the regular price, e.g. 0.0128 for +1.28%. */
+  changePct: number;
+};
+
 export type ExtendedPortfolio = {
   mode: ExtendedMode;
   /** Fraction, e.g. 0.0103 for +1.03% vs the regular-session value. */
@@ -27,6 +34,12 @@ export type ExtendedPortfolio = {
   /** How many holdings actually had an extended-hours price. */
   coveredCount: number;
   totalCount: number;
+  /**
+   * Per-holding extended quotes for the Fond Portfeli list, keyed by the
+   * holding's own symbol upper-cased (the key AllocationList derives), so
+   * client components need no Yahoo symbol mapping.
+   */
+  perSymbol: Record<string, ExtendedSymbolQuote>;
 };
 
 /**
@@ -70,6 +83,7 @@ export function computeExtendedPortfolio(
   let valueReg = 0;
   let valueExt = 0;
   let coveredCount = 0;
+  const perSymbol: Record<string, ExtendedSymbolQuote> = {};
   for (const h of stocks) {
     const q = bySymbol.get(toYahooSymbol(h.symbol));
     const reg = q?.regularMarketPrice ?? h.priceUsd;
@@ -77,7 +91,13 @@ export function computeExtendedPortfolio(
     const ext = q?.[useField];
     valueReg += h.sharesHeld * reg;
     valueExt += h.sharesHeld * (ext ?? reg);
-    if (ext != null) coveredCount += 1;
+    if (ext != null) {
+      coveredCount += 1;
+      perSymbol[h.symbol.trim().toUpperCase()] = {
+        priceUsd: ext,
+        changePct: ext / reg - 1,
+      };
+    }
   }
   if (coveredCount === 0 || valueReg <= 0) return null;
 
@@ -87,6 +107,7 @@ export function computeExtendedPortfolio(
     deltaAzn: (valueExt - valueReg) * USD_TO_AZN,
     coveredCount,
     totalCount: stocks.length,
+    perSymbol,
   };
 }
 
