@@ -9,9 +9,17 @@ import type { ExtendedPortfolio } from "@/lib/extendedPortfolio";
  * respects hide-amounts mode live via <Masked> (and is kept out of the
  * title attribute so the SSR HTML never leaks it).
  */
+const LABELS: Record<ExtendedPortfolio["mode"], { chip: string; tooltip: string }> = {
+  pre: { chip: "Pre-market", tooltip: "pre-market qiymətləri ilə" },
+  post: { chip: "After-market", tooltip: "after-market qiymətləri ilə" },
+  // The gap between after-market close and pre-market open (nights and
+  // weekends): the badge carries the last after-market close move.
+  overnight: { chip: "Overnight", tooltip: "son after-market bağlanış qiymətləri ilə" },
+};
+
 export function ExtendedHoursBadge({ data }: { data: ExtendedPortfolio }) {
   const up = data.changePct >= 0;
-  const label = data.mode === "pre" ? "Pre-market" : "After-market";
+  const label = LABELS[data.mode];
   const sign = up ? "+" : "−";
   const pct = `${sign}${formatGroupedTrim(Math.abs(data.changePct) * 100, 2)}%`;
   const delta = `${sign}${formatAzn(Math.abs(data.deltaAzn))}`;
@@ -21,10 +29,10 @@ export function ExtendedHoursBadge({ data }: { data: ExtendedPortfolio }) {
 
   return (
     <span
-      title={`Portfel ${label.toLocaleLowerCase("az-AZ")} qiymətləri ilə yenidən hesablanıb (${data.coveredCount}/${data.totalCount} mövqe)`}
+      title={`Portfel ${label.tooltip} yenidən hesablanıb (${data.coveredCount}/${data.totalCount} mövqe)`}
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium shadow-sm ${tone}`}
     >
-      <span>{label}:</span>
+      <span>{label.chip}:</span>
       <span className="num font-semibold">{pct}</span>
       <Masked mask="••••" className="opacity-75">
         <span className="num opacity-75">({delta})</span>
