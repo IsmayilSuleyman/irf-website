@@ -121,7 +121,10 @@ export function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-white/15 shadow-[0_18px_50px_rgba(48,94,63,0.18)] backdrop-blur-md sm:absolute sm:inset-x-auto sm:right-0 sm:top-9 sm:w-72 sm:max-w-[85vw]">
+        // dark:bg-white/15 let the hero text bleed through — near-opaque
+        // neutral keeps the glass vibe (blur + border) but stays readable,
+        // mirroring the bond-book popup surface.
+        <div className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-neutral-900/95 shadow-[0_18px_50px_rgba(48,94,63,0.18)] backdrop-blur-md sm:absolute sm:inset-x-auto sm:right-0 sm:top-9 sm:w-72 sm:max-w-[85vw]">
           <div className="flex items-center justify-between gap-2 border-b border-black/[0.07] px-4 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-green/80">
               Bildirişlər
