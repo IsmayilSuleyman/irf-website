@@ -58,9 +58,10 @@ function AnimatedFigure({
   children: React.ReactNode;
 }) {
   return (
+    // No `layout` prop: these figures never legitimately move, and with it a
+    // 1-2px document shift makes every number glide across the list.
     <motion.span
       key={keyName}
-      layout
       initial={{ opacity: 0, y: -4, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -4, scale: 0.92 }}
@@ -234,10 +235,10 @@ export function AllocationList({
               type="button"
               onClick={() => toggle(col.key)}
               aria-pressed={on}
-              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+              className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
                 on
-                  ? "bg-brand-green/15 text-brand-green dark:text-emerald-400"
-                  : "border border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
+                  ? "border-transparent bg-brand-green/15 text-brand-green dark:text-emerald-400"
+                  : "border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
               }`}
             >
               {col.label}
@@ -251,10 +252,10 @@ export function AllocationList({
             type="button"
             onClick={() => toggle("extended")}
             aria-pressed={visible.extended}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+            className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
               visible.extended
-                ? "bg-brand-green/15 text-brand-green dark:text-emerald-400"
-                : "border border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
+                ? "border-transparent bg-brand-green/15 text-brand-green dark:text-emerald-400"
+                : "border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
             }`}
           >
             {EXTENDED_META[extended.mode].label}
@@ -277,10 +278,10 @@ export function AllocationList({
             visible.totalChange && item.changePct != null && !item.isCash;
           const showDay =
             visible.dayChange && item.dayChangePct != null && !item.isCash;
+          const hasExtQuote =
+            extended != null && !item.isCash && extended.quotes[ticker] != null;
           const extQuote =
-            extended && visible.extended && !item.isCash
-              ? extended.quotes[ticker] ?? null
-              : null;
+            hasExtQuote && visible.extended ? extended!.quotes[ticker] : null;
 
           return (
             <li
@@ -332,7 +333,9 @@ export function AllocationList({
                   row 2 (total = filled, day = outlined). The price/day column is
                   a fixed width so the value + total-change column lands on the
                   same vertical line across every row regardless of price width. */}
-              <div className="grid shrink-0 grid-cols-[auto_52px] items-center gap-x-4 gap-y-1 text-right">
+              {/* 64px track fits the iconed session pill so toggling never
+                  overflows the column. */}
+              <div className="grid shrink-0 grid-cols-[auto_64px] items-center gap-x-4 gap-y-1 text-right">
                 <div className="num text-[13px] font-medium text-black/85 dark:text-white/90">
                   <AnimatePresence initial={false}>
                     {visible.value && (
@@ -401,6 +404,16 @@ export function AllocationList({
                           variant="outlined"
                         />
                       </AnimatedFigure>
+                    ) : hasExtQuote ? (
+                      // Row would show a session pill when the chip is on but
+                      // has no day-change pill: hold the slot's height so
+                      // toggling doesn't collapse this row.
+                      <span
+                        aria-hidden
+                        className="num invisible inline-flex items-center rounded-md border border-transparent px-1.5 py-0.5 text-[10px] font-medium"
+                      >
+                        +0.0%
+                      </span>
                     ) : null}
                   </AnimatePresence>
                 </div>
