@@ -80,8 +80,9 @@ export default async function DashboardPage({
     ]);
   const canEditStrategy = isAdmin;
 
-  // Whole-portfolio revaluation at Yahoo pre/after-market prices; null
-  // outside those sessions (quotes come from a shared 60s cache).
+  // Whole-portfolio revaluation at Yahoo extended-hours prices (pre-market,
+  // after-market, or the overnight gap carrying the after-market close);
+  // null only during regular trading hours. Shared 60s quote cache.
   const extendedPortfolio = await getExtendedPortfolio(holdings);
 
   const dateLabel = formatBakuDate(new Date());
