@@ -87,21 +87,24 @@ export function ExtendedHoursBadge({
   // A delta that rounds to 0,00 ₼ (e.g. a holder with no units) is noise.
   const showDelta = Math.abs(data.deltaAzn) >= 0.005;
   const delta = `${sign}${formatAzn(Math.abs(data.deltaAzn))}`;
-  const tone = up
-    ? "border-brand-green/30 bg-brand-green/5 text-brand-green dark:text-emerald-400"
-    : "border-brand-red/30 bg-brand-red/5 text-brand-red dark:text-red-400";
+  // The pill stays neutral (same recipe as the MarketCountdown chip); only
+  // the numbers carry the direction colour, like every other figure on the
+  // dashboard.
+  const numberTone = up
+    ? "text-brand-green dark:text-emerald-400"
+    : "text-brand-red dark:text-red-400";
 
   return (
     <span
       title={`Portfel ${label.tooltip} yenidən hesablanıb (${data.coveredCount}/${data.totalCount} mövqe)${showDelta ? ` — ${SCOPE_TOOLTIP[scope]}` : ""}`}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium shadow-sm ${tone}`}
+      className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-3 py-1.5 text-[11px] font-medium shadow-sm"
     >
       <span className={`shrink-0 ${label.iconTint}`}>{label.icon}</span>
-      <span>{label.chip}:</span>
-      <span className="num font-semibold">{pct}</span>
+      <span className="text-black/45 dark:text-white/50">{label.chip}:</span>
+      <span className={`num font-semibold ${numberTone}`}>{pct}</span>
       {showDelta ? (
-        <Masked mask="••••" className="opacity-75">
-          <span className="num opacity-75">({delta})</span>
+        <Masked mask="••••" className="text-black/45 dark:text-white/50">
+          <span className={`num opacity-90 ${numberTone}`}>({delta})</span>
         </Masked>
       ) : null}
     </span>
