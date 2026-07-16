@@ -43,7 +43,13 @@ import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule"
 import { SectionNav } from "@/components/SectionNav";
 import { after } from "next/server";
 import { refreshExtendedHours } from "@/lib/watchlistExtended";
-import { getExtendedPortfolio } from "@/lib/extendedPortfolio";
+import {
+  getExtendedHistory,
+  getExtendedPortfolio,
+  recordExtendedSnapshot,
+  type ExtendedHistoryPoint,
+} from "@/lib/extendedPortfolio";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ExtendedHoursBadge } from "@/components/ExtendedHoursBadge";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +90,22 @@ export default async function DashboardPage({
   // after-market, or the overnight gap carrying the after-market close);
   // null only during regular trading hours. Shared 60s quote cache.
   const extendedPortfolio = await getExtendedPortfolio(holdings);
+
+  // Hover graph data + the 10-minute snapshot recording, in one parallel
+  // pass. Recording runs in-render (not after()) because the Supabase client
+  // may touch the request's cookies, which are off-limits post-response;
+  // the RPC buckets to 10 minutes and first-write-wins, so repeated renders
+  // cost one cheap no-op insert.
+  let extendedHistory: ExtendedHistoryPoint[] = [];
+  if (extendedPortfolio) {
+    const extSupabase = await createSupabaseServerClient();
+    if (extSupabase) {
+      [extendedHistory] = await Promise.all([
+        getExtendedHistory(extSupabase, extendedPortfolio.mode),
+        recordExtendedSnapshot(extSupabase, extendedPortfolio).catch(() => undefined),
+      ]);
+    }
+  }
 
   const dateLabel = formatBakuDate(new Date());
 
@@ -238,6 +260,7 @@ export default async function DashboardPage({
                 <ExtendedHoursBadge
                   data={badgePortfolio}
                   scope={fundView ? "fund" : "personal"}
+                  history={extendedHistory}
                 />
               )}
               {!fundView && (
