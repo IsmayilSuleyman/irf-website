@@ -97,11 +97,14 @@ function ChangeBadge({
   const showAmount = mode === "amount" && hasAmount;
   const ref = showAmount ? (amountAzn as number) : pct;
   const up = ref >= 0;
+  // Filled pills carry a transparent border so both variants have the exact
+  // same box height — swapping day-change (outlined) for the session pill
+  // (filled) must not shift the row.
   const cls =
     variant === "filled"
       ? up
-        ? "bg-brand-green/15 text-brand-green dark:text-emerald-400"
-        : "bg-brand-red/15 text-brand-red dark:text-red-400"
+        ? "border border-transparent bg-brand-green/15 text-brand-green dark:text-emerald-400"
+        : "border border-transparent bg-brand-red/15 text-brand-red dark:text-red-400"
       : up
         ? "border border-brand-green/40 text-brand-green dark:text-emerald-400"
         : "border border-brand-red/40 text-brand-red dark:text-red-400";
