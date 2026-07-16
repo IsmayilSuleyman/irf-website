@@ -1,23 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { formatAzn, formatGroupedTrim } from "@/lib/portfolio";
 import { Masked } from "@/components/Masked";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
-import type {
-  ExtendedHistoryPoint,
-  ExtendedPortfolio,
-} from "@/lib/extendedPortfolio";
+import { SessionHistoryChart } from "@/components/SessionHistoryChart";
+import type { SessionHistoryPoint } from "@/lib/sessionHistory";
+import type { ExtendedPortfolio } from "@/lib/extendedPortfolio";
 
 /**
  * "Açılışdan əvvəl: +1,03%" chip for the dashboard's market-countdown row,
@@ -35,92 +24,11 @@ const SCOPE_TOOLTIP: Record<"fund" | "personal", string> = {
 
 // Chart line follows the DATA's session (post data stays purple even when
 // hovered from the Gecə badge).
-const LINE_COLOR: Record<"pre" | "post", string> = {
+const LINE_COLOR: Record<"pre" | "post" | "regular", string> = {
   pre: "#f59e0b",
   post: "#a855f7",
+  regular: "#16a34a",
 };
-
-// Baku is fixed UTC+4 (no DST) — manual math keeps SSR/client output
-// identical (no Intl, per the repo's hydration rule).
-function bakuHm(iso: string): string {
-  const ms = new Date(iso).getTime();
-  if (!Number.isFinite(ms)) return iso;
-  const d = new Date(ms + 4 * 60 * 60 * 1000);
-  const hh = String(d.getUTCHours()).padStart(2, "0");
-  const mm = String(d.getUTCMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
-const pctLabel = (v: number) =>
-  `${v >= 0 ? "+" : "−"}${formatGroupedTrim(Math.abs(v), 2)}%`;
-
-function HistoryChart({ points }: { points: ExtendedHistoryPoint[] }) {
-  const data = points.map((p) => ({
-    label: bakuHm(p.t),
-    pct: p.changePct * 100,
-  }));
-  const color = LINE_COLOR[points[points.length - 1]?.mode ?? "post"];
-  const crossesZero =
-    Math.min(...data.map((d) => d.pct)) < 0 && Math.max(...data.map((d) => d.pct)) > 0;
-
-  return (
-    <div className="h-32">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id="extHistGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.2} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
-          <XAxis
-            dataKey="label"
-            stroke="rgba(0,0,0,0.45)"
-            tick={{ fontSize: 9 }}
-            tickLine={false}
-            axisLine={false}
-            minTickGap={28}
-          />
-          <YAxis
-            width={40}
-            domain={["auto", "auto"]}
-            tick={{ fontSize: 9, fill: "rgba(0,0,0,0.4)" }}
-            tickLine={false}
-            axisLine={false}
-            tickCount={3}
-            tickFormatter={(v: number) => `${formatGroupedTrim(v, 2)}%`}
-          />
-          <Tooltip
-            contentStyle={{
-              background: "rgba(255,255,255,0.96)",
-              border: "1px solid rgba(0,0,0,0.08)",
-              borderRadius: 10,
-              boxShadow: "0 8px 30px -12px rgba(0,0,0,0.2)",
-              fontSize: 11,
-              color: "#0a0a0a",
-              padding: "6px 10px",
-            }}
-            labelStyle={{ color: "rgba(0,0,0,0.55)" }}
-            formatter={(v: number) => [pctLabel(v), "Dəyişim"]}
-          />
-          {crossesZero && (
-            <ReferenceLine y={0} stroke="rgba(0,0,0,0.25)" strokeDasharray="4 4" />
-          )}
-          <Area
-            type="monotone"
-            dataKey="pct"
-            stroke={color}
-            strokeWidth={2}
-            fill="url(#extHistGrad)"
-            dot={{ r: 2, fill: color, strokeWidth: 0 }}
-            activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
 export function ExtendedHoursBadge({
   data,
@@ -129,7 +37,7 @@ export function ExtendedHoursBadge({
 }: {
   data: ExtendedPortfolio;
   scope: "fund" | "personal";
-  history?: ExtendedHistoryPoint[];
+  history?: SessionHistoryPoint[];
 }) {
   const [open, setOpen] = useState(false);
   const up = data.changePct >= 0;
@@ -148,6 +56,7 @@ export function ExtendedHoursBadge({
     data.mode === "overnight"
       ? "Son after-market seansının hərəkəti"
       : `${meta.label} — seansın hərəkəti`;
+  const lineColor = LINE_COLOR[history[history.length - 1]?.mode ?? "post"];
 
   return (
     <span
@@ -186,7 +95,7 @@ export function ExtendedHoursBadge({
 
           {history.length >= 2 ? (
             <div className="mt-3">
-              <HistoryChart points={history} />
+              <SessionHistoryChart points={history} color={lineColor} />
             </div>
           ) : (
             <div className="mt-3 flex h-20 items-center justify-center text-center text-[11px] leading-4 text-black/45 dark:text-white/50">
