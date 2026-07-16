@@ -92,9 +92,11 @@ export function HeroPrice(props: PersonalProps | FundProps) {
         privacyToggle={privacyToggle}
       />
       <div className="flex items-end gap-4">
+        {/* Kept in lockstep with FundHero below — İsmayıl wants the big
+            money figure a notch smaller in BOTH dashboard views. */}
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(4rem, 13vw, 8rem)" }}
+          style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)" }}
         >
           <Masked mask="••••">
             <Odometer value={holdingValue} fractionDigits={2} suffix="₼" />
