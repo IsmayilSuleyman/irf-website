@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { USD_TO_AZN, type Holding } from "@/lib/sheets";
 import {
   getExtendedQuotes,
@@ -145,6 +146,72 @@ export function currentUsSession(now = new Date()): ExtendedMode | null {
   if (mins >= 9 * 60 + 30 && mins < 16 * 60) return null; // regular session
   if (mins >= 16 * 60 && mins < 20 * 60) return "post"; // 16:00–20:00 ET
   return "overnight"; // 20:00–04:00 ET
+}
+
+export type ExtendedHistoryPoint = {
+  /** Bucket start, ISO timestamp. */
+  t: string;
+  /** Fraction, e.g. 0.0103. */
+  changePct: number;
+  mode: "pre" | "post";
+};
+
+/**
+ * Record one 10-minute snapshot of the live session's % move. Only pre/post
+ * record — overnight the value is frozen at the after-market close, so
+ * there is nothing new to plot. The RPC buckets and first-write-wins, so
+ * concurrent renders can't duplicate. Best-effort by design.
+ */
+export async function recordExtendedSnapshot(
+  supabase: SupabaseClient,
+  portfolio: ExtendedPortfolio,
+): Promise<void> {
+  if (portfolio.mode === "overnight") return;
+  const { error } = await supabase.rpc("record_extended_snapshot", {
+    p_mode: portfolio.mode,
+    p_change_pct: portfolio.changePct,
+  });
+  if (error) console.error("[extended-portfolio] snapshot record failed:", error);
+}
+
+/**
+ * Points for the badge's hover graph. During pre/post: that session's own
+ * points. Overnight: the most recent after-market session (its close is
+ * exactly what the overnight badge shows). Returns the latest contiguous
+ * session tail — points within 6h of the newest one — so yesterday's
+ * session never mixes into today's chart.
+ */
+export function latestSessionTail(
+  points: ExtendedHistoryPoint[],
+): ExtendedHistoryPoint[] {
+  if (points.length === 0) return points;
+  const lastMs = new Date(points[points.length - 1].t).getTime();
+  const cutoff = lastMs - 6 * 60 * 60 * 1000;
+  return points.filter((p) => new Date(p.t).getTime() >= cutoff);
+}
+
+export async function getExtendedHistory(
+  supabase: SupabaseClient,
+  mode: ExtendedMode,
+): Promise<ExtendedHistoryPoint[]> {
+  const target = mode === "pre" ? "pre" : "post";
+  const since = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from("extended_hours_history")
+    .select("bucket_start, mode, change_pct")
+    .eq("mode", target)
+    .gte("bucket_start", since)
+    .order("bucket_start", { ascending: true });
+  if (error) {
+    console.error("[extended-portfolio] history fetch failed:", error);
+    return [];
+  }
+  const points: ExtendedHistoryPoint[] = (data ?? []).map((r) => ({
+    t: String(r.bucket_start),
+    changePct: Number(r.change_pct),
+    mode: r.mode as "pre" | "post",
+  }));
+  return latestSessionTail(points);
 }
 
 /** Badge data for the dashboard; null only during regular trading hours. */
