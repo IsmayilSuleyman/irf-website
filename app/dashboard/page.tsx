@@ -46,8 +46,10 @@ import { refreshExtendedHours } from "@/lib/watchlistExtended";
 import {
   getExtendedHistory,
   getExtendedPortfolio,
-  recordExtendedSnapshot,
-  type ExtendedHistoryPoint,
+  getRegularHistory,
+  getRegularPortfolio,
+  recordSessionSnapshot,
+  type SessionHistoryPoint,
 } from "@/lib/extendedPortfolio";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ExtendedHoursBadge } from "@/components/ExtendedHoursBadge";
@@ -95,14 +97,29 @@ export default async function DashboardPage({
   // pass. Recording runs in-render (not after()) because the Supabase client
   // may touch the request's cookies, which are off-limits post-response;
   // the RPC buckets to 10 minutes and first-write-wins, so repeated renders
-  // cost one cheap no-op insert.
-  let extendedHistory: ExtendedHistoryPoint[] = [];
-  if (extendedPortfolio) {
-    const extSupabase = await createSupabaseServerClient();
-    if (extSupabase) {
-      [extendedHistory] = await Promise.all([
-        getExtendedHistory(extSupabase, extendedPortfolio.mode),
-        recordExtendedSnapshot(extSupabase, extendedPortfolio).catch(() => undefined),
+  // cost one cheap no-op insert. Extended windows record the extended %,
+  // regular hours record the intraday day-change % for the countdown chart.
+  let extendedHistory: SessionHistoryPoint[] = [];
+  let regularHistory: SessionHistoryPoint[] = [];
+  {
+    const histSupabase = await createSupabaseServerClient();
+    if (histSupabase) {
+      const regularPortfolio = extendedPortfolio
+        ? null
+        : await getRegularPortfolio(holdings);
+      const record = extendedPortfolio
+        ? extendedPortfolio.mode !== "overnight"
+          ? recordSessionSnapshot(histSupabase, extendedPortfolio.mode, extendedPortfolio.changePct)
+          : Promise.resolve()
+        : regularPortfolio
+          ? recordSessionSnapshot(histSupabase, "regular", regularPortfolio.changePct)
+          : Promise.resolve();
+      [extendedHistory, regularHistory] = await Promise.all([
+        extendedPortfolio
+          ? getExtendedHistory(histSupabase, extendedPortfolio.mode)
+          : Promise.resolve([] as SessionHistoryPoint[]),
+        getRegularHistory(histSupabase),
+        record.catch(() => undefined),
       ]);
     }
   }
@@ -255,7 +272,7 @@ export default async function DashboardPage({
               />
             )}
             <div className="flex flex-wrap items-center gap-2">
-              <MarketCountdown />
+              <MarketCountdown history={regularHistory} />
               {badgePortfolio && (
                 <ExtendedHoursBadge
                   data={badgePortfolio}

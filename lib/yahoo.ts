@@ -10,6 +10,7 @@ export type ExtendedQuote = {
   symbol: string;
   marketState: string | null; // PRE | REGULAR | POST | POSTPOST | CLOSED ...
   regularMarketPrice: number | null;
+  regularMarketPreviousClose: number | null;
   preMarketPrice: number | null;
   preMarketChangePercent: number | null;
   postMarketPrice: number | null;
@@ -60,6 +61,7 @@ export async function getExtendedQuotes(
       symbol,
       marketState: q.marketState == null ? null : String(q.marketState),
       regularMarketPrice: numOrNull(q.regularMarketPrice),
+      regularMarketPreviousClose: numOrNull(q.regularMarketPreviousClose),
       preMarketPrice: numOrNull(q.preMarketPrice),
       preMarketChangePercent: numOrNull(q.preMarketChangePercent),
       postMarketPrice: numOrNull(q.postMarketPrice),

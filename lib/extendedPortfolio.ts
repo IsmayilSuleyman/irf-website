@@ -2,6 +2,14 @@ import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { USD_TO_AZN, type Holding } from "@/lib/sheets";
 import {
+  latestSessionTail,
+  type SessionHistoryPoint,
+  type SessionMode,
+} from "@/lib/sessionHistory";
+
+export { latestSessionTail };
+export type { SessionHistoryPoint, SessionMode };
+import {
   getExtendedQuotes,
   isTickerSymbol,
   toYahooSymbol,
@@ -148,70 +156,139 @@ export function currentUsSession(now = new Date()): ExtendedMode | null {
   return "overnight"; // 20:00–04:00 ET
 }
 
-export type ExtendedHistoryPoint = {
-  /** Bucket start, ISO timestamp. */
-  t: string;
-  /** Fraction, e.g. 0.0103. */
-  changePct: number;
-  mode: "pre" | "post";
-};
+/** True during US regular trading hours (09:30–16:00 ET, weekdays). */
+export function currentUsRegularSession(now = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const weekday = get("weekday");
+  if (weekday === "Sat" || weekday === "Sun") return false;
+  const mins = (Number(get("hour")) % 24) * 60 + Number(get("minute"));
+  return mins >= 9 * 60 + 30 && mins < 16 * 60;
+}
 
 /**
- * Record one 10-minute snapshot of the live session's % move. Only pre/post
- * record — overnight the value is frozen at the after-market close, so
- * there is nothing new to plot. The RPC buckets and first-write-wins, so
- * concurrent renders can't duplicate. Best-effort by design.
+ * Record one 10-minute snapshot of a live session's % move (pre/post/
+ * regular). Overnight never records — the value is frozen at the
+ * after-market close. The RPC buckets and first-write-wins, so concurrent
+ * renders can't duplicate. Best-effort by design.
  */
-export async function recordExtendedSnapshot(
+export async function recordSessionSnapshot(
   supabase: SupabaseClient,
-  portfolio: ExtendedPortfolio,
+  mode: SessionMode,
+  changePct: number,
 ): Promise<void> {
-  if (portfolio.mode === "overnight") return;
   const { error } = await supabase.rpc("record_extended_snapshot", {
-    p_mode: portfolio.mode,
-    p_change_pct: portfolio.changePct,
+    p_mode: mode,
+    p_change_pct: changePct,
   });
   if (error) console.error("[extended-portfolio] snapshot record failed:", error);
 }
 
-/**
- * Points for the badge's hover graph. During pre/post: that session's own
- * points. Overnight: the most recent after-market session (its close is
- * exactly what the overnight badge shows). Returns the latest contiguous
- * session tail — points within 6h of the newest one — so yesterday's
- * session never mixes into today's chart.
- */
-export function latestSessionTail(
-  points: ExtendedHistoryPoint[],
-): ExtendedHistoryPoint[] {
-  if (points.length === 0) return points;
-  const lastMs = new Date(points[points.length - 1].t).getTime();
-  const cutoff = lastMs - 6 * 60 * 60 * 1000;
-  return points.filter((p) => new Date(p.t).getTime() >= cutoff);
-}
-
-export async function getExtendedHistory(
+async function fetchSessionHistory(
   supabase: SupabaseClient,
-  mode: ExtendedMode,
-): Promise<ExtendedHistoryPoint[]> {
-  const target = mode === "pre" ? "pre" : "post";
-  const since = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+  mode: SessionMode,
+  sinceHours: number,
+): Promise<SessionHistoryPoint[]> {
+  const since = new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from("extended_hours_history")
     .select("bucket_start, mode, change_pct")
-    .eq("mode", target)
+    .eq("mode", mode)
     .gte("bucket_start", since)
     .order("bucket_start", { ascending: true });
   if (error) {
     console.error("[extended-portfolio] history fetch failed:", error);
     return [];
   }
-  const points: ExtendedHistoryPoint[] = (data ?? []).map((r) => ({
+  return (data ?? []).map((r) => ({
     t: String(r.bucket_start),
     changePct: Number(r.change_pct),
-    mode: r.mode as "pre" | "post",
+    mode: r.mode as SessionMode,
   }));
-  return latestSessionTail(points);
+}
+
+/**
+ * Points for the badge's hover graph. During pre/post: that session's own
+ * points. Overnight: the most recent after-market session (its close is
+ * exactly what the overnight badge shows). Only the latest contiguous
+ * session tail — yesterday's session never mixes into today's chart.
+ */
+export async function getExtendedHistory(
+  supabase: SupabaseClient,
+  mode: ExtendedMode,
+): Promise<SessionHistoryPoint[]> {
+  const target = mode === "pre" ? "pre" : "post";
+  return latestSessionTail(await fetchSessionHistory(supabase, target, 72));
+}
+
+/**
+ * The full week of intraday (regular-session) points for the countdown
+ * chip's daily/weekly chart; the client slices the daily view with
+ * latestSessionTail(points, 8).
+ */
+export async function getRegularHistory(
+  supabase: SupabaseClient,
+): Promise<SessionHistoryPoint[]> {
+  return fetchSessionHistory(supabase, "regular", 7 * 24);
+}
+
+/**
+ * The portfolio's live day change (vs previous close) during US regular
+ * hours; null outside them. Same quote cache and hang guard as the
+ * extended computation.
+ */
+export async function getRegularPortfolio(
+  holdings: Holding[],
+): Promise<{ changePct: number } | null> {
+  if (!currentUsRegularSession()) return null;
+
+  const symbols = [
+    ...new Set(
+      holdings
+        .filter((h) => !h.isCash && h.sharesHeld > 0 && isTickerSymbol(h.symbol))
+        .map((h) => toYahooSymbol(h.symbol)),
+    ),
+  ].sort();
+  if (symbols.length === 0) return null;
+
+  try {
+    const quotes = await Promise.race([
+      getCachedQuotes(symbols),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("yahoo quote timeout")), 4000),
+      ),
+    ]);
+
+    // Holidays: the clock says "regular" but Yahoo reports CLOSED — skip.
+    const regularCount = quotes.filter((q) => q.marketState === "REGULAR").length;
+    if (regularCount < Math.max(1, Math.ceil(quotes.length / 2))) return null;
+
+    const bySymbol = new Map(quotes.map((q) => [q.symbol, q]));
+    let valuePrev = 0;
+    let valueNow = 0;
+    let covered = 0;
+    for (const h of holdings) {
+      if (h.isCash || h.sharesHeld <= 0 || !isTickerSymbol(h.symbol)) continue;
+      const q = bySymbol.get(toYahooSymbol(h.symbol));
+      const prev = q?.regularMarketPreviousClose;
+      const now = q?.regularMarketPrice;
+      if (prev == null || now == null || prev <= 0) continue;
+      valuePrev += h.sharesHeld * prev;
+      valueNow += h.sharesHeld * now;
+      covered += 1;
+    }
+    if (covered === 0 || valuePrev <= 0) return null;
+    return { changePct: valueNow / valuePrev - 1 };
+  } catch (err) {
+    console.error("[extended-portfolio] regular quote fetch failed:", err);
+    return null;
+  }
 }
 
 /** Badge data for the dashboard; null only during regular trading hours. */
