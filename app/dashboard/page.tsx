@@ -147,6 +147,17 @@ export default async function DashboardPage({
   // Whole-fund view, available to every signed-in holder. The mode is encoded
   // in the URL (?view=fund) so the server renders the correct dataset.
   const fundView = sp?.view === "fund";
+
+  // The extended-hours ₼ delta is fund-wide; in the personal view it scales
+  // to the viewer's slice (their units / total units) so a 2-pay holder sees
+  // their own few manats, not the whole fund's swing. The % stays fund-wide —
+  // every pay moves by the same percentage.
+  const holderShare = fund.totalUnits > 0 ? effectiveUnits / fund.totalUnits : 0;
+  const badgePortfolio = extendedPortfolio
+    ? fundView
+      ? extendedPortfolio
+      : { ...extendedPortfolio, deltaAzn: extendedPortfolio.deltaAzn * holderShare }
+    : null;
   // Fund-wide hero figures, computed on the same basis as the "Ümumi dəyəri"
   // tile below so the headline and the tile always agree.
   const totalCostBasis = holdings.reduce((s, h) => s + h.costBasisAzn, 0);
@@ -232,7 +243,12 @@ export default async function DashboardPage({
                   <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
                 </Link>
               )}
-              {extendedPortfolio && <ExtendedHoursBadge data={extendedPortfolio} />}
+              {badgePortfolio && (
+                <ExtendedHoursBadge
+                  data={badgePortfolio}
+                  scope={fundView ? "fund" : "personal"}
+                />
+              )}
             </div>
           </div>
           <div className="lg:col-span-1 flex flex-col gap-3">
