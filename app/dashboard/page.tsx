@@ -234,6 +234,12 @@ export default async function DashboardPage({
             )}
             <div className="flex flex-wrap items-center gap-2">
               <MarketCountdown />
+              {badgePortfolio && (
+                <ExtendedHoursBadge
+                  data={badgePortfolio}
+                  scope={fundView ? "fund" : "personal"}
+                />
+              )}
               {!fundView && (
                 <Link
                   href="/market"
@@ -242,12 +248,6 @@ export default async function DashboardPage({
                   <span>Bazar</span>
                   <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
                 </Link>
-              )}
-              {badgePortfolio && (
-                <ExtendedHoursBadge
-                  data={badgePortfolio}
-                  scope={fundView ? "fund" : "personal"}
-                />
               )}
             </div>
           </div>
