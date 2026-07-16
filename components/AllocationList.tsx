@@ -83,12 +83,15 @@ function ChangeBadge({
   mode,
   onToggle,
   variant = "filled",
+  icon,
 }: {
   pct: number;
   amountAzn?: number | null;
   mode: "pct" | "amount";
   onToggle?: () => void;
   variant?: "filled" | "outlined";
+  /** Optional leading glyph inside the pill (session icon keeps its own tint). */
+  icon?: React.ReactNode;
 }) {
   const hasAmount = amountAzn != null && Number.isFinite(amountAzn);
   const showAmount = mode === "amount" && hasAmount;
@@ -105,9 +108,14 @@ function ChangeBadge({
   const label = showAmount
     ? formatSignedAzn(amountAzn as number)
     : `${up ? "+" : ""}${(pct * 100).toFixed(1)}%`;
-  const base = `num rounded-md px-1.5 py-0.5 text-[10px] font-medium ${cls}`;
+  const base = `num inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${cls}`;
   if (!onToggle || !hasAmount) {
-    return <span className={base}>{label}</span>;
+    return (
+      <span className={base}>
+        {icon}
+        {label}
+      </span>
+    );
   }
   return (
     <button
@@ -332,10 +340,15 @@ export function AllocationList({
                   </AnimatePresence>
                 </div>
                 <div className="num text-[13px] text-black/45 dark:text-white/50">
-                  <AnimatePresence initial={false}>
+                  <AnimatePresence initial={false} mode="wait">
                     {showPrice && (
-                      <AnimatedFigure keyName="price" inline>
-                        {usdFmt.format(item.priceUsd as number)}
+                      <AnimatedFigure
+                        keyName={extQuote ? "price-ext" : "price"}
+                        inline
+                      >
+                        {usdFmt.format(
+                          (extQuote ? extQuote.priceUsd : item.priceUsd) as number,
+                        )}
                       </AnimatedFigure>
                     )}
                   </AnimatePresence>
@@ -356,8 +369,26 @@ export function AllocationList({
                   </AnimatePresence>
                 </div>
                 <div className="flex justify-end">
-                  <AnimatePresence initial={false}>
-                    {showDay && (
+                  <AnimatePresence initial={false} mode="wait">
+                    {/* With the session toggle on, the extended pill takes the
+                        day-change slot: session icon inside the pill + the
+                        move vs the regular price. */}
+                    {extQuote && extended ? (
+                      <AnimatedFigure keyName="extChange">
+                        <ChangeBadge
+                          pct={extQuote.changePct}
+                          mode="pct"
+                          icon={
+                            <span
+                              aria-hidden
+                              className={`inline-flex shrink-0 ${EXTENDED_META[extended.mode].iconTint} [&_svg]:h-3 [&_svg]:w-3`}
+                            >
+                              {EXTENDED_META[extended.mode].icon}
+                            </span>
+                          }
+                        />
+                      </AnimatedFigure>
+                    ) : showDay ? (
                       <AnimatedFigure keyName="dayChange">
                         <ChangeBadge
                           pct={item.dayChangePct as number}
@@ -367,34 +398,9 @@ export function AllocationList({
                           variant="outlined"
                         />
                       </AnimatedFigure>
-                    )}
+                    ) : null}
                   </AnimatePresence>
                 </div>
-
-                {/* Extended-hours line: session icon + the extended price
-                    itself + its move vs the regular price. The wrapper div is
-                    the grid item (col-span-2) so the line spans both columns;
-                    rows without an extended quote render no extra grid row. */}
-                {extQuote && extended && (
-                  <div className="col-span-2 flex justify-end">
-                    <AnimatePresence initial={false}>
-                      <AnimatedFigure keyName="extended">
-                        <span className="flex items-center gap-1.5">
-                          <span
-                            aria-hidden
-                            className={`shrink-0 ${EXTENDED_META[extended.mode].iconTint}`}
-                          >
-                            {EXTENDED_META[extended.mode].icon}
-                          </span>
-                          <span className="num text-[12px] text-black/55 dark:text-white/60">
-                            {usdFmt.format(extQuote.priceUsd)}
-                          </span>
-                          <ChangeBadge pct={extQuote.changePct} mode="pct" />
-                        </span>
-                      </AnimatedFigure>
-                    </AnimatePresence>
-                  </div>
-                )}
               </div>
             </li>
           );
