@@ -16,6 +16,26 @@ import { usePrivacy } from "@/components/PrivacyProvider";
 
 type Point = { label: string; value: number; date?: string };
 
+// Hydration-safe Azerbaijani date labels (no Intl in a client component).
+const AZ_MONTHS_SHORT = [
+  "yan", "fev", "mar", "apr", "may", "iyn",
+  "iyl", "avq", "sen", "okt", "noy", "dek",
+];
+const AZ_MONTHS_LONG = [
+  "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+  "iyul", "avqust", "sentyabr", "oktyabr", "noyabr", "dekabr",
+];
+
+function tickDate(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getUTCDate()} ${AZ_MONTHS_SHORT[d.getUTCMonth()]} ${String(d.getUTCFullYear() % 100).padStart(2, "0")}`;
+}
+
+function tooltipDate(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getUTCDate()} ${AZ_MONTHS_LONG[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
 const RANGES = [
   { key: "1m", label: "1 AY", days: 30 },
   { key: "3m", label: "3 AY", days: 90 },
@@ -61,7 +81,19 @@ export function PerformanceChart({
     });
   }, [source, range]);
 
-  const last = filtered.length > 0 ? filtered[filtered.length - 1] : null;
+  // Numeric (epoch-ms) x-axis: points sit at their true time distance, so
+  // sparse early history doesn't get compressed into equal category slots.
+  // Points without a parseable date (none in practice) are dropped.
+  const timed = useMemo(
+    () =>
+      filtered
+        .map((p) => ({ ...p, ts: p.date ? new Date(p.date).getTime() : NaN }))
+        .filter((p) => Number.isFinite(p.ts))
+        .sort((a, b) => a.ts - b.ts),
+    [filtered],
+  );
+
+  const last = timed.length > 0 ? timed[timed.length - 1] : null;
 
   if (!hasValue && !hasPrice) {
     return (
@@ -133,14 +165,14 @@ export function PerformanceChart({
         </div>
       </div>
       <div className="h-72">
-        {filtered.length === 0 ? (
+        {timed.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-black/45 dark:text-white/50">
             Bu dövr üçün məlumat yoxdur.
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
-              data={filtered}
+              data={timed}
               margin={{ top: 10, right: 14, left: 0, bottom: 0 }}
             >
               <defs>
@@ -151,12 +183,16 @@ export function PerformanceChart({
               </defs>
               <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
               <XAxis
-                dataKey="label"
+                dataKey="ts"
+                type="number"
+                scale="time"
+                domain={["dataMin", "dataMax"]}
                 stroke="rgba(0,0,0,0.45)"
                 tick={{ fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 minTickGap={24}
+                tickFormatter={tickDate}
               />
               <YAxis
                 hide={masked}
@@ -178,6 +214,7 @@ export function PerformanceChart({
                   color: "#0a0a0a",
                 }}
                 labelStyle={{ color: "rgba(0,0,0,0.55)" }}
+                labelFormatter={(ms: number) => tooltipDate(ms)}
                 formatter={(v: number) => [
                   masked ? "••••" : formatAzn(v),
                   mode === "price" ? "1 payın qiyməti" : "Dəyər",
@@ -192,7 +229,7 @@ export function PerformanceChart({
               />
               {last && (
                 <ReferenceDot
-                  x={last.label}
+                  x={last.ts}
                   y={last.value}
                   r={4}
                   fill="#16a34a"
