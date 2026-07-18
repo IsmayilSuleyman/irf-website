@@ -43,15 +43,19 @@ export function SessionHistoryChart({
   color: string;
   labelKind?: "time" | "datetime";
 }) {
-  const data = points.map((p) => {
-    const parts = bakuParts(p.t);
-    return {
-      label: labelKind === "datetime" ? `${parts.day} ${parts.hm}` : parts.hm,
-      pct: p.changePct * 100,
-    };
-  });
+  // Numeric (epoch-ms) x-axis: points sit at their true time distance, so a
+  // recording gap shows as real horizontal space, not one category slot.
+  const data = points
+    .map((p) => ({ ts: new Date(p.t).getTime(), pct: p.changePct * 100 }))
+    .filter((d) => Number.isFinite(d.ts))
+    .sort((a, b) => a.ts - b.ts);
   const values = data.map((d) => d.pct);
   const crossesZero = Math.min(...values) < 0 && Math.max(...values) > 0;
+
+  const tickLabel = (ms: number) => {
+    const parts = bakuParts(new Date(ms).toISOString());
+    return labelKind === "datetime" ? `${parts.day} ${parts.hm}` : parts.hm;
+  };
 
   return (
     <div className="h-32">
@@ -65,12 +69,16 @@ export function SessionHistoryChart({
           </defs>
           <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
           <XAxis
-            dataKey="label"
+            dataKey="ts"
+            type="number"
+            scale="time"
+            domain={["dataMin", "dataMax"]}
             stroke="rgba(0,0,0,0.45)"
             tick={{ fontSize: 9 }}
             tickLine={false}
             axisLine={false}
             minTickGap={32}
+            tickFormatter={tickLabel}
           />
           <YAxis
             width={40}
@@ -92,6 +100,7 @@ export function SessionHistoryChart({
               padding: "6px 10px",
             }}
             labelStyle={{ color: "rgba(0,0,0,0.55)" }}
+            labelFormatter={(ms: number) => tickLabel(ms)}
             formatter={(v: number) => [pctLabel(v), "Dəyişim"]}
           />
           {crossesZero && (
