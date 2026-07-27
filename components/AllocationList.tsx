@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   formatAzn,
   formatMoney,
+  formatUnits,
   formatUsd,
   USD_TO_AZN,
   type Currency,
@@ -12,16 +13,17 @@ import {
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
 import { SectorIcon } from "@/components/SectorIcon";
 import {
-  MomentumFactorTable,
-  scoreTone,
+  MomentumFactorCards,
+  scorePill,
 } from "@/components/MomentumFactorTable";
-import { DEFAULT_WEIGHTS, type ScoredItem } from "@/lib/momentum";
+import type { ScoredItem } from "@/lib/momentum";
 import type { ExtendedMode, ExtendedSymbolQuote } from "@/lib/extendedPortfolio";
 
 type Item = {
   symbol?: string;
   name: string;
   sector?: string;
+  sharesHeld?: number;
   priceUsd?: number;
   valueAzn: number;
   percent: number;
@@ -468,6 +470,25 @@ export function AllocationList({
                         </AnimatedFigure>
                       )}
                     </AnimatePresence>
+                    {!item.isCash &&
+                      item.sharesHeld != null &&
+                      item.sharesHeld > 0 && (
+                        <span className="num shrink-0 text-[11px] text-black/45 dark:text-white/50">
+                          {formatUnits(item.sharesHeld)} pay
+                        </span>
+                      )}
+                    {momoRow && (
+                      <span className="flex shrink-0 items-baseline gap-1">
+                        <span className="text-[10px] font-medium text-brand-green dark:text-emerald-400">
+                          Momentum balı:
+                        </span>
+                        <span
+                          className={`num rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
+                        >
+                          {momoRow.score.toFixed(1)}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -577,7 +598,8 @@ export function AllocationList({
               </div>
               </div>
 
-              {/* Momentum factor drill-down (default weights). */}
+              {/* Momentum factor drill-down: horizontal cards, one per
+                  factor, with ranks written out. */}
               {momoRow && (
                 <AnimatePresence initial={false}>
                   {momoIsOpen && (
@@ -588,17 +610,9 @@ export function AllocationList({
                       transition={{ duration: 0.22, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="flex items-center pl-12 pt-2">
-                        <span
-                          className={`num rounded-md bg-black/5 px-2 py-0.5 text-[11px] font-medium dark:bg-white/10 ${scoreTone(momoRow.score).text}`}
-                        >
-                          Momentum balı: {momoRow.score.toFixed(1)}
-                        </span>
-                      </div>
-                      <MomentumFactorTable
+                      <MomentumFactorCards
                         row={momoRow}
-                        weights={DEFAULT_WEIGHTS}
-                        className="pl-12 pr-1 pt-2"
+                        className="pb-1 pl-12 pr-2 pt-4"
                       />
                     </motion.div>
                   )}
