@@ -478,15 +478,11 @@ export function AllocationList({
                         </span>
                       )}
                     {momoRow && (
-                      <span className="flex shrink-0 items-baseline gap-1">
-                        <span className="text-[10px] font-medium text-brand-green dark:text-emerald-400">
-                          Momentum balı:
-                        </span>
-                        <span
-                          className={`num rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
-                        >
-                          {momoRow.score.toFixed(1)}
-                        </span>
+                      <span
+                        title="Momentum balı"
+                        className={`num shrink-0 rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
+                      >
+                        {momoRow.score.toFixed(1)}
                       </span>
                     )}
                   </div>
