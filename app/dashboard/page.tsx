@@ -465,6 +465,7 @@ export default async function DashboardPage({
                           symbol: holding.symbol,
                           name: holding.name,
                           sector: holding.sector ?? "Naməlum",
+                          sharesHeld: holding.sharesHeld,
                           priceUsd: holding.priceUsd,
                           valueAzn: holding.valueAzn,
                           percent: holding.percent,
