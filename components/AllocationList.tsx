@@ -67,7 +67,7 @@ function CurrencyToggle({
     <div
       role="group"
       aria-label={`Valyuta: ${label}`}
-      className="inline-flex overflow-hidden rounded-md border border-black/10 dark:border-white/15"
+      className="inline-flex items-center gap-0.5 rounded-full border border-black/10 p-0.5 dark:border-white/15"
     >
       {(["usd", "azn"] as const).map((c) => (
         <button
@@ -75,10 +75,10 @@ function CurrencyToggle({
           type="button"
           onClick={() => onChange(c)}
           aria-pressed={value === c}
-          className={`num px-2 py-0.5 text-[10px] font-semibold transition ${
+          className={`num rounded-full px-1.5 py-px text-[10px] transition ${
             value === c
-              ? "bg-black/75 text-white dark:bg-white/85 dark:text-black"
-              : "text-black/45 hover:text-black/70 dark:text-white/50 dark:hover:text-white/75"
+              ? "bg-brand-green/15 font-semibold text-brand-green dark:text-emerald-400"
+              : "font-medium text-black/45 hover:text-black/70 dark:text-white/50 dark:hover:text-white/75"
           }`}
         >
           {c === "usd" ? "$" : "₼"}
