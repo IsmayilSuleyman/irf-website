@@ -40,7 +40,6 @@ import { MarketCountdown } from "@/components/MarketCountdown";
 import { DebtPanel } from "@/components/DebtPanel";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
 import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule";
-import { SectionNav } from "@/components/SectionNav";
 import { after } from "next/server";
 import { refreshExtendedHours } from "@/lib/watchlistExtended";
 import {
@@ -54,7 +53,6 @@ import {
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ExtendedHoursBadge } from "@/components/ExtendedHoursBadge";
 import { buildMomentumItems, getSpyReferences } from "@/lib/momentumData";
-import { MomentumBoard } from "@/components/MomentumBoard";
 import {
   DEFAULT_WEIGHTS,
   portfolioRet13w,
@@ -241,24 +239,9 @@ export default async function DashboardPage({
   );
   const portfolio13w = portfolioRet13w(momentumItems);
 
-  // Jump-chips for the section nav — only sections actually rendered below.
-  const navItems = [
-    { id: "icmal", label: "İcmal" },
-    ...(!fundView ? [{ id: "tarixce", label: "Tarixçə" }] : []),
-    ...(!fundView ? [{ id: "fond", label: "Fond" }] : []),
-    ...(!fundView && isAdmin && debts.length > 0
-      ? [{ id: "borclar", label: "Borclar" }]
-      : []),
-    ...(holdings.length > 0 ? [{ id: "portfel", label: "Portfel" }] : []),
-    ...(momentumItems.length > 0
-      ? [{ id: "momentum", label: "Momentum" }]
-      : []),
-  ];
-
   return (
     <main className="px-6 pb-24">
       <Header dateLabel={dateLabel} />
-      {navItems.length > 2 && <SectionNav items={navItems} />}
 
       <PrivacyProvider initialHidden={amountsHidden}>
       <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
@@ -542,21 +525,6 @@ export default async function DashboardPage({
           );
         })()}
 
-        {/* Momentum reytinqi */}
-        {momentumItems.length > 0 && (
-          <MotionSection
-            id="momentum"
-            delay={0.2}
-            className="scroll-mt-32 hairline -mt-8 pt-6"
-          >
-            <div className="glass p-6">
-              <MomentumBoard
-                items={momentumItems}
-                spyRet13w={spyRefs.ret13w}
-              />
-            </div>
-          </MotionSection>
-        )}
       </div>
       </PrivacyProvider>
     </main>
