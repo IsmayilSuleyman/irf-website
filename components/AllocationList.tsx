@@ -130,6 +130,7 @@ function ChangeBadge({
       aria-pressed={showAmount}
       className={`${base} cursor-pointer transition hover:brightness-95`}
     >
+      {icon}
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={showAmount ? "amount" : "pct"}
@@ -207,6 +208,7 @@ export function AllocationList({
   const [totalMode, setTotalMode] = useState<Record<string, "pct" | "amount">>(
     {},
   );
+  const [extMode, setExtMode] = useState<Record<string, "pct" | "amount">>({});
 
   if (!items || items.length === 0) {
     return <div className="text-black/45 dark:text-white/50">Məlumat yoxdur.</div>;
@@ -344,8 +346,9 @@ export function AllocationList({
                   row 2 (total = filled, day = outlined). The price/day column is
                   a fixed width so the value + total-change column lands on the
                   same vertical line across every row regardless of price width. */}
-              {/* 64px track fits the iconed session pill so toggling never
-                  overflows the column. */}
+              {/* 64px track fits the iconed session pill in % mode so column
+                  toggling never overflows; AZN amount modes may extend into
+                  the gap between the two number columns. */}
               <div className="grid shrink-0 grid-cols-[auto_64px] items-center gap-x-4 gap-y-1 text-right">
                 <div className="num text-[13px] font-medium text-black/85 dark:text-white/90">
                   <AnimatePresence initial={false}>
@@ -389,12 +392,16 @@ export function AllocationList({
                   <AnimatePresence initial={false} mode="wait">
                     {/* With the session toggle on, the extended pill takes the
                         day-change slot: session icon inside the pill + the
-                        move vs the regular price. */}
+                        move vs the regular price. Clicking flips % ↔ AZN like
+                        the other badges (amount mode overflows the 64px track
+                        leftward into the column gap, same as the day badge). */}
                     {extQuote && extended ? (
                       <AnimatedFigure keyName="extChange">
                         <ChangeBadge
                           pct={extQuote.changePct}
-                          mode="pct"
+                          amountAzn={extQuote.deltaAzn}
+                          mode={extMode[item.name] ?? "pct"}
+                          onToggle={() => flipMode(setExtMode, item.name)}
                           icon={
                             <span
                               aria-hidden

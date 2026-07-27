@@ -32,6 +32,13 @@ export type ExtendedSymbolQuote = {
   priceUsd: number;
   /** Fraction vs the regular price, e.g. 0.0128 for +1.28%. */
   changePct: number;
+  /**
+   * AZN difference of this holding at the extended price. Same convention as
+   * ExtendedPortfolio.deltaAzn: converted from USD once, here, so the client
+   * only formats. A future currency-mode setting swaps the conversion at
+   * this single point (or ships the raw USD delta alongside).
+   */
+  deltaAzn: number;
 };
 
 export type ExtendedPortfolio = {
@@ -105,6 +112,7 @@ export function computeExtendedPortfolio(
       perSymbol[h.symbol.trim().toUpperCase()] = {
         priceUsd: ext,
         changePct: ext / reg - 1,
+        deltaAzn: h.sharesHeld * (ext - reg) * USD_TO_AZN,
       };
     }
   }
