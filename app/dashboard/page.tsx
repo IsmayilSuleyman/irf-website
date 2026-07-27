@@ -53,6 +53,8 @@ import {
 } from "@/lib/extendedPortfolio";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ExtendedHoursBadge } from "@/components/ExtendedHoursBadge";
+import { buildMomentumItems, getSpyReferences } from "@/lib/momentumData";
+import { MomentumBoard } from "@/components/MomentumBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +76,7 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes] =
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -85,6 +87,7 @@ export default async function DashboardPage({
       isAdmin ? getDebts() : Promise.resolve([]),
       getHolderMarketState(name),
       getMarketQuotes(),
+      getSpyReferences(),
     ]);
   const canEditStrategy = isAdmin;
 
@@ -217,6 +220,10 @@ export default async function DashboardPage({
       )
     : { ask: buyPrice(fund.unitPrice), bid: sellPrice(fund.unitPrice) };
 
+  // Non-cash holdings scored by the momentum engine (Watchlist R..U columns
+  // + SPY relative strength). Empty when the sheet lacks the columns.
+  const momentumItems = buildMomentumItems(holdings, spyRefs);
+
   // Jump-chips for the section nav — only sections actually rendered below.
   const navItems = [
     { id: "icmal", label: "İcmal" },
@@ -226,6 +233,9 @@ export default async function DashboardPage({
       ? [{ id: "borclar", label: "Borclar" }]
       : []),
     ...(holdings.length > 0 ? [{ id: "portfel", label: "Portfel" }] : []),
+    ...(momentumItems.length > 0
+      ? [{ id: "momentum", label: "Momentum" }]
+      : []),
   ];
 
   return (
@@ -470,6 +480,22 @@ export default async function DashboardPage({
             </MotionSection>
           );
         })()}
+
+        {/* Momentum reytinqi */}
+        {momentumItems.length > 0 && (
+          <MotionSection
+            id="momentum"
+            delay={0.2}
+            className="scroll-mt-32 hairline -mt-8 pt-6"
+          >
+            <div className="glass p-6">
+              <MomentumBoard
+                items={momentumItems}
+                spyRet13w={spyRefs.ret13w}
+              />
+            </div>
+          </MotionSection>
+        )}
       </div>
       </PrivacyProvider>
     </main>

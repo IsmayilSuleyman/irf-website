@@ -53,6 +53,13 @@ export type Holding = {
   dayChangeUsd: number | null;
   totalPnlUsd: number | null;
   sector: string | null; // from Watchlist col K; Cash rows are bucketed as "Cash"
+  // Momentum reference prices from Watchlist cols R..U (all genuinely USD):
+  // closes ~4W / ~13W ago, the first close of the current year, and the
+  // ~200-day average close. Null when the cell is blank (no history, Cash).
+  ref4wUsd: number | null;
+  ref13wUsd: number | null;
+  refYtdUsd: number | null;
+  avg200Usd: number | null;
 };
 
 // Official CBAR peg — canonical definition moved to the client-safe money
@@ -101,7 +108,7 @@ const SHEET_RANGES = [
   "'IRF'!A1:D20",
   "'Sahiblik'!A1:C20",
   "'Transactions'!A1:D1000",
-  "'Watchlist'!B9:K50",
+  "'Watchlist'!B9:U50",
   "'Debts'!A2:E50",
 ] as const;
 
@@ -211,6 +218,16 @@ function parseHoldings(rows: string[][]): Holding[] {
     const valueUsd = parseAzn(row[7]);
     const avgPurchaseUsd = parseAzn(row[8]);
     const sectorRaw = row[9]?.toString().trim() ?? "";
+    // Cols R..U (row[16..19]): momentum reference prices; blank cells (no
+    // trading history, Cash row) become null.
+    const refPrice = (v: unknown): number | null => {
+      const n = parseAzn(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    };
+    const ref4wUsd = refPrice(row[16]);
+    const ref13wUsd = refPrice(row[17]);
+    const refYtdUsd = refPrice(row[18]);
+    const avg200Usd = refPrice(row[19]);
     const isCash =
       /^cash$/i.test(symbol) || /cash/i.test(name) || /nağd/i.test(name);
     const valueAzn = valueUsd * USD_TO_AZN;
@@ -256,6 +273,10 @@ function parseHoldings(rows: string[][]): Holding[] {
       dayChangeUsd,
       totalPnlUsd,
       sector,
+      ref4wUsd,
+      ref13wUsd,
+      refYtdUsd,
+      avg200Usd,
     });
   }
   const total = raw.reduce((s, h) => s + h.valueAzn, 0);
