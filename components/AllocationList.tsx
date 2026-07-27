@@ -475,16 +475,20 @@ export function AllocationList({
                       </svg>
                     )}
                   </span>
-                  <div className="-mt-1 flex min-w-0 items-baseline gap-2">
+                  {/* flex-wrap + nowrap items: on narrow (phone) screens the
+                      pay count and score pill wrap to their own line inside
+                      this column instead of overflowing into the numbers
+                      column and colliding with the change badges. */}
+                  <div className="-mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                     {secondary && (
-                      <span className="min-w-0 truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
+                      <span className="min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
                         {secondary}
                       </span>
                     )}
                     <AnimatePresence initial={false}>
                       {visible.percent && (
                         <AnimatedFigure keyName="percent" inline>
-                          <span className="num shrink-0 text-[11px] text-black/45 dark:text-white/50">
+                          <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
                             {(item.percent * 100).toFixed(1)}%
                           </span>
                         </AnimatedFigure>
@@ -496,7 +500,7 @@ export function AllocationList({
                         item.sharesHeld != null &&
                         item.sharesHeld > 0 && (
                           <AnimatedFigure keyName="shares" inline>
-                            <span className="num shrink-0 text-[11px] text-black/45 dark:text-white/50">
+                            <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
                               {formatUnits(item.sharesHeld)} pay
                             </span>
                           </AnimatedFigure>
