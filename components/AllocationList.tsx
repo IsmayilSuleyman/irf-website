@@ -406,19 +406,11 @@ export function AllocationList({
           const toggleMomo = () =>
             setMomoOpen((m) => ({ ...m, [item.name]: !m[item.name] }));
 
-          // Name · % · pay · score pill. Rendered in two responsive homes:
-          // on sm+ inside the identity column under the ticker; on phones as
-          // a full-width line beneath the row, where the narrow column would
-          // otherwise force every item onto its own line.
-          const secondaryLine = (cls: string) => (
-            <div
-              className={`min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 ${cls}`}
-            >
-              {secondary && (
-                <span className="min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
-                  {secondary}
-                </span>
-              )}
+          // % of portfolio · pay count · score pill. On sm+ these sit next
+          // to the company name under the ticker; on phones the collapsed
+          // row shows only the name and these move into the expanded panel.
+          const secondaryExtras = (
+            <>
               <AnimatePresence initial={false}>
                 {visible.percent && (
                   <AnimatedFigure keyName="percent" inline>
@@ -452,7 +444,7 @@ export function AllocationList({
                   </AnimatedFigure>
                 )}
               </AnimatePresence>
-            </div>
+            </>
           );
 
           return (
@@ -527,7 +519,17 @@ export function AllocationList({
                       </svg>
                     )}
                   </span>
-                  {secondaryLine("-mt-1 hidden sm:flex")}
+                  {/* Company name under the ticker (aligns with the badge
+                      row); on phones only the name shows here — the extras
+                      wrapper unhides at sm via display:contents. */}
+                  <div className="-mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    {secondary && (
+                      <span className="min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
+                        {secondary}
+                      </span>
+                    )}
+                    <span className="hidden sm:contents">{secondaryExtras}</span>
+                  </div>
                 </div>
               </div>
 
@@ -636,12 +638,10 @@ export function AllocationList({
               </div>
               </div>
 
-              {/* Phone home of the secondary line: full row width, indented
-                  to the ticker's left edge. */}
-              {secondaryLine("flex pl-16 pt-1 sm:hidden")}
-
               {/* Momentum factor drill-down: horizontal cards, one per
-                  factor, with ranks written out. */}
+                  factor, with ranks written out. On phones it opens with the
+                  portfolio %, pay count and score that the collapsed row
+                  omits. */}
               {momoRow && (
                 <AnimatePresence initial={false}>
                   {momoIsOpen && (
@@ -652,6 +652,9 @@ export function AllocationList({
                       transition={{ duration: 0.22, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 pl-4 pt-2 sm:hidden">
+                        {secondaryExtras}
+                      </div>
                       <MomentumFactorCards
                         row={momoRow}
                         className="pb-1 pl-4 pr-2 pt-4 sm:pl-12"
