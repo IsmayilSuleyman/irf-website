@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { formatAzn } from "@/lib/portfolio";
+import {
+  formatAzn,
+  formatMoney,
+  formatUsd,
+  USD_TO_AZN,
+  type Currency,
+} from "@/lib/portfolio";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
 import { SectorIcon } from "@/components/SectorIcon";
 import type { ExtendedMode, ExtendedSymbolQuote } from "@/lib/extendedPortfolio";
@@ -44,11 +50,43 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "percent", label: "Faizlə Dəyəri" },
 ];
 
-const usdFmt = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 2,
-});
+// Per-column display currency: the left toggle governs the value column
+// (value + total change), the right one the price column (price + day/
+// session change). Amounts are AZN-denominated end-to-end; conversion and
+// per-currency formatting live in lib/portfolio's single money layer.
+function CurrencyToggle({
+  value,
+  onChange,
+  label,
+}: {
+  value: Currency;
+  onChange: (c: Currency) => void;
+  label: string;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={`Valyuta: ${label}`}
+      className="inline-flex overflow-hidden rounded-md border border-black/10 dark:border-white/15"
+    >
+      {(["usd", "azn"] as const).map((c) => (
+        <button
+          key={c}
+          type="button"
+          onClick={() => onChange(c)}
+          aria-pressed={value === c}
+          className={`num px-2 py-0.5 text-[10px] font-semibold transition ${
+            value === c
+              ? "bg-black/75 text-white dark:bg-white/85 dark:text-black"
+              : "text-black/45 hover:text-black/70 dark:text-white/50 dark:hover:text-white/75"
+          }`}
+        >
+          {c === "usd" ? "$" : "₼"}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function AnimatedFigure({
   keyName,
@@ -75,9 +113,9 @@ function AnimatedFigure({
   );
 }
 
-function formatSignedAzn(v: number): string {
-  const sign = v > 0 ? "+" : v < 0 ? "-" : "";
-  return `${sign}${formatAzn(Math.abs(v))}`;
+function formatSignedMoney(azn: number, currency: Currency): string {
+  const sign = azn > 0 ? "+" : azn < 0 ? "-" : "";
+  return `${sign}${formatMoney(Math.abs(azn), currency)}`;
 }
 
 function ChangeBadge({
@@ -87,6 +125,7 @@ function ChangeBadge({
   onToggle,
   variant = "filled",
   icon,
+  currency = "azn",
 }: {
   pct: number;
   amountAzn?: number | null;
@@ -95,6 +134,8 @@ function ChangeBadge({
   variant?: "filled" | "outlined";
   /** Optional leading glyph inside the pill (session icon keeps its own tint). */
   icon?: React.ReactNode;
+  /** Display currency for amount mode (the column's toggle). */
+  currency?: Currency;
 }) {
   const hasAmount = amountAzn != null && Number.isFinite(amountAzn);
   const showAmount = mode === "amount" && hasAmount;
@@ -112,7 +153,7 @@ function ChangeBadge({
         ? "border border-brand-green/40 text-brand-green dark:text-emerald-400"
         : "border border-brand-red/40 text-brand-red dark:text-red-400";
   const label = showAmount
-    ? formatSignedAzn(amountAzn as number)
+    ? formatSignedMoney(amountAzn as number, currency)
     : `${up ? "+" : ""}${(pct * 100).toFixed(1)}%`;
   const base = `num inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${cls}`;
   if (!onToggle || !hasAmount) {
@@ -133,7 +174,7 @@ function ChangeBadge({
       {icon}
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
-          key={showAmount ? "amount" : "pct"}
+          key={showAmount ? `amount-${currency}` : "pct"}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -4 }}
@@ -209,6 +250,10 @@ export function AllocationList({
     {},
   );
   const [extMode, setExtMode] = useState<Record<string, "pct" | "amount">>({});
+  // Display currency per number column; defaults match the historical
+  // rendering (values in AZN, prices in USD).
+  const [valueCur, setValueCur] = useState<Currency>("azn");
+  const [priceCur, setPriceCur] = useState<Currency>("usd");
 
   if (!items || items.length === 0) {
     return <div className="text-black/45 dark:text-white/50">Məlumat yoxdur.</div>;
@@ -266,6 +311,41 @@ export function AllocationList({
           </button>
         )}
       </div>
+
+      {/* Per-column currency toggles, mirroring the rows' number grid so
+          each sits above the column it governs. Hidden with the column. */}
+      {(() => {
+        const valueColOn = visible.value || visible.totalChange;
+        const priceColOn =
+          visible.price ||
+          visible.dayChange ||
+          (extended != null && visible.extended);
+        if (!valueColOn && !priceColOn) return null;
+        return (
+          <div className="-my-1 flex justify-end">
+            <div className="grid grid-cols-[auto_64px] items-center gap-x-4">
+              <div className="flex justify-end">
+                {valueColOn && (
+                  <CurrencyToggle
+                    value={valueCur}
+                    onChange={setValueCur}
+                    label="dəyər sütunu"
+                  />
+                )}
+              </div>
+              <div className="flex justify-end">
+                {priceColOn && (
+                  <CurrencyToggle
+                    value={priceCur}
+                    onChange={setPriceCur}
+                    label="qiymət sütunu"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
         {items.map((item) => {
@@ -353,8 +433,8 @@ export function AllocationList({
                 <div className="num text-[13px] font-medium text-black/85 dark:text-white/90">
                   <AnimatePresence initial={false}>
                     {visible.value && (
-                      <AnimatedFigure keyName="value" inline>
-                        {formatAzn(item.valueAzn)}
+                      <AnimatedFigure keyName={`value-${valueCur}`} inline>
+                        {formatMoney(item.valueAzn, valueCur)}
                       </AnimatedFigure>
                     )}
                   </AnimatePresence>
@@ -363,12 +443,18 @@ export function AllocationList({
                   <AnimatePresence initial={false} mode="wait">
                     {showPrice && (
                       <AnimatedFigure
-                        keyName={extQuote ? "price-ext" : "price"}
+                        keyName={`${extQuote ? "price-ext" : "price"}-${priceCur}`}
                         inline
                       >
-                        {usdFmt.format(
-                          (extQuote ? extQuote.priceUsd : item.priceUsd) as number,
-                        )}
+                        {(() => {
+                          const p = (
+                            extQuote ? extQuote.priceUsd : item.priceUsd
+                          ) as number;
+                          // Prices are USD-native; only the AZN view converts.
+                          return priceCur === "usd"
+                            ? formatUsd(p)
+                            : formatAzn(p * USD_TO_AZN);
+                        })()}
                       </AnimatedFigure>
                     )}
                   </AnimatePresence>
@@ -383,6 +469,7 @@ export function AllocationList({
                           amountAzn={item.totalPnlAzn}
                           mode={totalMode[item.name] ?? "pct"}
                           onToggle={() => flipMode(setTotalMode, item.name)}
+                          currency={valueCur}
                         />
                       </AnimatedFigure>
                     )}
@@ -402,6 +489,7 @@ export function AllocationList({
                           amountAzn={extQuote.deltaAzn}
                           mode={extMode[item.name] ?? "pct"}
                           onToggle={() => flipMode(setExtMode, item.name)}
+                          currency={priceCur}
                           icon={
                             <span
                               aria-hidden
@@ -420,6 +508,7 @@ export function AllocationList({
                           mode={dayMode[item.name] ?? "pct"}
                           onToggle={() => flipMode(setDayMode, item.name)}
                           variant="outlined"
+                          currency={priceCur}
                         />
                       </AnimatedFigure>
                     ) : hasExtQuote ? (

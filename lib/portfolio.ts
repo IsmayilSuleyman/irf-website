@@ -31,6 +31,26 @@ export const formatGroupedTrim = (n: number, maxDecimals: number) => {
 
 export const formatAzn = (n: number) => `${formatGrouped(n, 2)}${NBSP}₼`;
 
+// Official CBAR peg. Lives here (not lib/sheets) so client components can
+// convert — this module is the single client-safe money layer: one
+// conversion constant, one formatter per currency. New currency modes plug
+// in here.
+export const USD_TO_AZN = 1.7;
+
+export type Currency = "azn" | "usd";
+
+// USD keeps the international "$1,234.56" convention the price column has
+// always used — comma thousands, dot decimal — unlike the AZN format above.
+export const formatUsd = (n: number) => {
+  const neg = n < 0;
+  const [intPart, decPart] = Math.abs(n).toFixed(2).split(".");
+  return `${neg ? "-" : ""}$${intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${decPart}`;
+};
+
+/** Format an AZN-denominated amount in the requested display currency. */
+export const formatMoney = (azn: number, currency: Currency) =>
+  currency === "usd" ? formatUsd(azn / USD_TO_AZN) : formatAzn(azn);
+
 export const formatPct = (n: number) => `${(n * 100).toFixed(2)}%`;
 
 export const formatUnits = (n: number) => formatGroupedTrim(n, 4);

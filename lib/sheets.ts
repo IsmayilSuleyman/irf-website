@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { unstable_cache } from "next/cache";
+import { USD_TO_AZN } from "@/lib/portfolio";
 import type { NavPoint } from "@/lib/priceHistory";
 
 export type Holder = {
@@ -54,8 +55,10 @@ export type Holding = {
   sector: string | null; // from Watchlist col K; Cash rows are bucketed as "Cash"
 };
 
-// Official CBAR peg
-export const USD_TO_AZN = 1.7;
+// Official CBAR peg — canonical definition moved to the client-safe money
+// module (lib/portfolio); re-exported so existing server-side imports keep
+// working.
+export { USD_TO_AZN };
 
 function getAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
