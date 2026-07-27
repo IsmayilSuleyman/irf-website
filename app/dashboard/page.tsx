@@ -384,6 +384,7 @@ export default async function DashboardPage({
             name: holding.name,
             value: holding.valueAzn,
             fill: color,
+            sector: holding.sector ?? "Naməlum",
           }));
           const sectorSlices = sectorEntries.map((e) => ({
             name: e.sector,
