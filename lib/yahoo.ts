@@ -38,6 +38,37 @@ const numOrNull = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
+export type DailyClose = { t: string; close: number }; // t = "YYYY-MM-DD"
+
+/**
+ * Daily closes for one symbol going back `days` calendar days, ascending.
+ * Used for the momentum board's SPY reference returns.
+ */
+export async function getDailyCloses(
+  symbol: string,
+  days: number,
+): Promise<DailyClose[]> {
+  const period2 = new Date();
+  const period1 = new Date(period2.getTime() - days * 86_400_000);
+  const res = (await yahooFinance.chart(
+    toYahooSymbol(symbol),
+    { period1, period2, interval: "1d" },
+    { validateResult: false },
+  )) as unknown as { quotes?: Array<{ date?: unknown; close?: unknown }> };
+
+  const out: DailyClose[] = [];
+  for (const q of res?.quotes ?? []) {
+    const close = Number(q?.close);
+    const d =
+      q?.date instanceof Date ? q.date : new Date(String(q?.date ?? ""));
+    if (!Number.isFinite(close) || close <= 0 || Number.isNaN(d.getTime()))
+      continue;
+    out.push({ t: d.toISOString().slice(0, 10), close });
+  }
+  out.sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0));
+  return out;
+}
+
 /** Fetch quotes for many symbols in one call; keyed by Yahoo symbol. */
 export async function getExtendedQuotes(
   symbols: string[],
