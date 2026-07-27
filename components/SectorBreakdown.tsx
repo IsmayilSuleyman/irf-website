@@ -1,4 +1,5 @@
 import { formatAzn } from "@/lib/portfolio";
+import { SectorIcon } from "@/components/SectorIcon";
 
 type SectorRow = {
   sector: string;
@@ -21,14 +22,20 @@ export function SectorBreakdown({ rows }: { rows: SectorRow[] }) {
             key={r.sector}
             className="flex items-center justify-between gap-4 py-2"
           >
-            <div className="flex min-w-0 items-center gap-2">
-              {r.color && (
-                <span
-                  aria-hidden
-                  className="h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: r.color }}
-                />
-              )}
+            <div className="flex min-w-0 items-center gap-2.5">
+              {/* Sector glyph in a chip tinted with the sector's pie color
+                  ("26" = 15% alpha) so rows still map onto the pie wedges. */}
+              <span
+                aria-hidden
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/5 text-black/55 dark:bg-white/10 dark:text-white/60"
+                style={
+                  r.color
+                    ? { backgroundColor: `${r.color}26`, color: r.color }
+                    : undefined
+                }
+              >
+                <SectorIcon sector={r.sector} className="h-3.5 w-3.5" />
+              </span>
               <span className="truncate text-sm text-black/85 dark:text-white/90">{r.sector}</span>
             </div>
             <div className="num shrink-0 text-sm text-black/70 dark:text-white/75">
