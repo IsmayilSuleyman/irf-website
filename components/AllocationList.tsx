@@ -11,6 +11,11 @@ import {
 } from "@/lib/portfolio";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
 import { SectorIcon } from "@/components/SectorIcon";
+import {
+  MomentumFactorTable,
+  scoreTone,
+} from "@/components/MomentumFactorTable";
+import { DEFAULT_WEIGHTS, type ScoredItem } from "@/lib/momentum";
 import type { ExtendedMode, ExtendedSymbolQuote } from "@/lib/extendedPortfolio";
 
 type Item = {
@@ -229,10 +234,16 @@ function RankBadge({ rank, delta }: { rank: number; delta: number }) {
 export function AllocationList({
   items,
   extended,
+  momentum,
 }: {
   items: Item[];
   /** Present only while a pre/after-market or overnight window is active. */
   extended?: ExtendedListData | null;
+  /**
+   * Momentum engine rows (default weights) keyed by upper-cased ticker;
+   * rows with an entry expand into the factor table on tap.
+   */
+  momentum?: Record<string, ScoredItem>;
 }) {
   const [visible, setVisible] = useState<Record<ColumnKey, boolean>>({
     value: true,
@@ -250,6 +261,8 @@ export function AllocationList({
     {},
   );
   const [extMode, setExtMode] = useState<Record<string, "pct" | "amount">>({});
+  // Which rows have their momentum factor drill-down open.
+  const [momoOpen, setMomoOpen] = useState<Record<string, boolean>>({});
   // Display currency per number column; defaults match the historical
   // rendering (values in AZN, prices in USD).
   const [valueCur, setValueCur] = useState<Currency>("azn");
@@ -366,16 +379,37 @@ export function AllocationList({
             extended != null && !item.isCash && extended.quotes[ticker] != null;
           const extQuote =
             hasExtQuote && visible.extended ? extended!.quotes[ticker] : null;
+          const momoRow = momentum?.[ticker] ?? null;
+          const momoIsOpen = !!(momoRow && momoOpen[item.name]);
+          const toggleMomo = () =>
+            setMomoOpen((m) => ({ ...m, [item.name]: !m[item.name] }));
 
           return (
-            <li
-              key={item.name}
-              className="flex items-start gap-3 py-3"
-            >
+            <li key={item.name} className="flex flex-col py-3">
+              <div className="flex items-start gap-3">
               {/* Identity: ticker over company name (+ percent of portfolio).
                   Rank + movement arrow + sector icon are vertically centered
-                  against the two-line block. */}
-              <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                  against the two-line block. Rows with momentum data toggle
+                  the factor drill-down. */}
+              <div
+                className={`flex min-w-0 flex-1 items-center gap-2.5 ${
+                  momoRow ? "cursor-pointer select-none" : ""
+                }`}
+                {...(momoRow
+                  ? {
+                      role: "button" as const,
+                      tabIndex: 0,
+                      "aria-expanded": momoIsOpen,
+                      onClick: toggleMomo,
+                      onKeyDown: (e: React.KeyboardEvent) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleMomo();
+                        }
+                      },
+                    }
+                  : {})}
+              >
                 <RankBadge
                   rank={todayRank.get(item.name) ?? 0}
                   delta={
@@ -400,8 +434,24 @@ export function AllocationList({
                   />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0">
-                  <span className="num text-lg font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90">
-                    {primary}
+                  <span className="flex items-center gap-1.5">
+                    <span className="num text-lg font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90">
+                      {primary}
+                    </span>
+                    {momoRow && (
+                      <svg
+                        aria-hidden
+                        viewBox="0 0 10 6"
+                        className={`h-1.5 w-2.5 shrink-0 fill-none stroke-current text-black/30 transition-transform dark:text-white/35 ${
+                          momoIsOpen ? "rotate-180" : ""
+                        }`}
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="m1 1 4 4 4-4" />
+                      </svg>
+                    )}
                   </span>
                   <div className="-mt-1 flex min-w-0 items-baseline gap-2">
                     {secondary && (
@@ -525,6 +575,35 @@ export function AllocationList({
                   </AnimatePresence>
                 </div>
               </div>
+              </div>
+
+              {/* Momentum factor drill-down (default weights). */}
+              {momoRow && (
+                <AnimatePresence initial={false}>
+                  {momoIsOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.22, ease: "easeOut" }}
+                      className="overflow-hidden"
+                    >
+                      <div className="flex items-center pl-12 pt-2">
+                        <span
+                          className={`num rounded-md bg-black/5 px-2 py-0.5 text-[11px] font-medium dark:bg-white/10 ${scoreTone(momoRow.score).text}`}
+                        >
+                          Momentum balı: {momoRow.score.toFixed(1)}
+                        </span>
+                      </div>
+                      <MomentumFactorTable
+                        row={momoRow}
+                        weights={DEFAULT_WEIGHTS}
+                        className="pl-12 pr-1 pt-2"
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
             </li>
           );
         })}

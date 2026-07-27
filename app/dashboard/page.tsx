@@ -55,6 +55,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ExtendedHoursBadge } from "@/components/ExtendedHoursBadge";
 import { buildMomentumItems, getSpyReferences } from "@/lib/momentumData";
 import { MomentumBoard } from "@/components/MomentumBoard";
+import {
+  DEFAULT_WEIGHTS,
+  portfolioRet13w,
+  scoreUniverse,
+} from "@/lib/momentum";
+import {
+  AlphaCompare,
+  HealthGauge,
+  PortfolioCarousel,
+} from "@/components/PortfolioCarousel";
 
 export const dynamic = "force-dynamic";
 
@@ -223,6 +233,13 @@ export default async function DashboardPage({
   // Non-cash holdings scored by the momentum engine (Watchlist R..U columns
   // + SPY relative strength). Empty when the sheet lacks the columns.
   const momentumItems = buildMomentumItems(holdings, spyRefs);
+  // Default-weights scoring for the holdings drill-down and the pie-slot
+  // carousel (the Momentum section keeps its own live-weighted copy).
+  const momentumDefault = scoreUniverse(momentumItems, DEFAULT_WEIGHTS);
+  const momentumBySymbol = Object.fromEntries(
+    momentumDefault.rows.map((r) => [r.symbol, r]),
+  );
+  const portfolio13w = portfolioRet13w(momentumItems);
 
   // Jump-chips for the section nav — only sections actually rendered below.
   const navItems = [
@@ -466,12 +483,55 @@ export default async function DashboardPage({
                             }
                           : null
                       }
+                      momentum={
+                        momentumDefault.rows.length > 0
+                          ? momentumBySymbol
+                          : undefined
+                      }
                     />
                   </div>
                   <div className="lg:col-span-1 flex flex-col gap-6">
-                    <PortfolioPie
-                      sectors={sectorSlices}
-                      stocks={stockSlices}
+                    {/* Pie slot carousel: sector pie ⟷ health gauge ⟷ vs SPY. */}
+                    <PortfolioCarousel
+                      slides={[
+                        {
+                          key: "pie",
+                          label: "Sektor dairəsi",
+                          content: (
+                            <PortfolioPie
+                              sectors={sectorSlices}
+                              stocks={stockSlices}
+                            />
+                          ),
+                        },
+                        ...(momentumDefault.health != null
+                          ? [
+                              {
+                                key: "health",
+                                label: "Portfel sağlamlığı",
+                                content: (
+                                  <HealthGauge
+                                    health={momentumDefault.health}
+                                  />
+                                ),
+                              },
+                            ]
+                          : []),
+                        ...(portfolio13w != null && spyRefs.ret13w != null
+                          ? [
+                              {
+                                key: "alpha",
+                                label: "SPY-a qarşı (13H)",
+                                content: (
+                                  <AlphaCompare
+                                    portfolioRet={portfolio13w}
+                                    spyRet={spyRefs.ret13w}
+                                  />
+                                ),
+                              },
+                            ]
+                          : []),
+                      ]}
                     />
                     <SectorBreakdown rows={sectorRows} />
                   </div>

@@ -148,20 +148,26 @@ export function healthLabel(health: number): {
 }
 
 /**
- * Allocation-weighted 13W portfolio return minus SPY's — the alpha pill.
- * Uses current weights (positions are assumed stable over the window, same
- * simplification the day-change math makes).
+ * Allocation-weighted 13W portfolio return. Uses current weights (positions
+ * are assumed stable over the window, same simplification the day-change
+ * math makes).
  */
+export function portfolioRet13w(items: MomentumItem[]): number | null {
+  const withData = items.filter((i) => i.ret13w != null && i.valueAzn > 0);
+  const totalValue = withData.reduce((s, i) => s + i.valueAzn, 0);
+  if (totalValue <= 0) return null;
+  return (
+    withData.reduce((s, i) => s + (i.ret13w as number) * i.valueAzn, 0) /
+    totalValue
+  );
+}
+
+/** Allocation-weighted 13W portfolio return minus SPY's — the alpha pill. */
 export function portfolioAlpha13w(
   items: MomentumItem[],
   spyRet13w: number | null,
 ): number | null {
   if (spyRet13w == null) return null;
-  const withData = items.filter((i) => i.ret13w != null && i.valueAzn > 0);
-  const totalValue = withData.reduce((s, i) => s + i.valueAzn, 0);
-  if (totalValue <= 0) return null;
-  const portfolio =
-    withData.reduce((s, i) => s + (i.ret13w as number) * i.valueAzn, 0) /
-    totalValue;
-  return portfolio - spyRet13w;
+  const portfolio = portfolioRet13w(items);
+  return portfolio == null ? null : portfolio - spyRet13w;
 }
