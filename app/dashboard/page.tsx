@@ -436,6 +436,7 @@ export default async function DashboardPage({
                         .map(({ holding, color }) => ({
                           symbol: holding.symbol,
                           name: holding.name,
+                          sector: holding.sector ?? "Naməlum",
                           priceUsd: holding.priceUsd,
                           valueAzn: holding.valueAzn,
                           percent: holding.percent,
