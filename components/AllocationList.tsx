@@ -47,6 +47,8 @@ type ColumnKey =
   | "totalChange"
   | "dayChange"
   | "percent"
+  | "shares"
+  | "momentum"
   | "extended";
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
@@ -55,6 +57,7 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "totalChange", label: "Ümumi Dəyişim" },
   { key: "dayChange", label: "Günlük Dəyişim" },
   { key: "percent", label: "Faizlə Dəyəri" },
+  { key: "shares", label: "Pay sayı" },
 ];
 
 // Per-column display currency: the left toggle governs the value column
@@ -253,6 +256,8 @@ export function AllocationList({
     totalChange: true,
     dayChange: true,
     percent: true,
+    shares: true,
+    momentum: true,
     extended: true,
   });
   // Per-row mode for the two change badges: "pct" (default) vs "amount" (AZN).
@@ -309,6 +314,21 @@ export function AllocationList({
             </button>
           );
         })}
+        {/* Momentum chip only renders when the engine has data to show. */}
+        {momentum && (
+          <button
+            type="button"
+            onClick={() => toggle("momentum")}
+            aria-pressed={visible.momentum}
+            className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+              visible.momentum
+                ? "border-transparent bg-brand-green/15 text-brand-green dark:text-emerald-400"
+                : "border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
+            }`}
+          >
+            Momentum balı
+          </button>
+        )}
         {/* Session chip appears only while an extended window is active;
             its label follows the window (Gecə / Açılışdan əvvəl / …). */}
         {extended && (
@@ -470,21 +490,30 @@ export function AllocationList({
                         </AnimatedFigure>
                       )}
                     </AnimatePresence>
-                    {!item.isCash &&
-                      item.sharesHeld != null &&
-                      item.sharesHeld > 0 && (
-                        <span className="num shrink-0 text-[11px] text-black/45 dark:text-white/50">
-                          {formatUnits(item.sharesHeld)} pay
-                        </span>
+                    <AnimatePresence initial={false}>
+                      {visible.shares &&
+                        !item.isCash &&
+                        item.sharesHeld != null &&
+                        item.sharesHeld > 0 && (
+                          <AnimatedFigure keyName="shares" inline>
+                            <span className="num shrink-0 text-[11px] text-black/45 dark:text-white/50">
+                              {formatUnits(item.sharesHeld)} pay
+                            </span>
+                          </AnimatedFigure>
+                        )}
+                    </AnimatePresence>
+                    <AnimatePresence initial={false}>
+                      {visible.momentum && momoRow && (
+                        <AnimatedFigure keyName="momentum" inline>
+                          <span
+                            title="Momentum balı"
+                            className={`num shrink-0 rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
+                          >
+                            {momoRow.score.toFixed(1)}
+                          </span>
+                        </AnimatedFigure>
                       )}
-                    {momoRow && (
-                      <span
-                        title="Momentum balı"
-                        className={`num shrink-0 rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
-                      >
-                        {momoRow.score.toFixed(1)}
-                      </span>
-                    )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </div>
