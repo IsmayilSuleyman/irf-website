@@ -209,7 +209,7 @@ function yesterdayValueOf(item: Item): number {
 
 function RankBadge({ rank, delta }: { rank: number; delta: number }) {
   return (
-    <div className="num flex w-7 shrink-0 items-center text-xs text-black/55 dark:text-white/60">
+    <div className="num flex w-6 shrink-0 items-center text-xs text-black/55 dark:text-white/60 sm:w-7">
       <span className="w-3 text-right tabular-nums">{rank}</span>
       <span className="flex flex-1 items-center justify-center">
         {delta > 0 ? (
@@ -358,7 +358,7 @@ export function AllocationList({
         if (!valueColOn && !priceColOn) return null;
         return (
           <div className="-my-1 flex justify-end">
-            <div className="grid grid-cols-[auto_64px] items-center gap-x-4">
+            <div className="grid grid-cols-[auto_56px] items-center gap-x-2 sm:grid-cols-[auto_64px] sm:gap-x-4">
               <div className="flex justify-end">
                 {valueColOn && (
                   <CurrencyToggle
@@ -457,13 +457,13 @@ export function AllocationList({
 
           return (
             <li key={item.name} className="flex flex-col py-3">
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2 sm:gap-3">
               {/* Identity: ticker over company name (+ percent of portfolio).
                   Rank + movement arrow + sector icon are vertically centered
                   against the two-line block. Rows with momentum data toggle
                   the factor drill-down. */}
               <div
-                className={`flex min-w-0 flex-1 items-center gap-2.5 ${
+                className={`flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5 ${
                   momoRow ? "cursor-pointer select-none" : ""
                 }`}
                 {...(momoRow
@@ -505,8 +505,11 @@ export function AllocationList({
                   />
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0">
-                  <span className="flex items-center gap-1.5">
-                    <span className="num text-lg font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    {/* Phone widths get a smaller ticker (and truncate as a
+                        last resort) so the value/price columns never collide
+                        with it. */}
+                    <span className="num min-w-0 truncate text-base font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-lg">
                       {primary}
                     </span>
                     {momoRow && (
@@ -535,8 +538,8 @@ export function AllocationList({
               {/* 64px track fits the iconed session pill in % mode so column
                   toggling never overflows; AZN amount modes may extend into
                   the gap between the two number columns. */}
-              <div className="grid shrink-0 grid-cols-[auto_64px] items-center gap-x-4 gap-y-1 text-right">
-                <div className="num text-[13px] font-medium text-black/85 dark:text-white/90">
+              <div className="grid shrink-0 grid-cols-[auto_56px] items-center gap-x-2 gap-y-1 text-right sm:grid-cols-[auto_64px] sm:gap-x-4">
+                <div className="num text-xs font-medium text-black/85 dark:text-white/90 sm:text-[13px]">
                   <AnimatePresence initial={false}>
                     {visible.value && (
                       <AnimatedFigure keyName={`value-${valueCur}`} inline>
@@ -545,7 +548,7 @@ export function AllocationList({
                     )}
                   </AnimatePresence>
                 </div>
-                <div className="num text-[13px] text-black/45 dark:text-white/50">
+                <div className="num text-xs text-black/45 dark:text-white/50 sm:text-[13px]">
                   <AnimatePresence initial={false} mode="wait">
                     {showPrice && (
                       <AnimatedFigure
@@ -635,7 +638,7 @@ export function AllocationList({
 
               {/* Phone home of the secondary line: full row width, indented
                   to the ticker's left edge. */}
-              {secondaryLine("flex pl-[72px] pt-1 sm:hidden")}
+              {secondaryLine("flex pl-16 pt-1 sm:hidden")}
 
               {/* Momentum factor drill-down: horizontal cards, one per
                   factor, with ranks written out. */}
@@ -651,7 +654,7 @@ export function AllocationList({
                     >
                       <MomentumFactorCards
                         row={momoRow}
-                        className="pb-1 pl-12 pr-2 pt-4"
+                        className="pb-1 pl-4 pr-2 pt-4 sm:pl-12"
                       />
                     </motion.div>
                   )}
