@@ -406,6 +406,55 @@ export function AllocationList({
           const toggleMomo = () =>
             setMomoOpen((m) => ({ ...m, [item.name]: !m[item.name] }));
 
+          // Name · % · pay · score pill. Rendered in two responsive homes:
+          // on sm+ inside the identity column under the ticker; on phones as
+          // a full-width line beneath the row, where the narrow column would
+          // otherwise force every item onto its own line.
+          const secondaryLine = (cls: string) => (
+            <div
+              className={`min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 ${cls}`}
+            >
+              {secondary && (
+                <span className="min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
+                  {secondary}
+                </span>
+              )}
+              <AnimatePresence initial={false}>
+                {visible.percent && (
+                  <AnimatedFigure keyName="percent" inline>
+                    <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
+                      {(item.percent * 100).toFixed(1)}%
+                    </span>
+                  </AnimatedFigure>
+                )}
+              </AnimatePresence>
+              <AnimatePresence initial={false}>
+                {visible.shares &&
+                  !item.isCash &&
+                  item.sharesHeld != null &&
+                  item.sharesHeld > 0 && (
+                    <AnimatedFigure keyName="shares" inline>
+                      <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
+                        {formatUnits(item.sharesHeld)} pay
+                      </span>
+                    </AnimatedFigure>
+                  )}
+              </AnimatePresence>
+              <AnimatePresence initial={false}>
+                {visible.momentum && momoRow && (
+                  <AnimatedFigure keyName="momentum" inline>
+                    <span
+                      title="Momentum balı"
+                      className={`num shrink-0 rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
+                    >
+                      {momoRow.score.toFixed(1)}
+                    </span>
+                  </AnimatedFigure>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+
           return (
             <li key={item.name} className="flex flex-col py-3">
               <div className="flex items-start gap-3">
@@ -475,50 +524,7 @@ export function AllocationList({
                       </svg>
                     )}
                   </span>
-                  {/* flex-wrap + nowrap items: on narrow (phone) screens the
-                      pay count and score pill wrap to their own line inside
-                      this column instead of overflowing into the numbers
-                      column and colliding with the change badges. */}
-                  <div className="-mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    {secondary && (
-                      <span className="min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
-                        {secondary}
-                      </span>
-                    )}
-                    <AnimatePresence initial={false}>
-                      {visible.percent && (
-                        <AnimatedFigure keyName="percent" inline>
-                          <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
-                            {(item.percent * 100).toFixed(1)}%
-                          </span>
-                        </AnimatedFigure>
-                      )}
-                    </AnimatePresence>
-                    <AnimatePresence initial={false}>
-                      {visible.shares &&
-                        !item.isCash &&
-                        item.sharesHeld != null &&
-                        item.sharesHeld > 0 && (
-                          <AnimatedFigure keyName="shares" inline>
-                            <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
-                              {formatUnits(item.sharesHeld)} pay
-                            </span>
-                          </AnimatedFigure>
-                        )}
-                    </AnimatePresence>
-                    <AnimatePresence initial={false}>
-                      {visible.momentum && momoRow && (
-                        <AnimatedFigure keyName="momentum" inline>
-                          <span
-                            title="Momentum balı"
-                            className={`num shrink-0 rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
-                          >
-                            {momoRow.score.toFixed(1)}
-                          </span>
-                        </AnimatedFigure>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                  {secondaryLine("-mt-1 hidden sm:flex")}
                 </div>
               </div>
 
@@ -626,6 +632,10 @@ export function AllocationList({
                 </div>
               </div>
               </div>
+
+              {/* Phone home of the secondary line: full row width, indented
+                  to the ticker's left edge. */}
+              {secondaryLine("flex pl-[72px] pt-1 sm:hidden")}
 
               {/* Momentum factor drill-down: horizontal cards, one per
                   factor, with ranks written out. */}
