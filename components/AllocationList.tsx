@@ -4,11 +4,13 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { formatAzn } from "@/lib/portfolio";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
+import { SectorIcon } from "@/components/SectorIcon";
 import type { ExtendedMode, ExtendedSymbolQuote } from "@/lib/extendedPortfolio";
 
 type Item = {
   symbol?: string;
   name: string;
+  sector?: string;
   priceUsd?: number;
   valueAzn: number;
   percent: number;
@@ -289,7 +291,7 @@ export function AllocationList({
               className="flex items-start gap-3 py-3"
             >
               {/* Identity: ticker over company name (+ percent of portfolio).
-                  Rank + movement arrow + sector dot are vertically centered
+                  Rank + movement arrow + sector icon are vertically centered
                   against the two-line block. */}
               <div className="flex min-w-0 flex-1 items-center gap-2.5">
                 <RankBadge
@@ -299,13 +301,22 @@ export function AllocationList({
                     (todayRank.get(item.name) ?? 0)
                   }
                 />
-                {item.color && (
-                  <span
-                    aria-hidden
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: item.color }}
+                {/* Sector glyph in a chip tinted with the holding's pie shade
+                    ("26" = 15% alpha) so rows still map onto the stock arcs. */}
+                <span
+                  aria-hidden
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/5 text-black/55 dark:bg-white/10 dark:text-white/60"
+                  style={
+                    item.color
+                      ? { backgroundColor: `${item.color}26`, color: item.color }
+                      : undefined
+                  }
+                >
+                  <SectorIcon
+                    sector={item.sector ?? ""}
+                    className="h-3.5 w-3.5"
                   />
-                )}
+                </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0">
                   <span className="num text-lg font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90">
                     {primary}
