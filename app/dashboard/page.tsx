@@ -27,7 +27,11 @@ import { PriceBadge } from "@/components/PriceBadge";
 import { FundSummary } from "@/components/FundSummary";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
-import { getStrategyStatement, isOwnerEmail } from "@/lib/fundSettings";
+import {
+  getStrategyStatement,
+  getWeeklyBudgetAzn,
+  isOwnerEmail,
+} from "@/lib/fundSettings";
 import { AllocationList } from "@/components/AllocationList";
 import { PortfolioPie } from "@/components/PortfolioPie";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
@@ -63,6 +67,14 @@ import {
   HealthGauge,
   PortfolioCarousel,
 } from "@/components/PortfolioCarousel";
+import {
+  currentBakuWeekStart,
+  fetchMomentumWeeks,
+  recordMomentumWeek,
+  withCurrentWeek,
+} from "@/lib/momentumWeekData";
+import { buildTicket, resolveAdvised, type WeekScores } from "@/lib/buyTicket";
+import { BuyTicketPodium } from "@/components/BuyTicketPodium";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +96,7 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs] =
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -96,8 +108,20 @@ export default async function DashboardPage({
       getHolderMarketState(name),
       getMarketQuotes(),
       getSpyReferences(),
+      getWeeklyBudgetAzn(),
     ]);
   const canEditStrategy = isAdmin;
+
+  // Non-cash holdings scored by the momentum engine (Watchlist R..U columns
+  // + SPY relative strength). Empty when the sheet lacks the columns.
+  const momentumItems = buildMomentumItems(holdings, spyRefs);
+  // Default-weights scoring, shared by the holdings drill-down, the pie-slot
+  // carousel and the weekly buy ticket.
+  const momentumDefault = scoreUniverse(momentumItems, DEFAULT_WEIGHTS);
+  const momentumBySymbol = Object.fromEntries(
+    momentumDefault.rows.map((r) => [r.symbol, r]),
+  );
+  const portfolio13w = portfolioRet13w(momentumItems);
 
   // Whole-portfolio revaluation at Yahoo extended-hours prices (pre-market,
   // after-market, or the overnight gap carrying the after-market close);
@@ -112,6 +136,8 @@ export default async function DashboardPage({
   // regular hours record the intraday day-change % for the countdown chart.
   let extendedHistory: SessionHistoryPoint[] = [];
   let regularHistory: SessionHistoryPoint[] = [];
+  // Past weeks of momentum scores, for the buy ticket's hysteresis replay.
+  let momentumWeeks: WeekScores[] = [];
   {
     const histSupabase = await createSupabaseServerClient();
     if (histSupabase) {
@@ -125,15 +151,33 @@ export default async function DashboardPage({
         : regularPortfolio
           ? recordSessionSnapshot(histSupabase, "regular", regularPortfolio.changePct)
           : Promise.resolve();
-      [extendedHistory, regularHistory] = await Promise.all([
+      // The weekly snapshot rides along on the same client: the RPC is
+      // admin-gated and first-write-wins, so a non-admin render is a rejected
+      // no-op and every later admin render this week is a cheap conflict.
+      const recordWeek = recordMomentumWeek(histSupabase, momentumDefault.rows, {
+        factorsComplete: spyRefs.ret13w != null,
+      });
+      [extendedHistory, regularHistory, momentumWeeks] = await Promise.all([
         extendedPortfolio
           ? getExtendedHistory(histSupabase, extendedPortfolio.mode)
           : Promise.resolve([] as SessionHistoryPoint[]),
         getRegularHistory(histSupabase),
+        fetchMomentumWeeks(histSupabase),
         record.catch(() => undefined),
+        recordWeek.catch(() => undefined),
       ]);
     }
   }
+
+  // This week's ticket. The live scores always stand in for the current week,
+  // so the ticket is correct even when the snapshot write has not landed.
+  const ticket = buildTicket(
+    momentumDefault.rows,
+    weeklyBudgetAzn,
+    resolveAdvised(
+      withCurrentWeek(momentumWeeks, momentumDefault.rows, currentBakuWeekStart()),
+    ),
+  );
 
   const dateLabel = formatBakuDate(new Date());
 
@@ -227,17 +271,6 @@ export default async function DashboardPage({
         marketQuotes.fundCanSell,
       )
     : { ask: buyPrice(fund.unitPrice), bid: sellPrice(fund.unitPrice) };
-
-  // Non-cash holdings scored by the momentum engine (Watchlist R..U columns
-  // + SPY relative strength). Empty when the sheet lacks the columns.
-  const momentumItems = buildMomentumItems(holdings, spyRefs);
-  // Default-weights scoring for the holdings drill-down and the pie-slot
-  // carousel (the Momentum section keeps its own live-weighted copy).
-  const momentumDefault = scoreUniverse(momentumItems, DEFAULT_WEIGHTS);
-  const momentumBySymbol = Object.fromEntries(
-    momentumDefault.rows.map((r) => [r.symbol, r]),
-  );
-  const portfolio13w = portfolioRet13w(momentumItems);
 
   return (
     <main className="px-6 pb-24">
@@ -525,6 +558,18 @@ export default async function DashboardPage({
           );
         })()}
 
+        {/* Həftəlik alış bileti */}
+        {!fundView && ticket.picks.length > 0 && (
+          <MotionSection
+            id="bilet"
+            delay={0.17}
+            className="scroll-mt-32 hairline -mt-8 pt-6"
+          >
+            <div className="glass p-6">
+              <BuyTicketPodium ticket={ticket} canEdit={isAdmin} />
+            </div>
+          </MotionSection>
+        )}
       </div>
       </PrivacyProvider>
     </main>
