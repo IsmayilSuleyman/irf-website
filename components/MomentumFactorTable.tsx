@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import {
   type FactorKey,
   type MomentumWeights,
@@ -18,8 +19,8 @@ export const FACTORS: {
 }[] = [
   { key: "ret4w", short: "4H", full: "4 həftəlik gəlir", weightKey: "w4" },
   { key: "ret13w", short: "13H", full: "13 həftəlik gəlir", weightKey: "w13" },
-  { key: "retYtd", short: "YTD", full: "İlin əvvəlindən", weightKey: "wYtd" },
-  { key: "rs", short: "RS", full: "SPY-a nisbi güc (13H)", weightKey: "wRs" },
+  { key: "retYtd", short: "YTD", full: "İlin əvvəlindən gəlir", weightKey: "wYtd" },
+  { key: "rs", short: "RS", full: "SPY-a nisbi güc", weightKey: "wRs" },
 ];
 
 export const fmtPct = (v: number) =>
@@ -65,14 +66,38 @@ export function azOrdinal(n: number): string {
   return `${n}-${suffix}`;
 }
 
+/** Tinted value pill, sized so every row's pill lines up in one column. */
+function ValuePill({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "up" | "down" | "muted";
+}) {
+  const cls =
+    tone === "up"
+      ? "border-transparent bg-brand-green/15 text-brand-green dark:text-emerald-400"
+      : tone === "down"
+        ? "border-transparent bg-brand-red/15 text-brand-red dark:text-red-400"
+        : "border-transparent bg-black/5 text-black/45 dark:bg-white/10 dark:text-white/50";
+  return (
+    <span
+      className={`num inline-flex min-w-[3.6rem] justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${cls}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 /**
- * Horizontal card layout of the factor breakdown for the holdings
- * drill-down: big colored value, factor name beneath, and the rank spelled
- * out ("17 pozisiyadan 15-ci yer"). The 200GO card compares the price with
- * the average and closes with an above/below pill. No weights here — those
- * belong to the Momentum section where they are adjustable.
+ * Factor breakdown for the holdings drill-down, one line per factor:
+ * label · rank · value pill, with the pills aligned in a single right-hand
+ * column. The 200GO line puts the price-vs-average comparison where the
+ * ranks sit and the above/below state in the pill column. Phones get the
+ * short "8/17" rank form so the three columns still fit. No weights here —
+ * those belong to the Momentum section where they are adjustable.
  */
-export function MomentumFactorCards({
+export function MomentumFactorRows({
   row,
   className = "",
 }: {
@@ -83,74 +108,63 @@ export function MomentumFactorCards({
     v >= 0
       ? "text-brand-green dark:text-emerald-400"
       : "text-brand-red dark:text-red-400";
-  const MUTED = "text-black/30 dark:text-white/35";
+  const LABEL = "text-[11px] text-black/45 dark:text-white/50";
+  const RANK = "num text-[11px] text-black/55 dark:text-white/60";
+
   return (
     <div
-      className={`grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 lg:grid-cols-5 ${className}`}
+      className={`grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1.5 ${className}`}
     >
       {FACTORS.map((f) => {
         const value = row[f.key];
         const rank = row.ranks[f.key];
         const n = row.counts[f.key] ?? 0;
+        const hasRank = value != null && rank != null;
         return (
-          <div
-            key={f.key}
-            className="flex flex-col items-center gap-0.5 text-center"
-          >
-            <span
-              className={`num text-xl font-semibold ${
-                value == null ? MUTED : valueCls(value)
-              }`}
-            >
+          <Fragment key={f.key}>
+            <span className={LABEL}>{f.full}:</span>
+            <span className={`${RANK} text-right`}>
+              {hasRank ? (
+                <>
+                  <span className="sm:hidden">
+                    {rank}/{n}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {n} pozisiyadan {azOrdinal(rank)}
+                  </span>
+                </>
+              ) : (
+                "məlumat yoxdur"
+              )}
+            </span>
+            <ValuePill tone={value == null ? "muted" : value >= 0 ? "up" : "down"}>
               {value == null ? "—" : fmtPct(value)}
-            </span>
-            <span className="text-[11px] text-black/45 dark:text-white/50">
-              {f.full}
-            </span>
-            <span className="num text-[11px] text-black/55 dark:text-white/60">
-              {value == null || rank == null
-                ? "məlumat yoxdur"
-                : `${n} pozisiyadan ${azOrdinal(rank)} yer`}
-            </span>
-          </div>
+            </ValuePill>
+          </Fragment>
         );
       })}
-      <div className="flex flex-col items-center gap-0.5 text-center">
-        {row.avg200Usd == null ? (
-          <>
-            <span className={`num text-xl font-semibold ${MUTED}`}>—</span>
-            <span className="text-[11px] text-black/45 dark:text-white/50">
-              200 günlük ortalama
-            </span>
-            <span className="text-[11px] text-black/55 dark:text-white/60">
-              məlumat yoxdur
-            </span>
-          </>
-        ) : (
-          <>
-            <span
-              className={`num pt-1.5 text-sm font-semibold ${valueCls(
-                row.above200 ? 1 : -1,
-              )}`}
-            >
-              {formatUsd(row.priceUsd)} {row.above200 ? ">" : "<"}{" "}
-              {formatUsd(row.avg200Usd)}
-            </span>
-            <span className="text-[11px] text-black/45 dark:text-white/50">
-              200 günlük ortalamanın
-            </span>
-            <span
-              className={`rounded-full border px-1.5 py-px text-[10px] font-medium ${
-                row.above200
-                  ? "border-brand-green/40 text-brand-green dark:text-emerald-400"
-                  : "border-brand-red/40 text-brand-red dark:text-red-400"
-              }`}
-            >
-              {row.above200 ? "üzərindədir" : "altındadır"}
-            </span>
-          </>
-        )}
-      </div>
+
+      <span className={LABEL}>200 günlük ortalama:</span>
+      {row.avg200Usd == null ? (
+        <>
+          <span className={`${RANK} text-right`}>məlumat yoxdur</span>
+          <ValuePill tone="muted">—</ValuePill>
+        </>
+      ) : (
+        <>
+          <span
+            className={`num text-right text-[11px] font-medium ${valueCls(
+              row.above200 ? 1 : -1,
+            )}`}
+          >
+            {formatUsd(row.priceUsd)} {row.above200 ? ">" : "<"}{" "}
+            {formatUsd(row.avg200Usd)}
+          </span>
+          <ValuePill tone={row.above200 ? "up" : "down"}>
+            {row.above200 ? "üzərində" : "altında"}
+          </ValuePill>
+        </>
+      )}
     </div>
   );
 }
