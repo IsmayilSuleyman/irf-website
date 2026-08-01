@@ -67,9 +67,10 @@ function statusStyles(status: string | null | undefined): string {
 
 // Bank-app style quick actions: the bank's products/venues one tap away.
 // Positioned right under the welcome line so primary navigation no longer
-// hides at the bottom of the page. "Depozitlərim" / "Kreditlərim" jump to
-// the matching sections further down and only show when the account
-// actually has that product.
+// hides at the bottom of the page. "Balansım" / "Kreditlərim" jump to the
+// matching sections further down; the credit card only shows when the account
+// actually has that product, while the balance card is always present because
+// the balance hero always renders.
 function QuickActions({
   hasDeposit,
   hasBonds,
@@ -79,25 +80,24 @@ function QuickActions({
   hasBonds: boolean;
   hasCredit: boolean;
 }) {
+  // The balance hero always renders now, so its anchor is always a valid
+  // target — the card follows the hero's own label rule.
+  const depositOnly = hasDeposit && !hasBonds;
   const actions = [
-    ...(hasDeposit || hasBonds
-      ? [
-          {
-            href: "#depozitlerim",
-            label: hasBonds ? "Balansım" : "Depozitlərim",
-            desc: hasBonds
-              ? "Depozit və istiqraz balansım"
-              : "Depozit balansım və şərtləri",
-            icon: (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="16" rx="2" />
-                <circle cx="12" cy="12" r="3.5" />
-                <path d="M12 10.2v1.8l1.2 1.2" />
-              </svg>
-            ),
-          },
-        ]
-      : []),
+    {
+      href: "#depozitlerim",
+      label: depositOnly ? "Depozitlərim" : "Balansım",
+      desc: depositOnly
+        ? "Depozit balansım və şərtləri"
+        : "Depozit və istiqraz balansım",
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <circle cx="12" cy="12" r="3.5" />
+          <path d="M12 10.2v1.8l1.2 1.2" />
+        </svg>
+      ),
+    },
     ...(hasCredit
       ? [
           {
@@ -411,10 +411,31 @@ export default async function BankPage({
           />
         </MotionSection>
 
-        {/* ── Empty state ── */}
+        {/* ── Balance Section — Fund-hero style headline ──
+            Total on top, deposit + bonds as its two legs underneath. Renders
+            for every account, including one holding nothing: a plain 0,00 ₼ is
+            an answer to "what do I have here", where an absent hero is not. */}
+        <MotionSection delay={0.04}>
+          <div id="depozitlerim" className="mt-8 scroll-mt-6">
+            <BalanceHero
+              depositedAzn={account.depositedAzn}
+              termMonths={account.termMonths}
+              annualRatePct={account.annualRatePct}
+              maturityBonusAzn={account.maturityBonusAzn}
+              maturityDate={account.maturityDate}
+              depositMonthlyAzn={monthlyDepositInterestAzn(account)}
+              bondValueAzn={bonds.nominalValueAzn}
+              bondUnits={bonds.totalUnits}
+              bondIssues={bonds.holdings.length}
+              bondMonthlyAzn={bonds.monthlyCouponAzn}
+            />
+          </div>
+        </MotionSection>
+
+        {/* ── Empty state — sits under the 0,00 ₼ hero and explains it ── */}
         {hasNoProducts ? (
-          <MotionSection delay={0.04}>
-            <div className="mt-16 flex flex-col items-start sm:mt-24">
+          <MotionSection delay={0.06}>
+            <div className="mt-10 flex flex-col items-start">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
                 Hələlik heç nə yoxdur
               </p>
@@ -427,27 +448,6 @@ export default async function BankPage({
               >
                 Depozit və kredit şərtlərinə bax
               </Link>
-            </div>
-          </MotionSection>
-        ) : null}
-
-        {/* ── Balance Section — Fund-hero style headline ──
-            Total on top, deposit + bonds as its two legs underneath. */}
-        {account.depositedAzn > 0 || bonds.totalUnits > 0 ? (
-          <MotionSection delay={0.04}>
-            <div id="depozitlerim" className="mt-8 scroll-mt-6">
-              <BalanceHero
-                depositedAzn={account.depositedAzn}
-                termMonths={account.termMonths}
-                annualRatePct={account.annualRatePct}
-                maturityBonusAzn={account.maturityBonusAzn}
-                maturityDate={account.maturityDate}
-                depositMonthlyAzn={monthlyDepositInterestAzn(account)}
-                bondValueAzn={bonds.nominalValueAzn}
-                bondUnits={bonds.totalUnits}
-                bondIssues={bonds.holdings.length}
-                bondMonthlyAzn={bonds.monthlyCouponAzn}
-              />
             </div>
           </MotionSection>
         ) : null}

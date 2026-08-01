@@ -133,8 +133,12 @@ export function BalanceHero({
 
   return (
     <div>
+      {/* "Depozit balansım" only when the deposit IS the whole balance. A
+          holder with bonds, and an account with neither, both get the general
+          label — calling an empty balance a deposit balance would imply a
+          deposit that isn't there. */}
       <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
-        {hasBonds ? "Ümumi balansım" : "Depozit balansım"}
+        {hasDeposit && !hasBonds ? "Depozit balansım" : "Ümumi balansım"}
       </p>
 
       <div
@@ -197,7 +201,7 @@ export function BalanceHero({
             tone="blue"
           />
         </div>
-      ) : (
+      ) : hasDeposit ? (
         <>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/55 dark:text-white/60">
             {termMonths != null ? (
@@ -228,22 +232,20 @@ export function BalanceHero({
               </span>
             ) : null}
           </div>
-          {hasDeposit ? (
-            <p className="mt-4 text-xs leading-5 text-black/45 dark:text-white/50">
-              {depositMonthlyAzn > 0 ? (
-                <>
-                  Bu depozit sizə ayda{" "}
-                  <span className="num font-semibold text-ink dark:text-white/90">
-                    {formatGrouped(depositMonthlyAzn, 2)} ₼
-                  </span>{" "}
-                  qazandırır.{" "}
-                </>
-              ) : null}
-              {depositNote}
-            </p>
-          ) : null}
+          <p className="mt-4 text-xs leading-5 text-black/45 dark:text-white/50">
+            {depositMonthlyAzn > 0 ? (
+              <>
+                Bu depozit sizə ayda{" "}
+                <span className="num font-semibold text-ink dark:text-white/90">
+                  {formatGrouped(depositMonthlyAzn, 2)} ₼
+                </span>{" "}
+                qazandırır.{" "}
+              </>
+            ) : null}
+            {depositNote}
+          </p>
         </>
-      )}
+      ) : null}
     </div>
   );
 }
