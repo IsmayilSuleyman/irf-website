@@ -3,7 +3,9 @@ import {
   computeBankWide,
   getBankAccountByName,
   getBankAccounts,
+  monthlyDepositInterestAzn,
   simplifyText,
+  type BankAccount,
   type BankPaymentScheduleItem,
 } from "@/lib/bank";
 import { requireUser } from "@/lib/auth-guard";
@@ -11,14 +13,18 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { formatGrouped } from "@/lib/portfolio";
 import { getBankProductTerms } from "@/lib/bankTerms";
-import { getBondFundingAzn, getBondFundingBreakdown } from "@/lib/bonds";
+import {
+  getBondFundingAzn,
+  getBondFundingBreakdown,
+  getMyBondHoldings,
+} from "@/lib/bonds";
 import { computeLiquidityProjection } from "@/lib/liquidityProjection";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 import { BankViewToggle } from "@/components/BankViewToggle";
 import { BankWideView } from "@/components/BankWideView";
 import { BankTermsPanel } from "@/components/BankTermsPanel";
-import { DepositHero } from "@/components/DepositHero";
+import { BalanceHero } from "@/components/BalanceHero";
 import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 import { BroadcastPanel } from "@/components/BroadcastPanel";
 
@@ -66,18 +72,22 @@ function statusStyles(status: string | null | undefined): string {
 // actually has that product.
 function QuickActions({
   hasDeposit,
+  hasBonds,
   hasCredit,
 }: {
   hasDeposit: boolean;
+  hasBonds: boolean;
   hasCredit: boolean;
 }) {
   const actions = [
-    ...(hasDeposit
+    ...(hasDeposit || hasBonds
       ? [
           {
             href: "#depozitlerim",
-            label: "Depozitlərim",
-            desc: "Depozit balansım və şərtləri",
+            label: hasBonds ? "Balansım" : "Depozitlərim",
+            desc: hasBonds
+              ? "Depozit və istiqraz balansım"
+              : "Depozit balansım və şərtləri",
             icon: (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="16" rx="2" />
@@ -287,7 +297,33 @@ export default async function BankPage({
   }
 
   const name = displayNameOf(user.user_metadata);
-  const account = await getBankAccountByName(name);
+  const [sheetAccount, bonds] = await Promise.all([
+    getBankAccountByName(name),
+    getMyBondHoldings(),
+  ]);
+
+  // Bonds are bought on /bonds without any bank-sheet row, so a bondholder can
+  // legitimately have no row at all. Fall back to a zero-deposit account for
+  // them — otherwise their balance would sit behind the "hesab tapılmadı"
+  // screen below and they'd have no way to see what they hold.
+  const account: BankAccount | undefined =
+    sheetAccount ??
+    (bonds.totalUnits > 0
+      ? {
+          annualRatePct: null,
+          depositedAzn: 0,
+          maturityBonusAzn: null,
+          maturityDate: null,
+          monthlyPaymentAzn: null,
+          name: name ?? "",
+          netAzn: 0,
+          nextPaymentDate: null,
+          outstandingLoanAzn: 0,
+          paymentSchedule: [],
+          termMonths: null,
+          updatedAt: null,
+        }
+      : undefined);
 
   // Admin (is_fund_admin) can push on-demand "pay your debt" notices to borrowers.
   const supabase = await createSupabaseServerClient();
@@ -342,6 +378,7 @@ export default async function BankPage({
   const hasNoProducts =
     account.depositedAzn <= 0 &&
     account.outstandingLoanAzn <= 0 &&
+    bonds.totalUnits <= 0 &&
     account.paymentSchedule.length === 0;
 
   const remainingPayments =
@@ -369,6 +406,7 @@ export default async function BankPage({
         <MotionSection delay={0.02}>
           <QuickActions
             hasDeposit={account.depositedAzn > 0}
+            hasBonds={bonds.totalUnits > 0}
             hasCredit={account.outstandingLoanAzn > 0 || account.paymentSchedule.length > 0}
           />
         </MotionSection>
@@ -393,23 +431,24 @@ export default async function BankPage({
           </MotionSection>
         ) : null}
 
-        {/* ── Deposits Section — Fund-hero style headline ── */}
-        {account.depositedAzn > 0 ? (
+        {/* ── Balance Section — Fund-hero style headline ──
+            Total on top, deposit + bonds as its two legs underneath. */}
+        {account.depositedAzn > 0 || bonds.totalUnits > 0 ? (
           <MotionSection delay={0.04}>
             <div id="depozitlerim" className="mt-8 scroll-mt-6">
-              <DepositHero
+              <BalanceHero
                 depositedAzn={account.depositedAzn}
                 termMonths={account.termMonths}
                 annualRatePct={account.annualRatePct}
                 maturityBonusAzn={account.maturityBonusAzn}
                 maturityDate={account.maturityDate}
+                depositMonthlyAzn={monthlyDepositInterestAzn(account)}
+                bondValueAzn={bonds.nominalValueAzn}
+                bondUnits={bonds.totalUnits}
+                bondIssues={bonds.holdings.length}
+                bondMonthlyAzn={bonds.monthlyCouponAzn}
               />
             </div>
-            <p className="mt-4 text-xs leading-5 text-black/45 dark:text-white/50">
-              Qeyd: depozit üzrə hesablanmış faiz yalnız depozit müddətinin
-              sonunda{account.maturityDate ? ` (${formatDisplayDate(account.maturityDate)})` : ""} ödənilir.
-              Vaxtından əvvəl çıxarılan depozitlərə faiz gəliri verilmir.
-            </p>
           </MotionSection>
         ) : null}
 

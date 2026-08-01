@@ -518,6 +518,28 @@ export type BankWideAggregate = {
   next30dInflow: { totalAzn: number; items: BankWideUpcomingInflow[] };
 };
 
+/**
+ * Interest a deposit earns per month, in AZN (display-only — the lifetime bonus
+ * is still paid in one lump at maturity, see the /bank note).
+ *
+ * Prefers the sheet's maturityBonusAzn / termMonths because the bonus column is
+ * the canonical lifetime amount İsmayıl actually pays; the rate × principal / 12
+ * arm is a fallback for rows where the bonus hasn't been filled in. Returns 0
+ * when the term is missing, since without it neither arm can be trusted.
+ */
+export function monthlyDepositInterestAzn(
+  acc: Pick<BankAccount, "depositedAzn" | "termMonths" | "maturityBonusAzn" | "annualRatePct">,
+): number {
+  if (acc.termMonths == null || acc.termMonths <= 0) return 0;
+  if (acc.maturityBonusAzn != null && acc.maturityBonusAzn > 0) {
+    return acc.maturityBonusAzn / acc.termMonths;
+  }
+  if (acc.annualRatePct != null && acc.depositedAzn > 0) {
+    return (acc.depositedAzn * acc.annualRatePct) / 100 / 12;
+  }
+  return 0;
+}
+
 function parseDateUtc(value: string | null | undefined): Date | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -591,19 +613,11 @@ export function computeBankWide(
       const matDate = parseDateUtc(acc.maturityDate);
       const daysToMaturity = matDate ? daysBetween(todayUtc, matDate) : null;
 
-      // Monthly accrual (display-only). Prefer the sheet's maturityBonusAzn /
-      // termMonths since the bonus column is the canonical lifetime amount.
-      // Fall back to rate × principal / 12 when bonus is missing.
-      let monthlyInterestAzn = 0;
+      // Monthly accrual (display-only) — same rule the /bank hero shows.
+      const monthlyInterestAzn = monthlyDepositInterestAzn(acc);
       let monthsElapsed = 0;
       let accruedInterestAzn = 0;
       if (acc.termMonths != null && acc.termMonths > 0) {
-        if (acc.maturityBonusAzn != null && acc.maturityBonusAzn > 0) {
-          monthlyInterestAzn = acc.maturityBonusAzn / acc.termMonths;
-        } else if (acc.annualRatePct != null && acc.depositedAzn > 0) {
-          monthlyInterestAzn =
-            (acc.depositedAzn * acc.annualRatePct) / 100 / 12;
-        }
         if (monthlyInterestAzn > 0 && matDate) {
           const startDate = subtractMonths(matDate, acc.termMonths);
           monthsElapsed = Math.min(

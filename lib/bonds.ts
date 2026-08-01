@@ -217,6 +217,99 @@ export async function getBondFundingBreakdown(): Promise<BondFundingSeries[]> {
   }));
 }
 
+/**
+ * Coupon income for `units` bonds expressed per month, in AZN.
+ *
+ * A coupon lands every `coupon_period_months`, so a monthly figure is an
+ * average — but an exact one, not a re-rounded slice: dividing the period
+ * coupon (units × face × rate/100 × period/12) by `period` cancels the period
+ * entirely and leaves the annual coupon over 12. That means a quarterly and a
+ * monthly series of the same rate report the same monthly income, which is the
+ * point. Deliberately NOT rounded here — callers sum across series first and
+ * round once for display, same discipline as couponAmountAzn.
+ */
+export function monthlyCouponAzn(
+  series: Pick<BondSeries, "face_value_azn" | "coupon_rate_pct">,
+  units: number,
+): number {
+  return (units * series.face_value_azn * (series.coupon_rate_pct / 100)) / 12;
+}
+
+export type MyBondHolding = {
+  seriesId: string;
+  name: string;
+  units: number;
+  faceValueAzn: number;
+  /** units × face value — what the bank repays this holder at maturity. */
+  nominalValueAzn: number;
+  couponRatePct: number;
+  couponPeriodMonths: number;
+  /** Average coupon income per month for this holding. */
+  monthlyCouponAzn: number;
+  maturityDate: string;
+  nextCouponDate: string | null;
+};
+
+export type MyBondPosition = {
+  holdings: MyBondHolding[];
+  totalUnits: number;
+  /** Σ units × face value across the caller's active series. */
+  nominalValueAzn: number;
+  /** Σ average monthly coupon income across the caller's active series. */
+  monthlyCouponAzn: number;
+};
+
+/**
+ * The caller's own bond position, valued at nominal — for the balance tiles on
+ * /bank. One `bond_market_status` call (the same RPC /bonds uses) without the
+ * per-series order books, orders, trades and payments that page also needs.
+ *
+ * Only ACTIVE series count. `my_units` stays non-zero on a matured series
+ * because the settled trades that built the position never go away, but
+ * recording the principal payment already returned that money to the holder —
+ * counting it again would inflate the balance by a claim the bank has settled.
+ */
+export async function getMyBondHoldings(): Promise<MyBondPosition> {
+  const empty: MyBondPosition = {
+    holdings: [],
+    totalUnits: 0,
+    nominalValueAzn: 0,
+    monthlyCouponAzn: 0,
+  };
+
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return empty;
+
+  const { data, error } = await supabase.rpc("bond_market_status");
+  if (error) {
+    console.error("[bonds] bond_market_status failed:", error);
+    return empty;
+  }
+
+  const holdings = parseSeries((data as Record<string, unknown> | null)?.series)
+    .filter((s) => s.status === "active" && s.my_units > 0)
+    .map((s) => ({
+      seriesId: s.id,
+      name: s.name,
+      units: s.my_units,
+      faceValueAzn: s.face_value_azn,
+      nominalValueAzn: s.my_units * s.face_value_azn,
+      couponRatePct: s.coupon_rate_pct,
+      couponPeriodMonths: s.coupon_period_months,
+      monthlyCouponAzn: monthlyCouponAzn(s, s.my_units),
+      maturityDate: s.maturity_date,
+      nextCouponDate: s.next_coupon_date,
+    }))
+    .sort((a, b) => b.nominalValueAzn - a.nominalValueAzn);
+
+  return {
+    holdings,
+    totalUnits: holdings.reduce((sum, h) => sum + h.units, 0),
+    nominalValueAzn: holdings.reduce((sum, h) => sum + h.nominalValueAzn, 0),
+    monthlyCouponAzn: holdings.reduce((sum, h) => sum + h.monthlyCouponAzn, 0),
+  };
+}
+
 /** Loads everything the /bonds page needs for the current user in one pass. */
 export async function getBondMarketData(): Promise<BondMarketData | null> {
   const supabase = await createSupabaseServerClient();
