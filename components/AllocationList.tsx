@@ -13,7 +13,7 @@ import {
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
 import { SectorIcon } from "@/components/SectorIcon";
 import {
-  MomentumFactorCards,
+  MomentumFactorRows,
   scorePill,
 } from "@/components/MomentumFactorTable";
 import type { ScoredItem } from "@/lib/momentum";
@@ -25,6 +25,8 @@ type Item = {
   sector?: string;
   sharesHeld?: number;
   priceUsd?: number;
+  /** Average purchase price, USD (shown in the drill-down). */
+  avgPurchaseUsd?: number | null;
   valueAzn: number;
   percent: number;
   changePct?: number | null;
@@ -638,10 +640,11 @@ export function AllocationList({
               </div>
               </div>
 
-              {/* Momentum factor drill-down: horizontal cards, one per
-                  factor, with ranks written out. On phones it opens with the
-                  portfolio %, pay count and score that the collapsed row
-                  omits. */}
+              {/* Momentum factor drill-down: one line per factor with the
+                  rank and value pill. The meta line labels the momentum
+                  score and adds the average purchase price; on phones it
+                  also carries the portfolio % and pay count that the
+                  collapsed row omits. */}
               {momoRow && (
                 <AnimatePresence initial={false}>
                   {momoIsOpen && (
@@ -652,12 +655,32 @@ export function AllocationList({
                       transition={{ duration: 0.22, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
-                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 pl-4 pt-2 sm:hidden">
-                        {secondaryExtras}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-4 pt-2 text-[11px] text-black/45 dark:text-white/50 sm:pl-12">
+                        <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:hidden">
+                          {secondaryExtras}
+                        </span>
+                        <span className="hidden items-center gap-1.5 sm:inline-flex">
+                          <span
+                            className={`num rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
+                          >
+                            {momoRow.score.toFixed(1)}
+                          </span>
+                          Momentum balı
+                        </span>
+                        {item.avgPurchaseUsd != null && item.avgPurchaseUsd > 0 && (
+                          <span>
+                            Ortalama alış qiyməti:{" "}
+                            <span className="num text-black/70 dark:text-white/75">
+                              {priceCur === "usd"
+                                ? formatUsd(item.avgPurchaseUsd)
+                                : formatAzn(item.avgPurchaseUsd * USD_TO_AZN)}
+                            </span>
+                          </span>
+                        )}
                       </div>
-                      <MomentumFactorCards
+                      <MomentumFactorRows
                         row={momoRow}
-                        className="pb-1 pl-4 pr-2 pt-4 sm:pl-12"
+                        className="pb-1 pl-4 pr-2 pt-3 sm:pl-12"
                       />
                     </motion.div>
                   )}

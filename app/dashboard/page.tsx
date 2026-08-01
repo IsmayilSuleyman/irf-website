@@ -483,6 +483,7 @@ export default async function DashboardPage({
                           sector: holding.sector ?? "Naməlum",
                           sharesHeld: holding.sharesHeld,
                           priceUsd: holding.priceUsd,
+                          avgPurchaseUsd: holding.avgPurchaseUsd,
                           valueAzn: holding.valueAzn,
                           percent: holding.percent,
                           changePct: holding.changePct,
