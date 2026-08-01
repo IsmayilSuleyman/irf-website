@@ -526,7 +526,7 @@ export default async function DashboardPage({
                           ? [
                               {
                                 key: "health",
-                                label: "Portfel sağlamlığı",
+                                label: "Portfelin momentum gücü",
                                 content: (
                                   <HealthGauge
                                     health={momentumDefault.health}
@@ -539,7 +539,7 @@ export default async function DashboardPage({
                           ? [
                               {
                                 key: "alpha",
-                                label: "SPY-a qarşı (13H)",
+                                label: "S&P 500 ilə müqayisə (13 həftə)",
                                 content: (
                                   <AlphaCompare
                                     portfolioRet={portfolio13w}

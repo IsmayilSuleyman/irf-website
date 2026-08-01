@@ -20,7 +20,9 @@ export const FACTORS: {
   { key: "ret4w", short: "4H", full: "4 həftəlik gəlir", weightKey: "w4" },
   { key: "ret13w", short: "13H", full: "13 həftəlik gəlir", weightKey: "w13" },
   { key: "retYtd", short: "YTD", full: "İlin əvvəlindən gəlir", weightKey: "wYtd" },
-  { key: "rs", short: "RS", full: "SPY-a nisbi güc", weightKey: "wRs" },
+  // The benchmark is the SPY ETF but is named for its index everywhere in the
+  // UI, matching the comparison slide.
+  { key: "rs", short: "RS", full: "S&P 500-ə nisbi güc", weightKey: "wRs" },
 ];
 
 export const fmtPct = (v: number) =>

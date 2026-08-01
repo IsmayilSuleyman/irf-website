@@ -6,9 +6,12 @@ import { healthLabel } from "@/lib/momentum";
 import { fmtPct } from "@/components/MomentumFactorTable";
 
 // The pie's slot in Fond Portfeli becomes a small carousel: sector pie ⟷
-// portfolio-health gauge ⟷ 13W performance vs SPY, stepped with side arrows
-// or the dots underneath. Slides share the pie's h-72 footprint so flipping
-// never shifts the layout.
+// momentum-strength gauge ⟷ 13W performance against the S&P 500, stepped with
+// side arrows or the dots underneath. Slides share the pie's h-72 footprint so
+// flipping never shifts the layout.
+//
+// Copy note: the benchmark is held as the SPY ETF but is named "S&P 500" in
+// the UI — shareholders know the index, not the ticker.
 
 const TONE_TEXT = {
   red: "text-brand-red dark:text-red-400",
@@ -28,7 +31,7 @@ export function HealthGauge({ health }: { health: number }) {
   return (
     <div className="flex h-72 w-full flex-col items-center justify-center gap-5 px-8">
       <span className="text-[10px] uppercase tracking-[0.22em] text-black/45 dark:text-white/50">
-        Portfel sağlamlığı
+        Portfelin momentum gücü
       </span>
       <div className="flex items-baseline gap-2.5">
         <span className={`num text-4xl font-semibold ${TONE_TEXT[tone]}`}>
@@ -41,8 +44,8 @@ export function HealthGauge({ health }: { health: number }) {
         </span>
       </div>
       <div className="w-full max-w-[16rem]">
-        {/* Band bar: Müdafiə <50, Neytral 50–70, Hücum ≥70, with the
-            portfolio's marker on top. */}
+        {/* Band bar: Zəif <50, Orta 50–70, Güclü ≥70, with the portfolio's
+            marker on top. */}
         <div className="relative">
           <div className="flex h-2.5 overflow-hidden rounded-full">
             <div className="bg-brand-red/50" style={{ width: "50%" }} />
@@ -66,8 +69,8 @@ export function HealthGauge({ health }: { health: number }) {
         </div>
       </div>
       <span className="max-w-[16rem] text-center text-[10px] leading-relaxed text-black/40 dark:text-white/45">
-        Bölüşdürməyə görə çəkilmiş momentum balı — Müdafiə &lt;50 · Neytral
-        50–70 · Hücum ≥70.
+        Portfel çəkilərinə görə hesablanmış momentum balı — Zəif &lt;50 · Orta
+        50–70 · Güclü ≥70.
       </span>
     </div>
   );
@@ -97,7 +100,7 @@ export function AlphaCompare({
   return (
     <div className="flex h-72 w-full flex-col items-center justify-center gap-5 px-8">
       <span className="text-[10px] uppercase tracking-[0.22em] text-black/45 dark:text-white/50">
-        SPY-a qarşı (13H)
+        S&amp;P 500 ilə müqayisə (13 həftə)
       </span>
       <div className="flex items-baseline gap-2.5">
         <span className={`num text-4xl font-semibold ${valueCls(alpha)}`}>
@@ -108,14 +111,14 @@ export function AlphaCompare({
             alpha >= 0 ? TONE_PILL.green : TONE_PILL.red
           }`}
         >
-          alfa
+          {alpha >= 0 ? "Üstünlük" : "Geridə"}
         </span>
       </div>
       <div className="flex w-full max-w-[16rem] flex-col gap-3">
         <div className="flex flex-col gap-1">
           <div className="flex items-baseline justify-between text-[11px]">
             <span className="text-black/55 dark:text-white/60">
-              Portfel (13H)
+              Portfel (13 həftə)
             </span>
             <span className={`num font-medium ${valueCls(portfolioRet)}`}>
               {fmtPct(portfolioRet)}
@@ -125,7 +128,9 @@ export function AlphaCompare({
         </div>
         <div className="flex flex-col gap-1">
           <div className="flex items-baseline justify-between text-[11px]">
-            <span className="text-black/55 dark:text-white/60">SPY (13H)</span>
+            <span className="text-black/55 dark:text-white/60">
+              S&amp;P 500 (13 həftə)
+            </span>
             <span className={`num font-medium ${valueCls(spyRet)}`}>
               {fmtPct(spyRet)}
             </span>
@@ -134,7 +139,8 @@ export function AlphaCompare({
         </div>
       </div>
       <span className="max-w-[16rem] text-center text-[10px] leading-relaxed text-black/40 dark:text-white/45">
-        Son 13 həftənin bölüşdürməyə görə çəkilmiş gəliri SPY ilə müqayisədə.
+        Son 13 həftənin portfel çəkilərinə görə gəliri, S&amp;P 500 ilə
+        müqayisədə.
       </span>
     </div>
   );

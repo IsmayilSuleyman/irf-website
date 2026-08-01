@@ -137,14 +137,19 @@ export function scoreUniverse(
   return { rows: scored, health };
 }
 
-/** The sheet's health bands: <50 Müdafiə, 50–70 Neytral, ≥70 Hücum. */
+/**
+ * Strength bands for the portfolio's weighted momentum score. The source
+ * sheet frames these as a stance to take (Defensive / Neutral / Aggressive);
+ * the UI instead names what the number measures, since the score says nothing
+ * about the fund's profit, risk or debt.
+ */
 export function healthLabel(health: number): {
   label: string;
   tone: "red" | "amber" | "green";
 } {
-  if (health < 50) return { label: "Müdafiə", tone: "red" };
-  if (health < 70) return { label: "Neytral", tone: "amber" };
-  return { label: "Hücum", tone: "green" };
+  if (health < 50) return { label: "Zəif", tone: "red" };
+  if (health < 70) return { label: "Orta", tone: "amber" };
+  return { label: "Güclü", tone: "green" };
 }
 
 /**
