@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth-guard";
-import { getBondMarketData, type BondPaymentRow, type BondSeries } from "@/lib/bonds";
+import {
+  getBondMarketData,
+  type BondPaymentRow,
+  type BondSeries,
+} from "@/lib/bonds";
 import { formatBakuDate } from "@/lib/user";
 import { formatGrouped, formatGroupedTrim, formatUnits } from "@/lib/portfolio";
 import { BankHeader } from "@/components/BankHeader";
@@ -10,6 +14,7 @@ import { BondBook } from "@/components/bonds/BondBook";
 import { MyBondOrders } from "@/components/bonds/MyBondOrders";
 import { MyBondMatches } from "@/components/bonds/MyBondMatches";
 import { BondAdminPanel } from "@/components/bonds/BondAdminPanel";
+import { BondHoldingNote } from "@/components/bonds/BondHoldingNote";
 
 export const dynamic = "force-dynamic";
 
@@ -103,6 +108,8 @@ function SeriesCard({ series, selected }: { series: BondSeries; selected: boolea
           ) : null}
         </div>
       </div>
+
+      <BondHoldingNote series={series} />
     </Link>
   );
 }

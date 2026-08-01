@@ -13,6 +13,32 @@ import { FUND_PRINCIPAL_NAME } from "@/lib/holdings";
 const norm = (s: string) =>
   s.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
 
+/**
+ * One coupon payment for `units` bonds of a series, in AZN.
+ *
+ * Mirrors the payment RPC exactly (bond_payment_hardening.sql):
+ *   round(units * face_value * rate/100 * period_months/12, 2)
+ * — the rounding happens ONCE on the total, not per bond. That matters for
+ * anything shown to a holder: 5 bonds of a 20% / 25 ₼ / monthly series pay
+ * 2,08 ₼ together, while five separately-rounded coupons would suggest 2,10.
+ * Always derive the total with this function rather than multiplying a
+ * rounded per-bond figure.
+ */
+export function couponAmountAzn(
+  series: Pick<
+    BondSeries,
+    "face_value_azn" | "coupon_rate_pct" | "coupon_period_months"
+  >,
+  units: number,
+): number {
+  const raw =
+    units *
+    series.face_value_azn *
+    (series.coupon_rate_pct / 100) *
+    (series.coupon_period_months / 12);
+  return Math.round(raw * 100) / 100;
+}
+
 export type BondSeries = {
   id: string;
   name: string;
