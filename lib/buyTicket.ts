@@ -39,12 +39,24 @@ import {
 //    — an empty slot needs no defending — but they are REPORTED as changes,
 //    so the verdict can never read "held" while the set silently turned over.
 
+/** Per-symbol exit-relevant facts carried alongside a period's scores —
+ *  the raw material of the sell side's confirmation (see lib/sellSignals.ts).
+ *  Null = unknown (rows recorded before the facts existed). */
+export type WeekFacts = {
+  above200: boolean | null;
+  beatsSpy: boolean | null;
+  ret13w: number | null;
+  ret4w: number | null;
+};
+
 /** One snapshot: every scored ticker's composite score for that period.
  *  `weekStart` is the period's start date — the ISO Baku Monday for weekly
  *  snapshots, the first of the month for aggregated monthly periods. */
 export type WeekScores = {
   weekStart: string;
   scores: Record<string, number>;
+  /** Optional — absent in old snapshots; keyed like `scores`. */
+  facts?: Record<string, WeekFacts>;
 };
 
 export type PurchaseCadence = "weekly" | "monthly";
@@ -380,6 +392,22 @@ export function aggregateMonthlyPeriods(
     else byMonth.set(key, [w]);
   }
 
+  // A month's boolean fact is the majority of its non-null weekly values
+  // (ties and all-null → null: an uncertain month must not confirm an exit);
+  // numeric facts average the non-null weeks.
+  const majority = (votes: (boolean | null)[]): boolean | null => {
+    const known = votes.filter((v): v is boolean => v != null);
+    if (known.length === 0) return null;
+    const yes = known.filter(Boolean).length;
+    if (yes * 2 === known.length) return null;
+    return yes * 2 > known.length;
+  };
+  const mean = (values: (number | null)[]): number | null => {
+    const known = values.filter((v): v is number => v != null && Number.isFinite(v));
+    if (known.length === 0) return null;
+    return known.reduce((a, b) => a + b, 0) / known.length;
+  };
+
   return [...byMonth.entries()]
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
     .map(([key, snapshots]) => {
@@ -398,10 +426,19 @@ export function aggregateMonthlyPeriods(
         }
       }
       const scores: Record<string, number> = {};
+      const facts: Record<string, WeekFacts> = {};
       for (const [symbol, { sum, n }] of sums) {
-        if (n >= minAppearances) scores[symbol] = round1(sum / n);
+        if (n < minAppearances) continue;
+        scores[symbol] = round1(sum / n);
+        const weekly = snapshots.map((s) => s.facts?.[symbol]);
+        facts[symbol] = {
+          above200: majority(weekly.map((f) => f?.above200 ?? null)),
+          beatsSpy: majority(weekly.map((f) => f?.beatsSpy ?? null)),
+          ret13w: mean(weekly.map((f) => f?.ret13w ?? null)),
+          ret4w: mean(weekly.map((f) => f?.ret4w ?? null)),
+        };
       }
-      return { weekStart: `${key}-01`, scores };
+      return { weekStart: `${key}-01`, scores, facts };
     })
     .filter((p) => Object.keys(p.scores).length > 0);
 }
@@ -489,24 +526,39 @@ export function splitBudget(
  * Build this period's ticket from the live scores and the advised set. Picks
  * come from `advice.advised` — that is what the hysteresis protects — and are
  * ordered by this period's score.
+ *
+ * `exclude` carries holdings under a confirmed sell signal: relative rules
+ * can keep a broken holding advised (in a falling market something is always
+ * "best"), and a card saying buy X and sell X at once would be nonsense. An
+ * excluded slot is NOT refilled — dual momentum's answer is cash, so its
+ * share stays unallocated and the card says why.
  */
 export function buildTicket(
   rows: ScoredItem[],
   budgetAzn: number,
   advice: AdvisedState,
   size: number = TICKET_SIZE,
+  exclude: ReadonlySet<string> = new Set(),
 ): BuyTicket {
   const board = [...rows].sort((a, b) => b.score - a.score);
   const boardRank = new Map(board.map((r, i) => [r.symbol, i + 1]));
   const bySymbol = new Map(board.map((r) => [r.symbol, r]));
 
   const chosen = advice.advised
+    .filter((s) => !exclude.has(s))
     .map((s) => bySymbol.get(s))
     .filter((r): r is ScoredItem => r != null);
   // Advice can lag the live board (a holding sold since the last snapshot);
-  // top up from the board so the ticket is never short.
+  // top up from the board so the ticket is never short — but only to replace
+  // MISSING holdings, never to backfill an excluded slot: the top-up cap is
+  // the advised count that survives exclusion.
+  const targetCount = Math.min(
+    size,
+    size - advice.advised.filter((s) => exclude.has(s)).length,
+  );
   for (const row of board) {
-    if (chosen.length >= size) break;
+    if (chosen.length >= targetCount) break;
+    if (exclude.has(row.symbol)) continue;
     if (!chosen.some((c) => c.symbol === row.symbol)) chosen.push(row);
   }
   const picks0 = chosen.slice(0, size).sort((a, b) => b.score - a.score);

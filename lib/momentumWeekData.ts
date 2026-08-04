@@ -62,6 +62,11 @@ export async function recordMomentumWeek(
     score: r.score,
     rank: i + 1,
     closeCall: r.closeCall,
+    // Exit facts for the sell side's confirmation history.
+    above200: r.above200,
+    beatsSpy: r.rs != null ? r.rs > 0 : null,
+    ret13w: r.ret13w,
+    ret4w: r.ret4w,
   }));
 
   const { error } = await supabase.rpc("record_momentum_week", {
@@ -83,7 +88,7 @@ export async function fetchMomentumWeeks(
     .slice(0, 10);
   const { data, error } = await supabase
     .from("momentum_week_history")
-    .select("week_start, symbol, score")
+    .select("week_start, symbol, score, above_200, beats_spy, ret_13w, ret_4w")
     .gte("week_start", since)
     .order("week_start", { ascending: true });
 
@@ -92,19 +97,37 @@ export async function fetchMomentumWeeks(
     return [];
   }
 
-  const byWeek = new Map<string, Record<string, number>>();
+  // PostgREST returns numeric as a JSON string; booleans arrive as booleans
+  // (or null on pre-facts rows).
+  const num = (v: unknown): number | null => {
+    if (v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const bool = (v: unknown): boolean | null => (v == null ? null : Boolean(v));
+
+  const byWeek = new Map<string, WeekScores>();
   for (const row of data ?? []) {
     const weekStart = String(row.week_start);
-    // PostgREST returns numeric as a JSON string.
+    const symbol = String(row.symbol);
     const score = Number(row.score);
     if (!Number.isFinite(score)) continue;
-    const bucket = byWeek.get(weekStart);
-    if (bucket) bucket[String(row.symbol)] = score;
-    else byWeek.set(weekStart, { [String(row.symbol)]: score });
+    let bucket = byWeek.get(weekStart);
+    if (!bucket) {
+      bucket = { weekStart, scores: {}, facts: {} };
+      byWeek.set(weekStart, bucket);
+    }
+    bucket.scores[symbol] = score;
+    bucket.facts![symbol] = {
+      above200: bool(row.above_200),
+      beatsSpy: bool(row.beats_spy),
+      ret13w: num(row.ret_13w),
+      ret4w: num(row.ret_4w),
+    };
   }
-  return [...byWeek.entries()]
-    .map(([weekStart, scores]) => ({ weekStart, scores }))
-    .sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1));
+  return [...byWeek.values()].sort((a, b) =>
+    a.weekStart < b.weekStart ? -1 : 1,
+  );
 }
 
 /**
@@ -124,8 +147,17 @@ export function withCurrentWeek(
   if (rows.length === 0) return history;
   if (history.some((w) => w.weekStart === weekStart)) return history;
   const scores: Record<string, number> = {};
-  for (const r of rows) scores[r.symbol] = r.score;
-  return [...history, { weekStart, scores }].sort((a, b) =>
+  const facts: WeekScores["facts"] = {};
+  for (const r of rows) {
+    scores[r.symbol] = r.score;
+    facts[r.symbol] = {
+      above200: r.above200,
+      beatsSpy: r.rs != null ? r.rs > 0 : null,
+      ret13w: r.ret13w,
+      ret4w: r.ret4w,
+    };
+  }
+  return [...history, { weekStart, scores, facts }].sort((a, b) =>
     a.weekStart < b.weekStart ? -1 : 1,
   );
 }

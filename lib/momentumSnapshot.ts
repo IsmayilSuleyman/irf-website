@@ -62,6 +62,11 @@ export async function runMomentumWeekSnapshot(
     score: r.score,
     rank: i + 1,
     closeCall: r.closeCall,
+    // Exit facts for the sell side's confirmation history.
+    above200: r.above200,
+    beatsSpy: r.rs != null ? r.rs > 0 : null,
+    ret13w: r.ret13w,
+    ret4w: r.ret4w,
   }));
   if (opts.dryRun) return { ok: true, rows: rows.length };
 
