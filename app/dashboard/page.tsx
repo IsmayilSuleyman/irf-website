@@ -81,6 +81,7 @@ import {
   resolveAdvised,
   type WeekScores,
 } from "@/lib/buyTicket";
+import { resolveSellSignals } from "@/lib/sellSignals";
 import { BuyTicketPodium } from "@/components/BuyTicketPodium";
 
 export const dynamic = "force-dynamic";
@@ -189,21 +190,41 @@ export default async function DashboardPage({
   const sectorOf = Object.fromEntries(
     momentumDefault.rows.map((r) => [r.symbol, r.sector]),
   );
-  const advice =
+  const ticketPeriods =
     purchaseCadence === "monthly"
-      ? resolveAdvised(
-          aggregateMonthlyPeriods(momentumWeeks, currentBakuMonthKey()),
-          { cadence: "monthly", sectorOf },
-        )
-      : resolveAdvised(
-          withCurrentWeek(
-            momentumWeeks,
-            momentumDefault.rows,
-            currentBakuWeekStart(),
-          ),
-          { cadence: "weekly", sectorOf },
+      ? aggregateMonthlyPeriods(momentumWeeks, currentBakuMonthKey())
+      : withCurrentWeek(
+          momentumWeeks,
+          momentumDefault.rows,
+          currentBakuWeekStart(),
         );
-  const ticket = buildTicket(momentumDefault.rows, weeklyBudgetAzn, advice);
+  const advice = resolveAdvised(ticketPeriods, {
+    cadence: purchaseCadence,
+    sectorOf,
+  });
+  // Sell side: P&L context comes from the sheet's average purchase price
+  // (totalPnlUsd is AZN-denominated despite its name — see lib/sheets.ts);
+  // keys match the momentum rows' normalized symbols.
+  const pnlOf = Object.fromEntries(
+    holdings
+      .filter((h) => !h.isCash)
+      .map((h) => [
+        (h.symbol || h.name).trim().toUpperCase(),
+        { plPct: h.changePct, plAzn: h.totalPnlUsd },
+      ]),
+  );
+  const sellState = resolveSellSignals(ticketPeriods, momentumDefault.rows, {
+    cadence: purchaseCadence,
+    pnlOf,
+  });
+  // Confirmed SAT holdings are barred from this period's buys.
+  const ticket = buildTicket(
+    momentumDefault.rows,
+    weeklyBudgetAzn,
+    advice,
+    undefined,
+    sellState.confirmed,
+  );
 
   const dateLabel = formatBakuDate(new Date());
 
@@ -593,7 +614,7 @@ export default async function DashboardPage({
             className="scroll-mt-32 hairline -mt-8 pt-6"
           >
             <div className="glass p-6">
-              <BuyTicketPodium ticket={ticket} canEdit={isAdmin} />
+              <BuyTicketPodium ticket={ticket} sell={sellState} canEdit={isAdmin} />
             </div>
           </MotionSection>
         )}

@@ -17,6 +17,7 @@ import {
   type TicketPick,
   type Verdict,
 } from "@/lib/buyTicket";
+import type { SellSignal, SellState } from "@/lib/sellSignals";
 
 // This week's picks on a podium: the best-scoring pick raised in the centre
 // with the runners-up flanking it, all standing on an elliptical pedestal.
@@ -89,6 +90,110 @@ function PodiumBlock({
           {pick.score.toFixed(1)}
         </span>
       </div>
+    </div>
+  );
+}
+
+const fmtSignedPct = (v: number) =>
+  `${v >= 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(1).replace(".", ",")}%`;
+
+// One sell-signal row: symbol · level pill · P&L vs average cost · reason
+// chips · confirmation progress. P&L never gates the signal (İsmayıl's
+// choice) — it is context for his "sell for profit" call.
+function SellSignalRow({
+  signal,
+  rules,
+}: {
+  signal: SellSignal;
+  rules: SellState["rules"];
+}) {
+  const sat = signal.level === "sat";
+  const pl = signal.plPct;
+  return (
+    <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-2">
+      <span
+        className={`num shrink-0 rounded-md px-1.5 py-px text-[10px] font-semibold tracking-wide ${
+          sat
+            ? "bg-brand-red/15 text-brand-red dark:text-red-400"
+            : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        }`}
+      >
+        {sat ? "SAT" : "İZLƏ"}
+      </span>
+      <span className="num shrink-0 text-sm font-semibold tracking-wide text-black/85 dark:text-white/90">
+        {signal.symbol}
+      </span>
+      <span className="min-w-0 truncate text-[11px] text-black/45 dark:text-white/50">
+        {signal.name}
+      </span>
+      {pl != null && (
+        <span
+          className={`num shrink-0 text-[11px] font-medium ${
+            pl >= 0
+              ? "text-brand-green dark:text-emerald-400"
+              : "text-brand-red dark:text-red-400"
+          }`}
+          title="Orta alış qiymətinə görə"
+        >
+          <Masked mask="••••">
+            {signal.plAzn != null
+              ? `${formatAzn(signal.plAzn)} · ${fmtSignedPct(pl)}`
+              : fmtSignedPct(pl)}
+          </Masked>
+        </span>
+      )}
+      <span className="num ml-auto shrink-0 text-[10px] text-black/40 dark:text-white/45">
+        {signal.reasons.join(" · ")}
+        {signal.confirmedPeriods > 0 || sat
+          ? ` · ${Math.min(signal.confirmedPeriods, signal.neededPeriods)}/${signal.neededPeriods} ${rules.noun}`
+          : ""}
+      </span>
+    </li>
+  );
+}
+
+function SellSignals({
+  sell,
+  unallocatedAzn,
+  showAmount,
+}: {
+  sell: SellState;
+  unallocatedAzn: number;
+  showAmount: boolean;
+}) {
+  const excluded = [...sell.confirmed];
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="text-[10px] uppercase tracking-[0.22em] text-brand-red/70 dark:text-red-400/70">
+        Satış siqnalları
+      </div>
+      {sell.signals.length === 0 ? (
+        <p className="text-[11px] text-black/45 dark:text-white/50">
+          Satış siqnalı yoxdur — bütün mövqelər trend qaydalarına uyğundur.
+        </p>
+      ) : (
+        <>
+          <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
+            {sell.signals.map((s) => (
+              <SellSignalRow key={s.symbol} signal={s} rules={sell.rules} />
+            ))}
+          </ul>
+          {excluded.length > 0 && (
+            <p className="text-[11px] leading-relaxed text-black/55 dark:text-white/60">
+              SAT siqnallı {excluded.join(", ")} bu {sell.rules.noun} alışdan
+              çıxarılıb
+              {showAmount && unallocatedAzn > 0 ? (
+                <>
+                  {" "}
+                  — <Masked mask="••••">{formatAzn(unallocatedAzn)}</Masked>{" "}
+                  bölüşdürülməyib
+                </>
+              ) : null}
+              .
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -246,13 +351,15 @@ function BudgetLine({
 
 export function BuyTicketPodium({
   ticket,
+  sell,
   canEdit = false,
 }: {
   ticket: BuyTicket;
+  sell?: SellState;
   canEdit?: boolean;
 }) {
   const { picks, advice, budgetAzn, unallocatedAzn } = ticket;
-  if (picks.length === 0) {
+  if (picks.length === 0 && (sell == null || sell.signals.length === 0)) {
     return <div className="text-black/45 dark:text-white/50">Məlumat yoxdur.</div>;
   }
 
@@ -283,18 +390,25 @@ export function BuyTicketPodium({
         cadence={advice.cadence}
       />
 
-      <div className="mx-auto w-full max-w-sm">
-        <div className="flex items-end gap-1.5 sm:gap-2">
-          {ordered.map((pick) => (
-            <PodiumBlock
-              key={pick.symbol}
-              pick={pick}
-              showAmount={showAmount}
-            />
-          ))}
+      {picks.length === 0 ? (
+        <p className="text-[11px] leading-relaxed text-black/55 dark:text-white/60">
+          Bu {advice.rules.noun} üçün alış tövsiyəsi yoxdur — bütün seçimlər
+          satış siqnalı altındadır.
+        </p>
+      ) : (
+        <div className="mx-auto w-full max-w-sm">
+          <div className="flex items-end gap-1.5 sm:gap-2">
+            {ordered.map((pick) => (
+              <PodiumBlock
+                key={pick.symbol}
+                pick={pick}
+                showAmount={showAmount}
+              />
+            ))}
+          </div>
+          <Pedestal />
         </div>
-        <Pedestal />
-      </div>
+      )}
 
       {/* Exact figures per pick: amount, shares, and why it is here. */}
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
@@ -339,10 +453,21 @@ export function BuyTicketPodium({
         ))}
       </ul>
 
-      {unallocatedAzn > 0 && (
+      {/* The exclusion note inside SellSignals already names the unallocated
+          amount when a SAT block caused it — only the plain short-board case
+          needs this line. */}
+      {unallocatedAzn > 0 && !(sell != null && sell.confirmed.size > 0) && (
         <div className="num text-[11px] text-black/45 dark:text-white/50">
           <Masked mask="••••">{formatAzn(unallocatedAzn)}</Masked> bölüşdürülməyib
         </div>
+      )}
+
+      {sell != null && (
+        <SellSignals
+          sell={sell}
+          unallocatedAzn={unallocatedAzn}
+          showAmount={showAmount}
+        />
       )}
 
       <div className="flex flex-col gap-1">
@@ -359,6 +484,9 @@ export function BuyTicketPodium({
           qarşısını alır.{" "}
           {advice.cadence === "monthly"
             ? "Aylıq qiymətləndirmə həftəlik balların ortalamasına əsaslanır. "
+            : ""}
+          {sell != null
+            ? `SAT siqnalı qiymət 200 günlük ortalamanın altına düşüb VƏ 13 həftəlik gəlir mənfi və ya S&P 500-dən geridə olanda, ${sell.rules.needed === 1 ? "ötən ayın ortalaması ilə təsdiqləndikdə" : `${sell.rules.needed} ${sell.rules.noun} ardıcıl təsdiqləndikdə`} yaranır; İZLƏ erkən xəbərdarlıqdır. Mənfəət/zərər orta alış qiymətinə görədir və siqnala təsir etmir. `
             : ""}
           {advice.periodsTracked} {advice.rules.adjective} məlumat əsasında.
           İlkin hesablama, investisiya məsləhəti deyil.
