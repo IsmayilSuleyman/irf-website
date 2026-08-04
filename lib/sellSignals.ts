@@ -46,8 +46,14 @@ export type SellSignal = {
   name: string;
   sector: string | null;
   level: SellLevel;
-  /** True condition chips, in display order (AZ). */
-  reasons: string[];
+  /** Price below its 200-day average; null when the average is unknown. */
+  trendBroken: boolean | null;
+  /** 13W return negative OR losing to SPY; null when both are unknown. */
+  momentumNeg: boolean | null;
+  /** 4W return (fraction) — the crash guard's input — when known. */
+  ret4w: number | null;
+  /** ret4w ≤ CRASH_DROP. */
+  crash: boolean;
   /** Consecutive periods the core exit condition has held in the history. */
   confirmedPeriods: number;
   neededPeriods: number;
@@ -66,9 +72,6 @@ export type SellState = {
   cadence: PurchaseCadence;
   rules: CadenceRules;
 };
-
-const fmtPct = (v: number) =>
-  `${v > 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(1).replace(".", ",")}%`;
 
 /** The confirmed core exit condition, judged from stored facts. Unknown
  *  facts never assert a break. */
@@ -155,19 +158,17 @@ export function resolveSellSignals(
       : 0;
     const isSat = coreNow && confirmedPeriods >= rules.needed;
 
-    const reasons: string[] = [];
-    if (below200) reasons.push("200GO altında");
-    if (absNeg) reasons.push("13H mənfi");
-    if (relNeg) reasons.push("S&P-dən geridə");
-    if (crash && row.ret4w != null) reasons.push(`4H ${fmtPct(row.ret4w)}`);
-
     const pnl = pnlOf[row.symbol] ?? { plPct: null, plAzn: null };
     signals.push({
       symbol: row.symbol,
       name: row.name,
       sector: row.sector,
       level: isSat ? "sat" : "izle",
-      reasons,
+      trendBroken: row.above200 == null ? null : !row.above200,
+      momentumNeg:
+        row.ret13w == null && row.rs == null ? null : absNeg || relNeg,
+      ret4w: row.ret4w,
+      crash,
       confirmedPeriods,
       neededPeriods: rules.needed,
       plPct: pnl.plPct,
@@ -176,9 +177,18 @@ export function resolveSellSignals(
     if (isSat) confirmed.add(row.symbol);
   }
 
+  // SAT above everything; İZLƏ by severity — how many conditions fire, then
+  // how close to confirmation, then the deeper 4W drop.
+  const fired = (s: SellSignal) =>
+    (s.trendBroken === true ? 1 : 0) +
+    (s.momentumNeg === true ? 1 : 0) +
+    (s.crash ? 1 : 0);
   signals.sort((a, b) => {
     if (a.level !== b.level) return a.level === "sat" ? -1 : 1;
-    return b.confirmedPeriods - a.confirmedPeriods;
+    if (fired(a) !== fired(b)) return fired(b) - fired(a);
+    if (a.confirmedPeriods !== b.confirmedPeriods)
+      return b.confirmedPeriods - a.confirmedPeriods;
+    return (a.ret4w ?? 0) - (b.ret4w ?? 0);
   });
 
   return { signals, confirmed, cadence, rules };
