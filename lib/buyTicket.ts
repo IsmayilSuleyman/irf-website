@@ -464,8 +464,10 @@ export type TicketPick = {
 export type BuyTicket = {
   picks: TicketPick[];
   budgetAzn: number;
-  /** Budget left unallocated because fewer than `size` holdings scored. */
+  /** Budget left unallocated — an unfillable or SAT-blocked slot's share. */
   unallocatedAzn: number;
+  /** Scored holdings on the live board (the "top-3 of N" context). */
+  boardSize: number;
   advice: AdvisedState;
 };
 
@@ -586,6 +588,7 @@ export function buildTicket(
     picks,
     budgetAzn,
     unallocatedAzn: Math.max(0, Math.round((budgetAzn - allocated) * 100) / 100),
+    boardSize: rows.length,
     advice,
   };
 }
@@ -607,9 +610,10 @@ export function verdictSummary(advice: AdvisedState): string {
   }
   const refill = changes.find((c) => c.reason === "refill");
   if (verdict === "switch" && refill) {
+    // "boş qalan yerə", not "boş yerə" — the latter is the idiom "in vain".
     return refill.from
       ? `${refill.from} portfeldən çıxdığı üçün yerinə ${refill.to} əlavə olundu.`
-      : `${refill.to} boş yerə əlavə olundu.`;
+      : `${refill.to} boş qalan yerə əlavə olundu.`;
   }
   if (verdict === "seed") {
     return `İlk ${rules.nounPlural}: seçim cari sıralamaya görədir (${advice.periodsTracked} ${rules.adjective} məlumat).`;
@@ -617,7 +621,8 @@ export function verdictSummary(advice: AdvisedState): string {
   const streak = streaks[0];
   if (streak) {
     const left = Math.max(0, rules.needed - streak.periods);
-    return `Seçim saxlanılır — ${streak.challenger} ən zəif seçim ${streak.target} üzərində ${fmtPts(streak.lead)} bal öndədir, ${streak.periods}/${rules.needed} ${rules.noun}${left > 0 ? ` (daha ${left} ${rules.noun} lazımdır)` : ""}.`;
+    // Ablative, with the ticker parenthesised so it never takes a suffix.
+    return `Seçim saxlanılır — ${streak.challenger} ən zəif seçimdən (${streak.target}) ${fmtPts(streak.lead)} bal öndədir, ${streak.periods}/${rules.needed} ${rules.noun}${left > 0 ? ` (daha ${left} ${rules.noun} lazımdır)` : ""}.`;
   }
   return `Seçim saxlanılır — heç bir namizəd tələb olunan ${fmtPts(leadThreshold)} bal fərqi yaratmayıb.`;
 }
