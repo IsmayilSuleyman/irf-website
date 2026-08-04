@@ -95,6 +95,20 @@ export function PerformanceChart({
 
   const last = timed.length > 0 ? timed[timed.length - 1] : null;
 
+  // Change across the visible window: first plotted point to last. Follows
+  // both switches, so it answers "what did the selected series do over the
+  // selected period". Null when there is nothing to compare against — a
+  // single point, or a zero/negative opening value.
+  const periodChange = useMemo(() => {
+    if (timed.length < 2) return null;
+    const open = timed[0].value;
+    const close = timed[timed.length - 1].value;
+    if (!Number.isFinite(open) || !Number.isFinite(close) || open <= 0) {
+      return null;
+    }
+    return close / open - 1;
+  }, [timed]);
+
   if (!hasValue && !hasPrice) {
     return (
       <div className="glass flex h-72 items-center justify-center text-black/45 dark:text-white/50">
@@ -106,6 +120,28 @@ export function PerformanceChart({
   // Your holding value is personal — masked in hide-amounts mode. The unit
   // price is the same for every holder (public), so it never gets masked.
   const masked = hidden && mode === "value";
+
+  /**
+   * The period-change readout, rendered in two places with one definition so
+   * the wordings can never diverge: in the control row on sm+, overlaid on
+   * the plot's top-right corner on phones. It is a readout, not a control —
+   * no hover state, no aria-pressed. Percentages stay visible in hide-amounts
+   * mode, matching the rest of the app: a return reveals no position size.
+   */
+  const changePill = (className: string) =>
+    periodChange == null ? null : (
+      <span
+        title="Seçilmiş dövr üzrə dəyişim"
+        className={`num rounded-lg border px-2 py-1.5 text-center text-[10px] font-semibold tracking-[0.06em] sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
+          periodChange >= 0
+            ? "border-brand-green/30 bg-brand-green/10 text-brand-green dark:text-emerald-400"
+            : "border-brand-red/30 bg-brand-red/10 text-brand-red dark:text-red-400"
+        } ${className}`}
+      >
+        {periodChange >= 0 ? "+" : ""}
+        {(periodChange * 100).toFixed(1)}%
+      </span>
+    );
 
   return (
     <div className="glass w-full p-6">
@@ -119,6 +155,10 @@ export function PerformanceChart({
           <span className="text-[10px] text-black/45 dark:text-white/50 sm:hidden">₼</span>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+          {/* On phones the pill rides in the chart's top-right corner instead
+              (see below), where there is empty plot area and the control row
+              is already tight. */}
+          {changePill("hidden self-start sm:inline-block sm:self-auto")}
           {/* Series switch — same button language as the range buttons so it
               reads as a control, not a label. */}
           {hasValue && hasPrice && (
@@ -164,7 +204,14 @@ export function PerformanceChart({
           </div>
         </div>
       </div>
-      <div className="h-72">
+      <div className="relative h-72">
+        {/* Phone placement: inside the plot, top right. pointer-events-none so
+            it never swallows a tap meant for the chart's tooltip. */}
+        {timed.length > 0 && (
+          <div className="pointer-events-none absolute right-1 top-0 z-10 sm:hidden">
+            {changePill("")}
+          </div>
+        )}
         {timed.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-black/45 dark:text-white/50">
             Bu dövr üçün məlumat yoxdur.
