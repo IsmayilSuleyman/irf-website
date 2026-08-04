@@ -1,10 +1,24 @@
 // Momentum ranking engine — client-safe port of the ETF-Momentum sheet's
-// Rankings logic. Each factor value becomes an ordinal rank among the
+// Rankings logic. Each return factor becomes an ordinal rank among the
 // holdings that have data for it, ranks normalize to 0..1 via (N−rank)/(N−1),
 // and the composite is the weighted mean of the available factors ×100.
-// Unlike the sheet, missing factors renormalize the weight base instead of
-// producing degenerate scores, so a young ETF with no YTD history competes
-// fairly on its remaining factors.
+// Deliberate departures from the sheet:
+//  • Missing ordinal factors renormalize the weight base instead of producing
+//    degenerate scores, so a young ETF with no YTD history competes fairly on
+//    its remaining factors.
+//  • Tied factor values share the average of their positions instead of being
+//    split by sort order — with few holdings an arbitrary tie-break is worth
+//    several points.
+//  • Relative strength is a BINARY factor (beats SPY over 13W or not), not an
+//    ordinal one. Ranking rs = ret13w − spyRet13w ordinally is a mirage:
+//    subtracting the same constant from every holding cannot change an
+//    ordering, so an ordinal RS is byte-for-byte the 13W ranking again. The
+//    cardinal sign is the only part of RS that carries information the 13W
+//    rank does not — whether the holding actually beats the market.
+//  • Binary factors (RS, 200DMA trend) score a neutral half-credit when the
+//    data is missing, so "unknown" lands between "known good" and "known
+//    bad". Renormalizing them away instead would rank a holding with no
+//    200-day history above an identical one known to be below its average.
 
 export type MomentumItem = {
   symbol: string;
@@ -25,20 +39,33 @@ export type MomentumItem = {
   above200: boolean | null;
 };
 
-export type FactorKey = "ret4w" | "ret13w" | "retYtd" | "rs";
+/** Ordinal (ranked) factors. RS and the 200DMA trend are binary — see below. */
+export type FactorKey = "ret4w" | "ret13w" | "retYtd";
 
 export type MomentumWeights = {
   w4: number;
   w13: number;
   wYtd: number;
+  /** Binary: price beats SPY over 13 weeks. */
   wRs: number;
+  /** Binary: price above its 200-day average. */
   wTrend: number;
 };
 
-/** The sheet's model weights: 4W 30 / 13W 25 / YTD 20 / RS 15 / 200DMA 10. */
+/**
+ * Model weights. The sheet's originals were 4W 30 / 13W 25 / YTD 20 / RS 15 /
+ * 200DMA 10 — two deliberate changes:
+ *  • 4W demoted, 13W promoted. One-month returns are the classic short-term
+ *    REVERSAL horizon (the standard momentum construction excludes the
+ *    freshest month entirely); top-weighting 4W bets on the part of the
+ *    signal most likely to mean-revert.
+ *  • The old ordinal RS was a duplicate of the 13W rank (constant shift), so
+ *    its 15 points effectively sat on 13W already — the new split makes that
+ *    explicit and spends the 15 on the binary beats-SPY flag instead.
+ */
 export const DEFAULT_WEIGHTS: MomentumWeights = {
-  w4: 30,
-  w13: 25,
+  w4: 20,
+  w13: 35,
   wYtd: 20,
   wRs: 15,
   wTrend: 10,
@@ -49,7 +76,8 @@ export const CLOSE_CALL_GAP = 2;
 
 export type ScoredItem = MomentumItem & {
   score: number;
-  /** 1 = best among the items that have data for that factor. */
+  /** 1 = best among the items that have data for that factor; ties share the
+   *  average of their positions, so ranks can be fractional (e.g. 1.5). */
   ranks: Partial<Record<FactorKey, number>>;
   /** How many items had data for that factor (the rank's denominator). */
   counts: Partial<Record<FactorKey, number>>;
@@ -67,7 +95,6 @@ const FACTOR_WEIGHT: [FactorKey, keyof MomentumWeights][] = [
   ["ret4w", "w4"],
   ["ret13w", "w13"],
   ["retYtd", "wYtd"],
-  ["rs", "wRs"],
 ];
 
 export function scoreUniverse(
@@ -75,6 +102,9 @@ export function scoreUniverse(
   weights: MomentumWeights,
 ): MomentumBoard {
   // Ordinal ranks per factor, computed over the items that have the factor.
+  // Equal values share the average of the positions they span (1-based), so a
+  // tie is worth the same to both holdings instead of whatever the sort
+  // happened to decide.
   const ranks = items.map<Partial<Record<FactorKey, number>>>(() => ({}));
   const counts: Partial<Record<FactorKey, number>> = {};
   for (const [key] of FACTOR_WEIGHT) {
@@ -83,9 +113,16 @@ export function scoreUniverse(
       .filter((e): e is { value: number; index: number } => e.value != null)
       .sort((a, b) => b.value - a.value);
     counts[key] = withData.length;
-    withData.forEach((e, i) => {
-      ranks[e.index][key] = i + 1;
-    });
+    let i = 0;
+    while (i < withData.length) {
+      let j = i;
+      while (j + 1 < withData.length && withData[j + 1].value === withData[i].value) {
+        j += 1;
+      }
+      const shared = (i + 1 + (j + 1)) / 2;
+      for (let k = i; k <= j; k += 1) ranks[withData[k].index][key] = shared;
+      i = j + 1;
+    }
   }
 
   const scored: ScoredItem[] = [];
@@ -101,11 +138,15 @@ export function scoreUniverse(
       total += w * norm;
       used += w;
     }
-    const wTrend = Math.max(0, weights.wTrend);
-    if (it.above200 != null && wTrend > 0) {
-      total += it.above200 ? wTrend : 0;
-      used += wTrend;
-    }
+    // Binary factors: full credit when true, none when false, and a neutral
+    // half-credit when unknown — "no data" must not outrank "known bad".
+    const binary = (flag: boolean | null, w: number) => {
+      if (w <= 0) return;
+      total += flag == null ? w / 2 : flag ? w : 0;
+      used += w;
+    };
+    binary(it.rs != null ? it.rs > 0 : null, Math.max(0, weights.wRs));
+    binary(it.above200, Math.max(0, weights.wTrend));
     if (used <= 0) return;
     scored.push({
       ...it,

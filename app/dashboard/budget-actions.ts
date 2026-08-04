@@ -49,3 +49,37 @@ export async function saveWeeklyBudget(
   revalidatePath("/dashboard");
   return { ok: true };
 }
+
+/** Owner-only toggle between the weekly and monthly purchase cadence. */
+export async function savePurchaseCadence(
+  raw: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { user } = await getSupabaseServerUser();
+  if (!user) return { ok: false, error: "Giriş tələb olunur." };
+  if (!isOwnerEmail(user.email)) {
+    return { ok: false, error: "İcazə yoxdur." };
+  }
+  if (raw !== "weekly" && raw !== "monthly") {
+    return { ok: false, error: "Yanlış rejim." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { ok: false, error: "Supabase konfiqurasiya olunmayıb." };
+
+  const { error } = await supabase.from("fund_settings").upsert(
+    {
+      key: "purchase_cadence",
+      value: raw,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "key" },
+  );
+
+  if (error) {
+    console.error("purchase_cadence upsert failed:", error.message);
+    return { ok: false, error: "Yadda saxlanılmadı." };
+  }
+
+  revalidatePath("/dashboard");
+  return { ok: true };
+}

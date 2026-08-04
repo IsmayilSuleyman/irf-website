@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { google } from "googleapis";
+import {
+  runMomentumWeekSnapshot,
+  type SnapshotRunResult,
+} from "@/lib/momentumSnapshot";
 
 export const runtime = "nodejs";
 
@@ -63,7 +67,32 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, price, label, recorded_at });
+    // Piggybacked weekly momentum snapshot: this cron fires daily at 20:00
+    // UTC = 00:00 Baku, so the run whose Baku date is a Monday is the very
+    // first moment of the Baku week — US markets have been closed since
+    // Friday, making the sample a deterministic Friday close instead of
+    // "whenever the admin first opened the dashboard". Both Vercel cron
+    // slots are taken, hence the ride-along. Its failure never fails the
+    // price record.
+    let momentumWeek: SnapshotRunResult | null = null;
+    const bakuWeekday = now.toLocaleDateString("en-US", {
+      weekday: "short",
+      timeZone: "Asia/Baku",
+    });
+    if (bakuWeekday === "Mon") {
+      momentumWeek = await runMomentumWeekSnapshot().catch((err) => ({
+        ok: false,
+        reason: String(err),
+      }));
+    }
+
+    return NextResponse.json({
+      success: true,
+      price,
+      label,
+      recorded_at,
+      ...(momentumWeek ? { momentumWeek } : {}),
+    });
   } catch (err) {
     return NextResponse.json(
       { error: String(err) },

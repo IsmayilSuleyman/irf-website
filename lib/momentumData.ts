@@ -69,11 +69,22 @@ export async function getSpyReferences(): Promise<SpyReferences> {
   }
 }
 
+/** Days into the year before the YTD factor means anything. In January the
+ *  "year to date" return is a handful of sessions of noise carrying a full
+ *  factor weight, and every holding's YTD resets discontinuously on Jan 1 —
+ *  so the factor sits out until mid-February and the remaining factors
+ *  renormalize over its weight. */
+const YTD_MIN_DAYS = 45;
+
 /** Non-cash holdings with at least one momentum factor available. */
 export function buildMomentumItems(
   holdings: Holding[],
   spy: SpyReferences,
+  now: Date = new Date(),
 ): MomentumItem[] {
+  const ytdTooYoung =
+    now.getTime() - Date.UTC(now.getUTCFullYear(), 0, 1) <
+    YTD_MIN_DAYS * 86_400_000;
   return holdings
     .filter((h) => !h.isCash && h.priceUsd > 0 && isTickerSymbol(h.symbol))
     .map<MomentumItem>((h) => {
@@ -89,7 +100,7 @@ export function buildMomentumItems(
         avg200Usd: h.avg200Usd,
         ret4w: ret(h.ref4wUsd),
         ret13w,
-        retYtd: ret(h.refYtdUsd),
+        retYtd: ytdTooYoung ? null : ret(h.refYtdUsd),
         rs: ret13w != null && spy.ret13w != null ? ret13w - spy.ret13w : null,
         above200:
           h.avg200Usd != null && h.avg200Usd > 0
