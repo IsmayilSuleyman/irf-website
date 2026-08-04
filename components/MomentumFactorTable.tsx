@@ -11,6 +11,9 @@ import { formatUsd } from "@/lib/portfolio";
 // Momentum factor UI shared bits: the Fond Portfeli drill-down cards plus
 // the factor/label/tone constants they build on.
 
+// Only the ordinal (ranked) factors — relative strength became a binary
+// beats-the-index flag (ranking a constant shift of 13W was the 13W ranking
+// again), so it renders like the 200-day line below, not as a rank row.
 export const FACTORS: {
   key: FactorKey;
   short: string;
@@ -20,9 +23,6 @@ export const FACTORS: {
   { key: "ret4w", short: "4H", full: "4 həftəlik gəlir", weightKey: "w4" },
   { key: "ret13w", short: "13H", full: "13 həftəlik gəlir", weightKey: "w13" },
   { key: "retYtd", short: "YTD", full: "İlin əvvəlindən gəlir", weightKey: "wYtd" },
-  // The benchmark is the SPY ETF but is named for its index everywhere in the
-  // UI, matching the comparison slide.
-  { key: "rs", short: "RS", full: "S&P 500-ə nisbi güc", weightKey: "wRs" },
 ];
 
 export const fmtPct = (v: number) =>
@@ -145,6 +145,30 @@ export function MomentumFactorRows({
           </Fragment>
         );
       })}
+
+      {/* Binary factors mirror each other: the comparison in the rank column,
+          the state in the pill column. The benchmark is the SPY ETF but is
+          named for its index everywhere in the UI. */}
+      <span className={LABEL}>S&P 500-ə nisbi güc:</span>
+      {row.rs == null ? (
+        <>
+          <span className={`${RANK} text-right`}>məlumat yoxdur</span>
+          <ValuePill tone="muted">—</ValuePill>
+        </>
+      ) : (
+        <>
+          <span
+            className={`num text-right text-[11px] font-medium ${valueCls(
+              row.rs >= 0 ? 1 : -1,
+            )}`}
+          >
+            13 həftədə S&P 500-dən {row.rs >= 0 ? "üstün" : "geridə"}
+          </span>
+          <ValuePill tone={row.rs >= 0 ? "up" : "down"}>
+            {fmtPct(row.rs)}
+          </ValuePill>
+        </>
+      )}
 
       <span className={LABEL}>200 günlük ortalama:</span>
       {row.avg200Usd == null ? (

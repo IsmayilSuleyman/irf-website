@@ -11,8 +11,10 @@ import type { WeekScores } from "@/lib/buyTicket";
 // render-triggered model the session snapshots use — the hosting plan has no
 // spare cron slot.
 
-/** How many weeks of history the hysteresis replay reads. */
-export const HISTORY_WEEKS = 20;
+/** How many weeks of history the hysteresis replay reads. Sized for the
+ *  monthly cadence too: ~7 months of weekly snapshots, so the month-average
+ *  fold always has a full run-up. Still a three-figure row count. */
+export const HISTORY_WEEKS = 32;
 
 /**
  * A snapshot is only worth cementing if the board looks complete: the Sheets
@@ -31,6 +33,12 @@ export function currentBakuWeekStart(now: Date = new Date()): string {
   const dow = new Date(baku).getUTCDay(); // 0 = Sunday
   const sinceMonday = (dow + 6) % 7;
   return new Date(baku - sinceMonday * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** Current calendar month in Asia/Baku as "YYYY-MM" — NOT derived from the
+ *  week start, whose Monday can fall in the previous month at a boundary. */
+export function currentBakuMonthKey(now: Date = new Date()): string {
+  return new Date(now.getTime() + BAKU_OFFSET_MS).toISOString().slice(0, 7);
 }
 
 /**
@@ -100,10 +108,13 @@ export async function fetchMomentumWeeks(
 }
 
 /**
- * History with the live board folded in as the current week. The ticket must
- * not depend on the write having landed — the admin may not have loaded the
- * page yet, or the write may have failed — so the live scores always win for
- * the current week and the table supplies only past weeks.
+ * History with the live board standing in for a current week that has no
+ * stored snapshot yet. Once the week's write HAS landed, the stored row wins:
+ * letting live intraday scores override it would let a challenger's third
+ * qualifying week appear on Tuesday and vanish on Thursday — the verdict
+ * would flap on exactly the noise the hysteresis exists to filter. The live
+ * fallback only covers the gap before the snapshot lands (cron at Monday
+ * 00:00 Baku, or the first admin render).
  */
 export function withCurrentWeek(
   history: WeekScores[],
@@ -111,9 +122,10 @@ export function withCurrentWeek(
   weekStart: string,
 ): WeekScores[] {
   if (rows.length === 0) return history;
+  if (history.some((w) => w.weekStart === weekStart)) return history;
   const scores: Record<string, number> = {};
   for (const r of rows) scores[r.symbol] = r.score;
-  return [...history.filter((w) => w.weekStart !== weekStart), { weekStart, scores }].sort(
-    (a, b) => (a.weekStart < b.weekStart ? -1 : 1),
+  return [...history, { weekStart, scores }].sort((a, b) =>
+    a.weekStart < b.weekStart ? -1 : 1,
   );
 }

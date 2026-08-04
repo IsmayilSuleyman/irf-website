@@ -6,12 +6,14 @@ import { scorePill } from "@/components/MomentumFactorTable";
 import { SectorIcon } from "@/components/SectorIcon";
 import { sectorColor } from "@/lib/sectorColors";
 import { Masked } from "@/components/Masked";
-import { saveWeeklyBudget } from "@/app/dashboard/budget-actions";
 import {
-  HYSTERESIS_LEAD,
-  HYSTERESIS_WEEKS,
+  savePurchaseCadence,
+  saveWeeklyBudget,
+} from "@/app/dashboard/budget-actions";
+import {
   verdictSummary,
   type BuyTicket,
+  type PurchaseCadence,
   type TicketPick,
   type Verdict,
 } from "@/lib/buyTicket";
@@ -102,17 +104,61 @@ function Pedestal() {
   );
 }
 
+// Owner-only toggle between the weekly and monthly purchase cadence — the
+// engine's decision periods and every line of copy follow it.
+function CadenceToggle({ cadence }: { cadence: PurchaseCadence }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function onPick(next: PurchaseCadence) {
+    if (next === cadence || pending) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await savePurchaseCadence(next);
+      if (!result.ok) setError(result.error ?? "Xəta baş verdi.");
+    });
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="inline-flex overflow-hidden rounded-lg border border-black/10 dark:border-white/15">
+        {(["weekly", "monthly"] as const).map((c) => (
+          <button
+            key={c}
+            type="button"
+            disabled={pending}
+            onClick={() => onPick(c)}
+            className={`px-2 py-1 text-[10px] font-medium transition-colors disabled:opacity-50 ${
+              c === cadence
+                ? "bg-brand-green/15 text-brand-green dark:text-emerald-400"
+                : "text-black/45 hover:text-black/85 dark:text-white/50 dark:hover:text-white/90"
+            }`}
+          >
+            {c === "weekly" ? "Həftəlik" : "Aylıq"}
+          </button>
+        ))}
+      </span>
+      {error && (
+        <span className="text-[10px] text-brand-red dark:text-red-400">{error}</span>
+      )}
+    </span>
+  );
+}
+
 function BudgetLine({
   budgetAzn,
   canEdit,
+  cadence,
 }: {
   budgetAzn: number;
   canEdit: boolean;
+  cadence: PurchaseCadence;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(budgetAzn > 0 ? String(budgetAzn) : "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const budgetLabel = cadence === "monthly" ? "Aylıq büdcə" : "Həftəlik büdcə";
 
   function onSave() {
     setError(null);
@@ -131,7 +177,7 @@ function BudgetLine({
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-[11px] text-black/45 dark:text-white/50">
-            Həftəlik büdcə
+            {budgetLabel}
           </label>
           <input
             type="text"
@@ -171,9 +217,9 @@ function BudgetLine({
   }
 
   return (
-    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="text-[11px] text-black/45 dark:text-white/50">
-        Həftəlik büdcə
+        {budgetLabel}
       </span>
       {budgetAzn > 0 ? (
         <span className="num text-sm font-semibold text-black/85 dark:text-white/90">
@@ -193,6 +239,7 @@ function BudgetLine({
           {budgetAzn > 0 ? "Redaktə et" : "Təyin et"}
         </button>
       )}
+      {canEdit && <CadenceToggle cadence={cadence} />}
     </div>
   );
 }
@@ -219,7 +266,9 @@ export function BuyTicketPodium({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-          Həftəlik Alış Bileti
+          {advice.cadence === "monthly"
+            ? "Aylıq Alış Bileti"
+            : "Həftəlik Alış Bileti"}
         </div>
         <span
           className={`num rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide ${VERDICT_TONE[advice.verdict]}`}
@@ -228,7 +277,11 @@ export function BuyTicketPodium({
         </span>
       </div>
 
-      <BudgetLine budgetAzn={budgetAzn} canEdit={canEdit} />
+      <BudgetLine
+        budgetAzn={budgetAzn}
+        canEdit={canEdit}
+        cadence={advice.cadence}
+      />
 
       <div className="mx-auto w-full max-w-sm">
         <div className="flex items-end gap-1.5 sm:gap-2">
@@ -297,11 +350,18 @@ export function BuyTicketPodium({
           {verdictSummary(advice)}
         </p>
         <p className="text-[10px] leading-relaxed text-black/40 dark:text-white/45">
-          Büdcə momentum ballarına görə bölünür. Seçim yalnız yeni namizəd{" "}
-          {HYSTERESIS_WEEKS} həftə ardıcıl ən azı {HYSTERESIS_LEAD} bal öndə
-          olanda dəyişir — bu, həftəlik səs-küydə tövsiyənin ora-bura
-          atılmasının qarşısını alır. {advice.weeksTracked} həftəlik məlumat
-          əsasında. İlkin hesablama, investisiya məsləhəti deyil.
+          Büdcə seçimlər arasında bərabər bölünür.{" "}
+          {advice.rules.needed === 1
+            ? `Seçim yalnız yeni namizəd ötən ayın ortalamasında ən azı ${formatGroupedTrim(advice.leadThreshold, 1)} bal öndə olanda dəyişir`
+            : `Seçim yalnız yeni namizəd ${advice.rules.needed} ${advice.rules.noun} ardıcıl ən azı ${formatGroupedTrim(advice.leadThreshold, 1)} bal öndə olanda dəyişir`}{" "}
+          — fərq həddi portfeldəki mövqe sayına uyğunlaşır, bu da{" "}
+          {advice.rules.adjective} səs-küydə tövsiyənin ora-bura atılmasının
+          qarşısını alır.{" "}
+          {advice.cadence === "monthly"
+            ? "Aylıq qiymətləndirmə həftəlik balların ortalamasına əsaslanır. "
+            : ""}
+          {advice.periodsTracked} {advice.rules.adjective} məlumat əsasında.
+          İlkin hesablama, investisiya məsləhəti deyil.
         </p>
       </div>
     </div>

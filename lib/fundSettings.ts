@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { PurchaseCadence } from "@/lib/buyTicket";
 
 export async function getStrategyStatement(): Promise<string> {
   const supabase = await createSupabaseServerClient();
@@ -19,8 +20,34 @@ export async function getStrategyStatement(): Promise<string> {
 }
 
 /**
- * The weekly contribution the buy ticket splits, in AZN. 0 means "not set" —
- * the ticket still ranks the picks, it just has no amounts to divide.
+ * How often İsmayıl actually buys — drives the ticket's decision cadence
+ * (weekly snapshot streaks vs month-average periods) and its copy. Stored as
+ * a fund_settings key so both modes share one engine; unknown values fall
+ * back to weekly.
+ */
+export async function getPurchaseCadence(): Promise<PurchaseCadence> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return "weekly";
+
+  const { data, error } = await supabase
+    .from("fund_settings")
+    .select("value")
+    .eq("key", "purchase_cadence")
+    .maybeSingle();
+
+  if (error) {
+    console.error("fund_settings read failed:", error.message);
+    return "weekly";
+  }
+
+  return data?.value === "monthly" ? "monthly" : "weekly";
+}
+
+/**
+ * The per-purchase contribution the buy ticket splits, in AZN (one week's or
+ * one month's money, per the cadence setting — the key name predates the
+ * cadence). 0 means "not set" — the ticket still ranks the picks, it just
+ * has no amounts to divide.
  */
 export async function getWeeklyBudgetAzn(): Promise<number> {
   const supabase = await createSupabaseServerClient();

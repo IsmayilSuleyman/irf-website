@@ -28,6 +28,7 @@ import { FundSummary } from "@/components/FundSummary";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
 import {
+  getPurchaseCadence,
   getStrategyStatement,
   getWeeklyBudgetAzn,
   isOwnerEmail,
@@ -68,12 +69,18 @@ import {
   PortfolioCarousel,
 } from "@/components/PortfolioCarousel";
 import {
+  currentBakuMonthKey,
   currentBakuWeekStart,
   fetchMomentumWeeks,
   recordMomentumWeek,
   withCurrentWeek,
 } from "@/lib/momentumWeekData";
-import { buildTicket, resolveAdvised, type WeekScores } from "@/lib/buyTicket";
+import {
+  aggregateMonthlyPeriods,
+  buildTicket,
+  resolveAdvised,
+  type WeekScores,
+} from "@/lib/buyTicket";
 import { BuyTicketPodium } from "@/components/BuyTicketPodium";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +103,7 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn] =
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -109,6 +116,7 @@ export default async function DashboardPage({
       getMarketQuotes(),
       getSpyReferences(),
       getWeeklyBudgetAzn(),
+      getPurchaseCadence(),
     ]);
   const canEditStrategy = isAdmin;
 
@@ -169,15 +177,33 @@ export default async function DashboardPage({
     }
   }
 
-  // This week's ticket. The live scores always stand in for the current week,
-  // so the ticket is correct even when the snapshot write has not landed.
-  const ticket = buildTicket(
-    momentumDefault.rows,
-    weeklyBudgetAzn,
-    resolveAdvised(
-      withCurrentWeek(momentumWeeks, momentumDefault.rows, currentBakuWeekStart()),
-    ),
+  // This period's ticket. Sector data rides along for the advised set's
+  // diversification cap (sectors are a property of the instrument, so the
+  // live map stands in for history too).
+  //
+  // Weekly: the live board stands in for the current week only until its
+  // snapshot lands (stored wins — see withCurrentWeek). Monthly: the fold
+  // reads STORED completed months only — the running month changes with every
+  // snapshot, and mid-month advice flapping is what the cadence exists to
+  // avoid; live scores still order the picks and price the amounts.
+  const sectorOf = Object.fromEntries(
+    momentumDefault.rows.map((r) => [r.symbol, r.sector]),
   );
+  const advice =
+    purchaseCadence === "monthly"
+      ? resolveAdvised(
+          aggregateMonthlyPeriods(momentumWeeks, currentBakuMonthKey()),
+          { cadence: "monthly", sectorOf },
+        )
+      : resolveAdvised(
+          withCurrentWeek(
+            momentumWeeks,
+            momentumDefault.rows,
+            currentBakuWeekStart(),
+          ),
+          { cadence: "weekly", sectorOf },
+        );
+  const ticket = buildTicket(momentumDefault.rows, weeklyBudgetAzn, advice);
 
   const dateLabel = formatBakuDate(new Date());
 
