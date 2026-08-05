@@ -83,6 +83,9 @@ import {
 } from "@/lib/buyTicket";
 import { resolveSellSignals } from "@/lib/sellSignals";
 import { BuyTicketPodium } from "@/components/BuyTicketPodium";
+import { computePolicyReport } from "@/lib/investmentPolicy";
+import { getMarketSignals } from "@/lib/marketSignals";
+import { InvestmentPolicyCard } from "@/components/InvestmentPolicyCard";
 
 export const dynamic = "force-dynamic";
 
@@ -104,7 +107,7 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence] =
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -118,6 +121,7 @@ export default async function DashboardPage({
       getSpyReferences(),
       getWeeklyBudgetAzn(),
       getPurchaseCadence(),
+      getMarketSignals(),
     ]);
   const canEditStrategy = isAdmin;
 
@@ -605,6 +609,22 @@ export default async function DashboardPage({
             </MotionSection>
           );
         })()}
+
+        {/* İnvestisiya siyasəti — sleeve allocation vs the written policy,
+            unwind schedule and the dip-buying trigger. Personal view only,
+            like the strategy statement it extends. */}
+        {!fundView && holdings.length > 0 && (
+          <MotionSection
+            id="siyaset"
+            delay={0.16}
+            className="scroll-mt-32 hairline -mt-8 pt-6"
+          >
+            <InvestmentPolicyCard
+              report={computePolicyReport(holdings)}
+              signals={marketSignals}
+            />
+          </MotionSection>
+        )}
 
         {/* Həftəlik alış bileti */}
         {!fundView && ticket.picks.length > 0 && (

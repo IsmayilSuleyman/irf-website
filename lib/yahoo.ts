@@ -69,6 +69,43 @@ export async function getDailyCloses(
   return out;
 }
 
+export type IndexSnapshot = { price: number; allTimeHigh: number };
+
+/**
+ * Current price and all-time high for an index symbol, from monthly bars'
+ * intraday highs since 1990. Feeds the investment policy's S&P-drawdown
+ * trigger (lib/marketSignals).
+ */
+export async function getIndexSnapshot(
+  symbol: string,
+): Promise<IndexSnapshot | null> {
+  try {
+    const res = (await yahooFinance.chart(
+      toYahooSymbol(symbol),
+      { period1: new Date("1990-01-01T00:00:00Z"), interval: "1mo" },
+      { validateResult: false },
+    )) as unknown as {
+      meta?: { regularMarketPrice?: unknown };
+      quotes?: Array<{ high?: unknown; close?: unknown }>;
+    };
+    let ath = 0;
+    let lastClose = 0;
+    for (const q of res?.quotes ?? []) {
+      const high = Number(q?.high);
+      const close = Number(q?.close);
+      if (Number.isFinite(high) && high > ath) ath = high;
+      if (Number.isFinite(close) && close > 0) lastClose = close;
+    }
+    const metaPrice = Number(res?.meta?.regularMarketPrice);
+    const price =
+      Number.isFinite(metaPrice) && metaPrice > 0 ? metaPrice : lastClose;
+    if (!(price > 0) || !(ath > 0)) return null;
+    return { price, allTimeHigh: Math.max(ath, price) };
+  } catch {
+    return null;
+  }
+}
+
 /** Fetch quotes for many symbols in one call; keyed by Yahoo symbol. */
 export async function getExtendedQuotes(
   symbols: string[],
