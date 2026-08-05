@@ -86,6 +86,7 @@ import { BuyTicketPodium } from "@/components/BuyTicketPodium";
 import { computePolicyReport } from "@/lib/investmentPolicy";
 import { getMarketSignals } from "@/lib/marketSignals";
 import { InvestmentPolicyCard } from "@/components/InvestmentPolicyCard";
+import { MarketSignalsPanel } from "@/components/MarketSignalsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -124,6 +125,9 @@ export default async function DashboardPage({
       getMarketSignals(),
     ]);
   const canEditStrategy = isAdmin;
+
+  // Shared by the policy card and the carousel's "Bazar siqnalları" slide.
+  const policyReport = computePolicyReport(holdings);
 
   // Non-cash holdings scored by the momentum engine (Watchlist R..U columns
   // + SPY relative strength). Empty when the sheet lacks the columns.
@@ -600,6 +604,16 @@ export default async function DashboardPage({
                               },
                             ]
                           : []),
+                        {
+                          key: "signals",
+                          label: "Bazar siqnalları",
+                          content: (
+                            <MarketSignalsPanel
+                              report={policyReport}
+                              signals={marketSignals}
+                            />
+                          ),
+                        },
                       ]}
                     />
                     <SectorBreakdown rows={sectorRows} />
@@ -620,7 +634,7 @@ export default async function DashboardPage({
             className="scroll-mt-32 hairline -mt-8 pt-6"
           >
             <InvestmentPolicyCard
-              report={computePolicyReport(holdings)}
+              report={policyReport}
               signals={marketSignals}
             />
           </MotionSection>

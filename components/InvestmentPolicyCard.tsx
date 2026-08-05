@@ -1,7 +1,8 @@
 import { Masked } from "@/components/Masked";
 import { SectorIcon } from "@/components/SectorIcon";
+import { ShowMore } from "@/components/ShowMore";
 import { sectorColor } from "@/lib/sectorColors";
-import { formatAzn, formatGrouped } from "@/lib/portfolio";
+import { formatAzn } from "@/lib/portfolio";
 import {
   POLICY,
   evaluateCashRule,
@@ -9,11 +10,7 @@ import {
   type PolicyReport,
   type SleeveRow,
 } from "@/lib/investmentPolicy";
-import {
-  isExtremeFear,
-  type FearGreed,
-  type MarketSignals,
-} from "@/lib/marketSignals";
+import { isExtremeFear, type MarketSignals } from "@/lib/marketSignals";
 
 // The Investment Policy card: live sleeve allocation against the written
 // targets/caps, the rule violations that demand action, the 6-month unwind
@@ -27,21 +24,6 @@ const BAR_SCALE = 0.5;
 
 const pct1 = (fraction: number): string => `${(fraction * 100).toFixed(1)}%`;
 const pct0 = (fraction: number): string => `${Math.round(fraction * 100)}%`;
-
-function fearGreedZoneAz(fg: FearGreed): string {
-  const r = fg.rating.toLowerCase();
-  if (r.includes("extreme fear")) return "İfrat qorxu";
-  if (r.includes("extreme greed")) return "İfrat hərislik";
-  if (r.includes("fear")) return "Qorxu";
-  if (r.includes("greed")) return "Hərislik";
-  if (r.includes("neutral")) return "Neytral";
-  // Rating missing — fall back to CNN's score bands.
-  if (fg.score <= 25) return "İfrat qorxu";
-  if (fg.score <= 45) return "Qorxu";
-  if (fg.score <= 55) return "Neytral";
-  if (fg.score <= 75) return "Hərislik";
-  return "İfrat hərislik";
-}
 
 function SleeveBar({ row }: { row: SleeveRow }) {
   const color = sectorColor(row.label);
@@ -172,9 +154,6 @@ export function InvestmentPolicyCard({
   const nextUnwind = report.unwind.schedule.find((m) => m.status === "next");
   const unwindActive = report.unwind.excessAzn > 0 && !report.unwind.finished;
 
-  const fg = signals.fearGreed;
-  const sp = signals.sp500;
-
   return (
     <div className="glass flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between gap-3">
@@ -193,6 +172,9 @@ export function InvestmentPolicyCard({
         ))}
       </ul>
 
+      {/* Everything below the allocation bars is detail — collapsed behind
+          "Daha çox" so the card's default face is just the policy vs. now. */}
+      <ShowMore>
       {/* Rule-driven to-dos, chronological */}
       <div className="border-t border-[color:var(--glass-border)] pt-4">
         <div className="mb-1 text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
@@ -335,88 +317,6 @@ export function InvestmentPolicyCard({
         )}
       </div>
 
-      {/* §4 — market signals feeding the dip-buying trigger */}
-      <div className="border-t border-[color:var(--glass-border)] pt-4">
-        <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-          Bazar siqnalları
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-0.5 rounded-xl border border-[color:var(--glass-border)] p-3">
-            <div className="text-[11px] text-black/45 dark:text-white/50">
-              CNN Fear and Greed indeksi
-            </div>
-            {fg ? (
-              <div className="flex items-baseline gap-2">
-                <span className="num text-2xl font-bold text-black dark:text-white/90">
-                  {fg.score}
-                </span>
-                <span
-                  className={`text-xs ${
-                    isExtremeFear(fg)
-                      ? "font-medium text-brand-green dark:text-emerald-400"
-                      : "text-black/55 dark:text-white/60"
-                  }`}
-                >
-                  {fearGreedZoneAz(fg)}
-                </span>
-              </div>
-            ) : (
-              <div className="text-sm text-black/45 dark:text-white/50">
-                əlçatan deyil
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-0.5 rounded-xl border border-[color:var(--glass-border)] p-3">
-            <div className="text-[11px] text-black/45 dark:text-white/50">
-              S&amp;P 500 tarixi zirvədən
-            </div>
-            {sp ? (
-              <div className="flex items-baseline gap-2">
-                <span
-                  className={`num text-2xl font-bold ${
-                    sp.drawdown <= POLICY.cashDeployDrawdown
-                      ? "text-brand-green dark:text-emerald-400"
-                      : "text-black dark:text-white/90"
-                  }`}
-                >
-                  {sp.drawdown >= 0
-                    ? "0.0%"
-                    : `−${(-sp.drawdown * 100).toFixed(1)}%`}
-                </span>
-                <span className="num text-xs text-black/45 dark:text-white/50">
-                  {formatGrouped(sp.price, 0)} / zirvə{" "}
-                  {formatGrouped(sp.allTimeHigh, 0)}
-                </span>
-              </div>
-            ) : (
-              <div className="text-sm text-black/45 dark:text-white/50">
-                əlçatan deyil
-              </div>
-            )}
-          </div>
-        </div>
-        <div
-          className={`mt-2 text-[12px] leading-snug ${
-            cashRule.state === "deploy"
-              ? "font-medium text-brand-green dark:text-emerald-400"
-              : "text-black/45 dark:text-white/50"
-          }`}
-        >
-          {cashRule.state === "deploy"
-            ? `Dib-alış triggeri aktivdir (${[
-                cashRule.reasons.includes("fear") ? "İfrat qorxu" : null,
-                cashRule.reasons.includes("drawdown")
-                  ? "S&P zirvədən ≥15% aşağı"
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" + ")}) — hər ay nağdın 1/3-i ETF-ə.`
-            : cashRule.state === "unknown"
-              ? "Siqnallar hazırda əlçatan deyil — trigger qiymətləndirilməyib."
-              : "Dib-alış triggeri deaktivdir: İfrat qorxu yoxdur və S&P zirvədən 15%-dən az aralıdadır. Nağd yalnız yeni töhfələrlə yığılır — heç vaxt satışla yox."}
-        </div>
-      </div>
-
       {/* Salary → debts → invest cadence */}
       <div className="border-t border-[color:var(--glass-border)] pt-4">
         <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
@@ -459,6 +359,7 @@ export function InvestmentPolicyCard({
         dəyişiklik {POLICY.coolingOffDays} günlük düşünmə müddəti tələb edir —
         qərar yazılı və tarixli olmalıdır.
       </div>
+      </ShowMore>
     </div>
   );
 }
