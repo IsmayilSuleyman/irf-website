@@ -222,7 +222,7 @@ export function InvestmentPolicyCard({
             {report.broadEtfBelowFloor
               ? "Hədəflərə çatana qədər töhfənin 100%-i Geniş bazar ETF-inə."
               : "Hədəflər yerindədir — bölgü ETF ≥ 40% şərti ilə aparıla bilər."}{" "}
-            Məbləğ Qorxu-Hərislik pilləli cədvəli ilə.
+            Məbləğ Fear and Greed pilləli cədvəli ilə.
           </ActionRow>
           {unwindActive && nextUnwind && (
             <ActionRow
@@ -343,7 +343,7 @@ export function InvestmentPolicyCard({
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-0.5 rounded-xl border border-[color:var(--glass-border)] p-3">
             <div className="text-[11px] text-black/45 dark:text-white/50">
-              CNN Qorxu-Hərislik indeksi
+              CNN Fear and Greed indeksi
             </div>
             {fg ? (
               <div className="flex items-baseline gap-2">
