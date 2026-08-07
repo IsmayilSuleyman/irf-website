@@ -100,6 +100,24 @@ export function PerformanceChart({
 
   const last = timed.length > 0 ? timed[timed.length - 1] : null;
 
+  // Split the value series at the break-even line: green while the holding is
+  // worth at least the net invested amount, muted grey while under water. A
+  // flip point belongs to both halves so the segments join without a gap.
+  // In price mode nothing has an invested figure, so everything stays green.
+  const plotted = useMemo(() => {
+    const isUnder = (p: (typeof timed)[number]) =>
+      p.invested != null && p.value < p.invested;
+    return timed.map((p, i) => {
+      const u = isUnder(p);
+      const flip = i > 0 && isUnder(timed[i - 1]) !== u;
+      return {
+        ...p,
+        valueAbove: !u || flip ? p.value : null,
+        valueUnder: u || flip ? p.value : null,
+      };
+    });
+  }, [timed]);
+
   // The pill's percentage. Value mode: profit/loss against net invested —
   // (dəyər − maya dəyəri) / maya dəyəri at the latest visible point — so
   // deposits don't masquerade as returns the way a first-to-last value ratio
@@ -273,13 +291,17 @@ export function PerformanceChart({
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
-              data={timed}
+              data={plotted}
               margin={{ top: 10, right: 14, left: 0, bottom: 0 }}
             >
               <defs>
                 <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#16a34a" stopOpacity={0.22} />
                   <stop offset="100%" stopColor="#16a34a" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gUnder" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#64748b" stopOpacity={0.16} />
+                  <stop offset="100%" stopColor="#64748b" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
@@ -321,13 +343,36 @@ export function PerformanceChart({
                   name,
                 ]}
               />
+              {/* Invisible full series: feeds the tooltip and hover dot so the
+                  colour split below never fragments the hover experience. */}
               <Area
                 type="monotone"
                 dataKey="value"
                 name={mode === "price" ? "1 payın qiyməti" : "Dəyər"}
+                stroke="none"
+                fill="none"
+              />
+              <Area
+                type="monotone"
+                dataKey="valueAbove"
                 stroke="#16a34a"
                 strokeWidth={2.5}
                 fill="url(#g)"
+                dot={false}
+                activeDot={false}
+                tooltipType="none"
+              />
+              {/* Under-water stretches — muted grey, matching the Maya dəyəri
+                  dashes rather than an alarm red. */}
+              <Area
+                type="monotone"
+                dataKey="valueUnder"
+                stroke="#64748b"
+                strokeWidth={2.5}
+                fill="url(#gUnder)"
+                dot={false}
+                activeDot={false}
+                tooltipType="none"
               />
               {showInvested && (
                 <Line
