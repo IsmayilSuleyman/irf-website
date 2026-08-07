@@ -21,13 +21,23 @@ function joinMonths(months: number[]): string {
   return `${months.slice(0, -1).join(", ")} və ya ${months[months.length - 1]}`;
 }
 
-export default async function IsmayilBankPage() {
-  const [{ user }, accounts, terms, bondFunding] = await Promise.all([
+export default async function IsmayilBankPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const [{ user }, accounts, terms, bondFunding, sp] = await Promise.all([
     getSupabaseServerUser(),
     getBankAccounts(),
     getBankProductTerms(),
     getBondFundingAzn(),
+    searchParams,
   ]);
+
+  // ?kredit=350 — the credit-offer banner's "Hesabla" link presets the
+  // calculator near the offered amount (component clamps to slider range).
+  const kreditRaw = Number(typeof sp?.kredit === "string" ? sp.kredit : NaN);
+  const kreditPreset = Number.isFinite(kreditRaw) && kreditRaw > 0 ? kreditRaw : undefined;
 
   const totalDeposits = accounts.reduce((s, a) => s + a.depositedAzn, 0);
   const totalLoans    = accounts.reduce((s, a) => s + a.outstandingLoanAzn, 0);
@@ -86,7 +96,7 @@ export default async function IsmayilBankPage() {
           </p>
 
           <div className="mt-12 space-y-12">
-            <section className="space-y-5">
+            <section id="kredit" className="scroll-mt-6 space-y-5">
               <div className="max-w-2xl">
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-bank-blue/75 dark:text-blue-400/75">
                   Kredit
@@ -99,7 +109,10 @@ export default async function IsmayilBankPage() {
                   faiz dərəcəsi seçdiyiniz müddətə uyğun tətbiq olunur.
                 </p>
               </div>
-              <IsmayilBankCalculator terms={terms.credit} />
+              <IsmayilBankCalculator
+                terms={terms.credit}
+                initialAmountAzn={kreditPreset}
+              />
             </section>
 
             <section className="space-y-5">

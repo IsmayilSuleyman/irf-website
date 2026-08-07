@@ -25,6 +25,13 @@ import { BankViewToggle } from "@/components/BankViewToggle";
 import { BankWideView } from "@/components/BankWideView";
 import { BankTermsPanel } from "@/components/BankTermsPanel";
 import { BalanceHero } from "@/components/BalanceHero";
+import { CreditOfferBanner } from "@/components/CreditOfferBanner";
+import { CreditOfferPanel } from "@/components/CreditOfferPanel";
+import {
+  getAllCreditOffers,
+  getMyCreditOffer,
+  offerAmountAzn,
+} from "@/lib/creditOffers";
 import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 import { BroadcastPanel } from "@/components/BroadcastPanel";
 
@@ -297,9 +304,10 @@ export default async function BankPage({
   }
 
   const name = displayNameOf(user.user_metadata);
-  const [sheetAccount, bonds] = await Promise.all([
+  const [sheetAccount, bonds, creditOffer] = await Promise.all([
     getBankAccountByName(name),
     getMyBondHoldings(),
+    getMyCreditOffer(name),
   ]);
 
   // Bonds are bought on /bonds without any bank-sheet row, so a bondholder can
@@ -335,7 +343,42 @@ export default async function BankPage({
     .filter((a) => a.outstandingLoanAzn > 0)
     .map((a) => ({ name: a.name, amount: a.outstandingLoanAzn }));
   const recipientNames = adminAccounts.map((a) => a.name);
+
+  // The credit-offer banner: only for accounts with no active loan. A percent
+  // offer resolves against live net liquidity (deposits + bond funding −
+  // loans); the product terms supply the "faiz X%-dən başlayır" teaser. All
+  // three reads are the same 60s-cached fetches the bank view uses.
+  const offerEligible =
+    creditOffer != null &&
+    (account == null || account.outstandingLoanAzn <= 0);
+  let offerAzn = 0;
+  let offerMinRatePct: number | null = null;
+  if (offerEligible && creditOffer != null) {
+    if (creditOffer.mode === "pct") {
+      const [allAccounts, bondFunding] = await Promise.all([
+        getBankAccounts(),
+        getBondFundingAzn(),
+      ]);
+      const deposits = allAccounts.reduce((s, a) => s + a.depositedAzn, 0);
+      const loans = allAccounts.reduce((s, a) => s + a.outstandingLoanAzn, 0);
+      offerAzn = offerAmountAzn(creditOffer, deposits + bondFunding - loans);
+    } else {
+      offerAzn = offerAmountAzn(creditOffer, 0);
+    }
+    if (offerAzn > 0) {
+      const terms = await getBankProductTerms();
+      const rates = terms.credit.map((t) => t.annualRatePct).filter((r) => r > 0);
+      offerMinRatePct = rates.length > 0 ? Math.min(...rates) : null;
+    }
+  }
+
   const productTerms = isAdmin ? await getBankProductTerms() : null;
+  // Cabinet data: every offer with today's resolved amounts.
+  const adminOffers = isAdmin ? await getAllCreditOffers() : [];
+  const adminNetLiquidity = isAdmin
+    ? adminAccounts.reduce((s, a) => s + a.depositedAzn - a.outstandingLoanAzn, 0) +
+      (await getBondFundingAzn())
+    : 0;
 
   if (!account) {
     return (
@@ -410,6 +453,18 @@ export default async function BankPage({
             hasCredit={account.outstandingLoanAzn > 0 || account.paymentSchedule.length > 0}
           />
         </MotionSection>
+
+        {/* ── Personal credit offer — set per account in İsmayıl's cabinet ── */}
+        {offerEligible && offerAzn > 0 ? (
+          <MotionSection delay={0.03}>
+            <div className="mt-6">
+              <CreditOfferBanner
+                amountAzn={offerAzn}
+                minRatePct={offerMinRatePct}
+              />
+            </div>
+          </MotionSection>
+        ) : null}
 
         {/* ── Balance Section — Fund-hero style headline ──
             Total on top, deposit + bonds as its two legs underneath. Renders
@@ -512,6 +567,14 @@ export default async function BankPage({
               <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <DebtNoticePanel debtors={debtors} />
                 <BroadcastPanel recipients={recipientNames} />
+              </div>
+              <div className="mt-4">
+                <CreditOfferPanel
+                  accountNames={recipientNames}
+                  loanHolders={debtors.map((d) => d.name)}
+                  offers={adminOffers}
+                  netLiquidityAzn={adminNetLiquidity}
+                />
               </div>
               {productTerms ? (
                 <div className="mt-4">

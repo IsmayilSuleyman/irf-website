@@ -130,7 +130,15 @@ function SummaryRow({
   );
 }
 
-export function IsmayilBankCalculator({ terms }: { terms?: ProductTerm[] }) {
+export function IsmayilBankCalculator({
+  terms,
+  initialAmountAzn,
+}: {
+  terms?: ProductTerm[];
+  /** Preset from the credit-offer banner's "Hesabla" link; clamped to the
+   *  slider's range. */
+  initialAmountAzn?: number;
+}) {
   // Tiers come from Supabase (İsmayıl edits them any time). The slider moves
   // over the available tiers by index, so gaps in the month list are fine.
   const tiers = useMemo(() => {
@@ -141,7 +149,11 @@ export function IsmayilBankCalculator({ terms }: { terms?: ProductTerm[] }) {
     return list.length > 0 ? list : DEFAULT_TERMS.credit;
   }, [terms]);
 
-  const [amount, setAmount] = useState(250);
+  const [amount, setAmount] = useState(() =>
+    initialAmountAzn != null && Number.isFinite(initialAmountAzn)
+      ? Math.min(2000, Math.max(50, Math.round(initialAmountAzn)))
+      : 250,
+  );
   const [tierIndex, setTierIndex] = useState(() => {
     const i = tiers.findIndex((t) => t.termMonths === 6);
     return i >= 0 ? i : Math.floor((tiers.length - 1) / 2);
