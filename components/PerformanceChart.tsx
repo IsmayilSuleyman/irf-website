@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import {
   Area,
-  AreaChart,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ReferenceDot,
   ResponsiveContainer,
   Tooltip,
@@ -14,7 +15,7 @@ import {
 import { formatAzn, formatGrouped } from "@/lib/portfolio";
 import { usePrivacy } from "@/components/PrivacyProvider";
 
-type Point = { label: string; value: number; date?: string };
+type Point = { label: string; value: number; invested?: number; date?: string };
 
 const RANGES = [
   { key: "1m", label: "1 AY", days: 30 },
@@ -74,6 +75,12 @@ export function PerformanceChart({
   // Your holding value is personal — masked in hide-amounts mode. The unit
   // price is the same for every holder (public), so it never gets masked.
   const masked = hidden && mode === "value";
+
+  // Net-invested (Maya dəyəri) reference line — value mode only. Stepped, not
+  // flat: the invested amount changes on every buy/sell, so comparing against
+  // today's total would falsely show early months as under water.
+  const showInvested =
+    mode === "value" && filtered.some((p) => p.invested != null);
 
   return (
     <div className="glass w-full p-6">
@@ -139,7 +146,7 @@ export function PerformanceChart({
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
+            <ComposedChart
               data={filtered}
               margin={{ top: 10, right: 14, left: 0, bottom: 0 }}
             >
@@ -178,18 +185,31 @@ export function PerformanceChart({
                   color: "#0a0a0a",
                 }}
                 labelStyle={{ color: "rgba(0,0,0,0.55)" }}
-                formatter={(v: number) => [
+                formatter={(v: number, name: string) => [
                   masked ? "••••" : formatAzn(v),
-                  mode === "price" ? "1 payın qiyməti" : "Dəyər",
+                  name,
                 ]}
               />
               <Area
                 type="monotone"
                 dataKey="value"
+                name={mode === "price" ? "1 payın qiyməti" : "Dəyər"}
                 stroke="#16a34a"
                 strokeWidth={2.5}
                 fill="url(#g)"
               />
+              {showInvested && (
+                <Line
+                  type="stepAfter"
+                  dataKey="invested"
+                  name="Maya dəyəri"
+                  stroke="#94a3b8"
+                  strokeWidth={1.5}
+                  strokeDasharray="5 4"
+                  dot={false}
+                  activeDot={false}
+                />
+              )}
               {last && (
                 <ReferenceDot
                   x={last.label}
@@ -200,7 +220,7 @@ export function PerformanceChart({
                   strokeWidth={2}
                 />
               )}
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         )}
       </div>

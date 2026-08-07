@@ -357,7 +357,7 @@ export function computeHolderValueHistory(
   holderName: string,
   transactions: Transaction[],
   priceHistory: NavPoint[],
-): { label: string; value: number; date: string }[] {
+): { label: string; value: number; invested: number; date: string }[] {
   const target = norm(holderName);
   const mine = transactions.filter((t) => norm(t.holderName) === target);
 
@@ -370,18 +370,27 @@ export function computeHolderValueHistory(
       .filter((n) => Number.isFinite(n)),
   );
 
-  const result: { label: string; value: number; date: string }[] = [];
+  const result: {
+    label: string;
+    value: number;
+    invested: number;
+    date: string;
+  }[] = [];
 
   for (const point of priceHistory) {
     const pointMs = new Date(point.recordedAt).getTime();
     if (!Number.isFinite(pointMs) || pointMs < firstTxMs) continue;
 
-    // Units held by this user at this point in time
+    // Units held and net cash invested by this user at this point in time.
+    // t.units is negative for sells, so units*price both adds buy cost and
+    // subtracts sale proceeds — the running total is net contributions.
     let units = 0;
+    let invested = 0;
     for (const t of mine) {
       const tMs = new Date(t.date).getTime();
       if (Number.isFinite(tMs) && tMs <= pointMs) {
         units += t.units;
+        invested += t.units * t.price;
       }
     }
 
@@ -389,6 +398,9 @@ export function computeHolderValueHistory(
       result.push({
         label: point.label,
         value: units * point.price,
+        // Selling at a profit can push net contributions below zero; clamp so
+        // the chart's break-even line never dips under the axis.
+        invested: Math.max(0, invested),
         date: point.recordedAt,
       });
     }
