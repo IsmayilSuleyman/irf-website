@@ -100,19 +100,29 @@ export function PerformanceChart({
 
   const last = timed.length > 0 ? timed[timed.length - 1] : null;
 
-  // Change across the visible window: first plotted point to last. Follows
-  // both switches, so it answers "what did the selected series do over the
-  // selected period". Null when there is nothing to compare against — a
-  // single point, or a zero/negative opening value.
+  // The pill's percentage. Value mode: profit/loss against net invested —
+  // (dəyər − maya dəyəri) / maya dəyəri at the latest visible point — so
+  // deposits don't masquerade as returns the way a first-to-last value ratio
+  // would. Price mode has no cost basis; it keeps the plain first-to-last
+  // change of the unit price over the window. Null hides the pill (nothing
+  // meaningful to compare against).
   const periodChange = useMemo(() => {
+    if (timed.length === 0) return null;
+    const lastP = timed[timed.length - 1];
+    if (mode === "value") {
+      const inv = lastP.invested;
+      if (inv == null || inv <= 0 || !Number.isFinite(lastP.value)) {
+        return null;
+      }
+      return lastP.value / inv - 1;
+    }
     if (timed.length < 2) return null;
     const open = timed[0].value;
-    const close = timed[timed.length - 1].value;
-    if (!Number.isFinite(open) || !Number.isFinite(close) || open <= 0) {
+    if (!Number.isFinite(open) || !Number.isFinite(lastP.value) || open <= 0) {
       return null;
     }
-    return close / open - 1;
-  }, [timed]);
+    return lastP.value / open - 1;
+  }, [timed, mode]);
 
   if (!hasValue && !hasPrice) {
     return (
@@ -136,7 +146,11 @@ export function PerformanceChart({
   const changePill = (className: string) =>
     periodChange == null ? null : (
       <span
-        title="Seçilmiş dövr üzrə dəyişim"
+        title={
+          mode === "value"
+            ? "Maya dəyərinə nəzərən mənfəət/zərər"
+            : "Seçilmiş dövr üzrə dəyişim"
+        }
         className={`num rounded-lg border px-2 py-1.5 text-center text-[10px] font-semibold tracking-[0.06em] sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
           periodChange >= 0
             ? "border-brand-green/30 bg-brand-green/10 text-brand-green dark:text-emerald-400"
