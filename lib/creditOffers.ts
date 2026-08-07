@@ -15,9 +15,12 @@ export type CreditOffer = {
   updatedAt: string | null;
 };
 
-/** Same folding public.norm() applies on the database side. */
-const norm = (s: string) =>
-  s.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
+/** Same folding public.norm() applies on the database side: btrim →
+ *  translate İ/I/ı→i → collapse whitespace → lower. NOT az-AZ toLowerCase,
+ *  which maps I→ı and would disagree with the DB on ASCII capital I. */
+export const normalizeHolderName = (s: string) =>
+  s.trim().replace(/[İIı]/g, "i").replace(/\s+/g, " ").toLowerCase();
+const norm = normalizeHolderName;
 
 function parseRow(row: Record<string, unknown>): CreditOffer | null {
   const holderName = String(row.holder_name ?? "").trim();
