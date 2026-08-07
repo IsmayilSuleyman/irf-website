@@ -418,16 +418,18 @@ export function computeHolderValueHistory(
       }
     }
 
-    if (units > 0) {
-      result.push({
-        label: point.label,
-        value: units * point.price,
-        // Selling at a profit can push net contributions below zero; clamp so
-        // the chart's break-even line never dips under the axis.
-        invested: Math.max(0, invested),
-        date: point.recordedAt,
-      });
-    }
+    // Every point from the first transaction onward is plotted — including
+    // zero-unit stretches between a full exit and a later re-entry — so the
+    // chart starts the day the holder first owned a share and never hides an
+    // exit as a gap.
+    result.push({
+      label: point.label,
+      value: units * point.price,
+      // Selling at a profit can push net contributions below zero; clamp so
+      // the chart's break-even line never dips under the axis.
+      invested: Math.max(0, invested),
+      date: point.recordedAt,
+    });
   }
 
   return result;
