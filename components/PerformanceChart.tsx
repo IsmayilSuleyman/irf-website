@@ -108,26 +108,62 @@ export function PerformanceChart({
   // layers the sell-side commission on top.
   //
   // The value series splits at that line: green while a full exit would return
-  // at least the cash put in, muted grey while under water. A flip point
-  // belongs to both halves so the segments join without a gap. In price mode
-  // nothing has an invested figure, so everything stays green.
+  // at least the cash put in, muted grey while under water. Where the value
+  // crosses the line between two plotted days, a synthetic point is inserted
+  // at the exact intersection, so the colour flips precisely at the dashes —
+  // never a doubled stretch of green and grey riding the same segment. The
+  // break-even steps (it only moves on a buy/sell), so within an interval the
+  // threshold is the earlier point's level. In price mode nothing has an
+  // invested figure, so everything stays green.
   const plotted = useMemo(() => {
-    const breakevenOf = (p: (typeof timed)[number]) =>
+    const beOf = (p: (typeof timed)[number]) =>
       p.invested != null ? p.invested / (1 - COMMISSION) : null;
-    const isUnder = (p: (typeof timed)[number]) => {
-      const be = breakevenOf(p);
-      return be != null && p.value < be;
+    type Plotted = (typeof timed)[number] & {
+      breakeven: number | null;
+      valueAbove: number | null;
+      valueUnder: number | null;
     };
-    return timed.map((p, i) => {
-      const u = isUnder(p);
-      const flip = i > 0 && isUnder(timed[i - 1]) !== u;
-      return {
+    const out: Plotted[] = [];
+    for (let i = 0; i < timed.length; i++) {
+      const p = timed[i];
+      const be = beOf(p);
+      const ownUnder = be != null && p.value < be;
+      // Which side of the line the incoming segment ends on (vs the segment's
+      // own threshold). Differs from ownUnder only when a buy/sell steps the
+      // break-even at exactly this point — there the colour flips at the
+      // point itself and both series share it (a zero-length join).
+      let inUnder = ownUnder;
+      if (i > 0) {
+        const prev = timed[i - 1];
+        const bePrev = beOf(prev);
+        if (bePrev != null) {
+          const prevUnder = prev.value < bePrev;
+          const endUnder = p.value < bePrev;
+          if (prevUnder !== endUnder && p.value !== prev.value) {
+            const t = (bePrev - prev.value) / (p.value - prev.value);
+            if (t > 0 && t < 1) {
+              out.push({
+                ...prev,
+                ts: prev.ts + t * (p.ts - prev.ts),
+                value: bePrev,
+                breakeven: bePrev,
+                // The crossing sits on the line, so both halves meet here.
+                valueAbove: bePrev,
+                valueUnder: bePrev,
+              });
+            }
+          }
+          inUnder = endUnder;
+        }
+      }
+      out.push({
         ...p,
-        breakeven: breakevenOf(p),
-        valueAbove: !u || flip ? p.value : null,
-        valueUnder: u || flip ? p.value : null,
-      };
-    });
+        breakeven: be,
+        valueAbove: !inUnder || !ownUnder ? p.value : null,
+        valueUnder: inUnder || ownUnder ? p.value : null,
+      });
+    }
+    return out;
   }, [timed]);
 
   // The pill's percentage. Value mode: profit/loss against net invested —
