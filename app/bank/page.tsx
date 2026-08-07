@@ -462,17 +462,13 @@ export default async function BankPage({
           </div>
         </MotionSection>
 
-        <MotionSection delay={0.02}>
-          <QuickActions
-            hasDeposit={account.depositedAzn > 0}
-            hasBonds={bonds.totalUnits > 0}
-            hasCredit={account.outstandingLoanAzn > 0 || account.paymentSchedule.length > 0}
-          />
-        </MotionSection>
-
-        {/* ── Personal credit offer — set per account in İsmayıl's cabinet ── */}
+        {/* ── Personal credit offer — set per account in İsmayıl's cabinet.
+            FIRST content block, straight after the greeting: for the loan-free
+            accounts it targets, the offer is the page's main news, and the
+            bank "speaks" in order — xoş gəldin → sizin üçün təklifimiz var →
+            budur hesabınız. With no offer the layout is untouched. ── */}
         {offerEligible && offerAzn > 0 ? (
-          <MotionSection delay={0.03}>
+          <MotionSection delay={0.02}>
             <div className="mt-6">
               <CreditOfferBanner
                 amountAzn={offerAzn}
@@ -481,6 +477,14 @@ export default async function BankPage({
             </div>
           </MotionSection>
         ) : null}
+
+        <MotionSection delay={offerEligible && offerAzn > 0 ? 0.03 : 0.02}>
+          <QuickActions
+            hasDeposit={account.depositedAzn > 0}
+            hasBonds={bonds.totalUnits > 0}
+            hasCredit={account.outstandingLoanAzn > 0 || account.paymentSchedule.length > 0}
+          />
+        </MotionSection>
 
         {/* ── Balance Section — Fund-hero style headline ──
             Total on top, deposit + bonds as its two legs underneath. Renders
