@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { formatAzn, formatGrouped } from "@/lib/portfolio";
+import { COMMISSION } from "@/lib/priceMath";
 import { usePrivacy } from "@/components/PrivacyProvider";
 
 type Point = { label: string; value: number; invested?: number; date?: string };
@@ -100,18 +101,29 @@ export function PerformanceChart({
 
   const last = timed.length > 0 ? timed[timed.length - 1] : null;
 
-  // Split the value series at the break-even line: green while the holding is
-  // worth at least the net invested amount, muted grey while under water. A
-  // flip point belongs to both halves so the segments join without a gap.
-  // In price mode nothing has an invested figure, so everything stays green.
+  // The dashed reference is the exit break-even (Başabaş): the NAV level at
+  // which selling — which nets NAV × (1 − COMMISSION) — returns exactly the
+  // net cash invested. Transaction prices in the sheet are actual settlement
+  // prices, so the buy-side +3% is already inside `invested`; the division
+  // layers the sell-side commission on top.
+  //
+  // The value series splits at that line: green while a full exit would return
+  // at least the cash put in, muted grey while under water. A flip point
+  // belongs to both halves so the segments join without a gap. In price mode
+  // nothing has an invested figure, so everything stays green.
   const plotted = useMemo(() => {
-    const isUnder = (p: (typeof timed)[number]) =>
-      p.invested != null && p.value < p.invested;
+    const breakevenOf = (p: (typeof timed)[number]) =>
+      p.invested != null ? p.invested / (1 - COMMISSION) : null;
+    const isUnder = (p: (typeof timed)[number]) => {
+      const be = breakevenOf(p);
+      return be != null && p.value < be;
+    };
     return timed.map((p, i) => {
       const u = isUnder(p);
       const flip = i > 0 && isUnder(timed[i - 1]) !== u;
       return {
         ...p,
+        breakeven: breakevenOf(p),
         valueAbove: !u || flip ? p.value : null,
         valueUnder: u || flip ? p.value : null,
       };
@@ -180,9 +192,10 @@ export function PerformanceChart({
       </span>
     );
 
-  // Net-invested (Maya dəyəri) reference line — value mode only. Stepped, not
-  // flat: the invested amount changes on every buy/sell, so comparing against
-  // today's total would falsely show early months as under water.
+  // Break-even (Başabaş) reference line — value mode only. Derived from net
+  // invested, and stepped rather than flat: the invested amount changes on
+  // every buy/sell, so comparing against today's total would falsely show
+  // early months as under water.
   const showInvested =
     mode === "value" && timed.some((p) => p.invested != null);
 
@@ -377,8 +390,8 @@ export function PerformanceChart({
               {showInvested && (
                 <Line
                   type="stepAfter"
-                  dataKey="invested"
-                  name="Maya dəyəri"
+                  dataKey="breakeven"
+                  name="Başabaş"
                   stroke="rgba(148, 163, 184, 0.4)"
                   strokeWidth={1.25}
                   strokeDasharray="5 4"
