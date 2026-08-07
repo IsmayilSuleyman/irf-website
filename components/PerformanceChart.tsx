@@ -54,12 +54,16 @@ const MODES = [
 
 type ModeKey = (typeof MODES)[number]["key"];
 
+type TxMarker = { ts: number; kind: "buy" | "sell" };
+
 export function PerformanceChart({
   data,
   priceData,
+  txMarkers,
 }: {
   data: Point[];
   priceData?: Point[];
+  txMarkers?: TxMarker[];
 }) {
   const { hidden } = usePrivacy();
   const hasValue = data != null && data.length > 0;
@@ -149,6 +153,35 @@ export function PerformanceChart({
   // today's total would falsely show early months as under water.
   const showInvested =
     mode === "value" && timed.some((p) => p.invested != null);
+
+  // Buy/sell event dots, value mode only. Each transaction snaps to the
+  // nearest plotted point so the dot sits exactly on the value line; markers
+  // outside the visible range are dropped, and same-day duplicates collapse.
+  const eventDots = useMemo(() => {
+    if (mode !== "value" || !txMarkers || timed.length === 0) return [];
+    const lo = timed[0].ts;
+    const hi = timed[timed.length - 1].ts;
+    const slack = 36 * 60 * 60 * 1000; // tolerate a tx logged just off-range
+    const seen = new Set<string>();
+    const dots: { ts: number; value: number; kind: TxMarker["kind"] }[] = [];
+    for (const m of txMarkers) {
+      if (m.ts < lo - slack || m.ts > hi + slack) continue;
+      let best = timed[0];
+      let bestDelta = Math.abs(timed[0].ts - m.ts);
+      for (const p of timed) {
+        const d = Math.abs(p.ts - m.ts);
+        if (d < bestDelta) {
+          bestDelta = d;
+          best = p;
+        }
+      }
+      const key = `${best.ts}-${m.kind}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dots.push({ ts: best.ts, value: best.value, kind: m.kind });
+    }
+    return dots;
+  }, [mode, txMarkers, timed]);
 
   return (
     <div className="glass w-full p-6">
@@ -287,13 +320,24 @@ export function PerformanceChart({
                   type="stepAfter"
                   dataKey="invested"
                   name="Maya dəyəri"
-                  stroke="#94a3b8"
-                  strokeWidth={1.5}
+                  stroke="rgba(148, 163, 184, 0.4)"
+                  strokeWidth={1.25}
                   strokeDasharray="5 4"
                   dot={false}
                   activeDot={false}
                 />
               )}
+              {eventDots.map((d) => (
+                <ReferenceDot
+                  key={`${d.ts}-${d.kind}`}
+                  x={d.ts}
+                  y={d.value}
+                  r={2.5}
+                  fill={d.kind === "buy" ? "#16a34a" : "#dc2626"}
+                  stroke="#fff"
+                  strokeWidth={1}
+                />
+              ))}
               {last && (
                 <ReferenceDot
                   x={last.ts}

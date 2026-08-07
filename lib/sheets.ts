@@ -433,6 +433,27 @@ export function computeHolderValueHistory(
   return result;
 }
 
+export type TxMarker = { ts: number; kind: "buy" | "sell" };
+
+/**
+ * A holder's buy/sell events as chart markers — epoch-ms timestamps plus
+ * direction. The chart snaps each marker onto the nearest plotted point of
+ * the value line, so amounts stay implicit (dot position = value that day).
+ */
+export function computeHolderTxMarkers(
+  holderName: string,
+  transactions: Transaction[],
+): TxMarker[] {
+  const target = norm(holderName);
+  return transactions
+    .filter((t) => norm(t.holderName) === target)
+    .map((t) => ({
+      ts: new Date(t.date).getTime(),
+      kind: (t.units > 0 ? "buy" : "sell") as TxMarker["kind"],
+    }))
+    .filter((m) => Number.isFinite(m.ts));
+}
+
 /**
  * Whole-fund value time series — the fund-wide analog of
  * computeHolderValueHistory. At each price-history point T:

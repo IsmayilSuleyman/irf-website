@@ -8,6 +8,7 @@ import {
   getDebts,
   computeHolderPerformance,
   computeHolderValueHistory,
+  computeHolderTxMarkers,
   computeHoldingDeltaSince,
 } from "@/lib/sheets";
 import {
@@ -402,7 +403,11 @@ export default async function DashboardPage({
             dedicated "Ümumfond dəyər tarixçəsi" chart later; hidden for now. */}
         {!fundView && (
           <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-10">
-            <PerformanceChart data={chartData} priceData={priceChartData} />
+            <PerformanceChart
+              data={chartData}
+              priceData={priceChartData}
+              txMarkers={computeHolderTxMarkers(holder.name, mergedTransactions)}
+            />
           </MotionSection>
         )}
 
