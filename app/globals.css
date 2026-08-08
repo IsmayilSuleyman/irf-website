@@ -256,3 +256,52 @@ body {
 .dark .recharts-sector {
   stroke: #10150f !important;
 }
+
+/* ============================================================
+   iOS WebKit crash mitigation ("səhifədə birçox kez sorun oluştu").
+   iPhones give a tab a hard GPU/memory budget and kill the web process
+   when the compositor blows through it — and this app's glass styling is
+   exactly the risky kind: document-sized `background-attachment: fixed`
+   gradients (iOS rasterizes the WHOLE document as a texture), 64px-blur
+   decorative blobs, stacked backdrop-filters, and infinitely-animating
+   blurred orbs. The reliable repro was the offer banner's "Hesabla" link:
+   its #kredit hash smooth-scrolls through the fully blurred /ismayilbank
+   hero during hydration, and the process dies; Safari then reloads the
+   same URL into the same scroll and loops.
+
+   `@supports (-webkit-touch-callout: none)` matches iOS/iPadOS WebKit
+   only (desktop browsers, including macOS Safari, don't support that
+   property) — every rule below is invisible everywhere else. These are
+   source-order overrides: they sit after the @tailwind utilities output
+   and the .bg-* definitions above, so equal specificity resolves to us.
+   ============================================================ */
+@supports (-webkit-touch-callout: none) {
+  /* Fixed-attachment gradients become scroll — no document-sized texture. */
+  .bg-bank-section,
+  .dark .bg-bank-section,
+  .bg-page-gradient {
+    background-attachment: scroll;
+  }
+
+  /* Giant decorative glow blobs (aria-hidden, blur(64px)) are pure GPU
+     cost with near-invisible payoff on a phone screen. */
+  .blur-3xl {
+    display: none;
+  }
+
+  /* Glass keeps a hint of frost at a fraction of the render cost —
+     blur-xl (24px) and friends collapse to 6px. */
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+
+  /* The dashboard's drifting-orb layer: three 500px+ blurred circles
+     animating forever on a fixed layer — the compositor never idles.
+     The page gradient behind it carries the look alone. */
+  .page-orbs {
+    display: none;
+  }
+}
