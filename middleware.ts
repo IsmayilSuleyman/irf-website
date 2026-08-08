@@ -49,7 +49,16 @@ export async function middleware(request: NextRequest) {
     },
   );
 
+  // A failed getUser() is NOT always "signed out". Deploys used to log every
+  // user out through exactly this hole: all tabs reload at once, dozens of
+  // concurrent middleware runs race to refresh the same rotated refresh
+  // token, and the losers surface transient errors (or worse, trip
+  // Supabase's reuse detection). Only a DEFINITIVE auth answer — no session
+  // cookie at all, or the auth server rejecting the token with a 4xx — may
+  // bounce the user to /login. Transient failures (network, 5xx, cold
+  // starts) pass through; the page-level requireUser retries moments later.
   let user = null;
+  let sessionInvalid = false;
   try {
     const {
       data,
@@ -57,8 +66,14 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (error) {
-      if (error.name !== "AuthSessionMissingError") {
-        console.error("Middleware auth.getUser() failed:", error);
+      const status = (error as { status?: number }).status ?? 0;
+      if (error.name === "AuthSessionMissingError") {
+        sessionInvalid = true;
+      } else if (status >= 400 && status < 500) {
+        sessionInvalid = true;
+        console.error("Middleware auth rejected the session:", error);
+      } else {
+        console.error("Middleware auth.getUser() failed transiently:", error);
       }
     } else {
       user = data.user;
@@ -67,7 +82,7 @@ export async function middleware(request: NextRequest) {
     console.error("Middleware auth bootstrap failed:", error);
   }
 
-  if (isProtected && !user) {
+  if (isProtected && !user && sessionInvalid) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
@@ -88,6 +103,25 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+// Run only where a session decision is actually needed: the gated app pages,
+// /login (for the signed-in bounce-back), and the public pages whose headers
+// change with auth state. The old matcher caught EVERYTHING except static
+// assets — every /api call, manifest, icon and prefetch ran a token refresh,
+// so one deploy-triggered reload burst meant dozens of concurrent refreshes
+// racing the same rotated refresh token. Supabase reads that as token theft
+// and revokes the whole family — the "everyone is logged out after each
+// update" bug. Cutting the surface to real page navigations removes the
+// stampede; /api routes authenticate themselves via their own server client.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.svg$).*)"],
+  matcher: [
+    "/dashboard/:path*",
+    "/bank/:path*",
+    "/bonds/:path*",
+    "/market/:path*",
+    "/portal/:path*",
+    "/login",
+    "/",
+    "/welcome",
+    "/ismayilbank",
+  ],
 };
