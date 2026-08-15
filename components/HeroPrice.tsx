@@ -53,14 +53,17 @@ export function Greeting({
       <div className="flex items-center justify-between gap-2">
         <div className="text-[13px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400">
           Xoş gəldin,
-          <span className="hidden text-[16px] sm:inline"> {holderName}</span>
+          <span className="hero-name hidden text-[16px] sm:inline">
+            {" "}
+            {holderName}
+          </span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {privacyToggle}
           {toggle}
         </div>
       </div>
-      <div className="text-[16px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400 sm:hidden">
+      <div className="hero-name text-[16px] font-semibold uppercase tracking-[0.22em] sm:hidden">
         {holderName}
       </div>
     </div>

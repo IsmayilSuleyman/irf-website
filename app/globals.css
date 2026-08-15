@@ -257,6 +257,59 @@ body {
   stroke: #10150f !important;
 }
 
+/* Greeting name — gradient text with a soft brand glow and a slow shimmer
+   sweep (a highlight crosses ~every 4.5s, then rests). One short text node,
+   so the effect costs next to nothing; the sweep stops entirely for
+   reduced-motion users. Theme vars: light mode gets a deeper green and a
+   fainter halo, dark mode a brighter emerald and a stronger one. Unlayered
+   on purpose — it must beat the text-color utilities on the same element. */
+:root {
+  --name-base: #15803d;
+  --name-hi: #4ade80;
+  --name-glow: rgba(22, 163, 74, 0.28);
+}
+.dark {
+  --name-base: #34d399;
+  --name-hi: #d1fae5;
+  --name-glow: rgba(52, 211, 153, 0.5);
+}
+.hero-name {
+  background-image: linear-gradient(
+    100deg,
+    var(--name-base) 0%,
+    var(--name-base) 42%,
+    var(--name-hi) 50%,
+    var(--name-base) 58%,
+    var(--name-base) 100%
+  );
+  background-size: 220% 100%;
+  background-position: 130% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 9px var(--name-glow));
+  animation: hero-name-shimmer 4.5s ease-in-out infinite;
+}
+/* Both endpoints park the highlight outside the visible window, so the
+   loop's jump back is invisible. */
+@keyframes hero-name-shimmer {
+  0% {
+    background-position: 130% 0;
+  }
+  55% {
+    background-position: -30% 0;
+  }
+  100% {
+    background-position: -30% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-name {
+    animation: none;
+  }
+}
+
 /* ============================================================
    iOS WebKit crash mitigation ("səhifədə birçox kez sorun oluştu").
    iPhones give a tab a hard GPU/memory budget and kill the web process
