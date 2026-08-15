@@ -350,10 +350,11 @@ export default async function DashboardPage({
 
       <PrivacyProvider initialHidden={amountsHidden}>
       <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
-        {/* Desktop top-right controls: hide-amounts eye + fund-view toggle in
-            one row (no extra height). On mobile both live in the greeting row. */}
+        {/* Desktop top-right controls. The hide-amounts eye lives beside the
+            chart card's headline in the personal view; the fund view (no
+            chart card) keeps it here. */}
         <div className="hidden items-center justify-end gap-3 sm:-mb-12 sm:flex">
-          <PrivacyToggle />
+          {fundView && <PrivacyToggle />}
           <FundViewToggle active={fundView} />
         </div>
 
@@ -362,7 +363,9 @@ export default async function DashboardPage({
         <MotionSection id="icmal" className="scroll-mt-36 flex flex-col gap-5">
           <Greeting
             holderName={holder.name}
-            privacyToggle={<PrivacyToggle className="sm:hidden" />}
+            privacyToggle={
+              fundView ? <PrivacyToggle className="sm:hidden" /> : undefined
+            }
             toggle={
               <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
             }
@@ -419,6 +422,7 @@ export default async function DashboardPage({
                     totalChange={holdingPnl}
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
+                    action={<PrivacyToggle />}
                   />
                 }
                 priceHero={
@@ -430,6 +434,7 @@ export default async function DashboardPage({
                     totalLabel="son 3 ayda"
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
+                    action={<PrivacyToggle />}
                   />
                 }
               />

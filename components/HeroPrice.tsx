@@ -217,6 +217,7 @@ export function ChartSummary({
   avgBuyPrice,
   masked = true,
   totalLabel = "ümumi fərq",
+  action,
 }: {
   value: number;
   dayChange: number | null;
@@ -226,6 +227,8 @@ export function ChartSummary({
   masked?: boolean;
   /** Second line's label — "ümumi fərq" by default, "son 3 ayda" in price mode. */
   totalLabel?: string;
+  /** Control docked at the card's right edge beside the headline (the hide-amounts eye). */
+  action?: ReactNode;
 }) {
   const line = (amount: number | null, label: string) => {
     if (amount == null) return null;
@@ -261,11 +264,14 @@ export function ChartSummary({
 
   return (
     <div className="mb-5 flex flex-col gap-2">
-      <div
-        className="num font-black leading-none tracking-tight"
-        style={{ fontSize: "clamp(2.75rem, 8vw, 4rem)" }}
-      >
-        {masked ? <Masked mask="••••">{headline}</Masked> : headline}
+      <div className="flex items-center justify-between gap-3">
+        <div
+          className="num font-black leading-none tracking-tight"
+          style={{ fontSize: "clamp(2.75rem, 8vw, 4rem)" }}
+        >
+          {masked ? <Masked mask="••••">{headline}</Masked> : headline}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
       <div className="flex flex-col gap-1">
         {line(dayChange, "bu gün")}
