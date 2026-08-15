@@ -42,7 +42,7 @@ export function MyMatches({
 
   return (
     <div className="glass flex flex-col gap-4 p-6">
-      <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
         Uyğunlaşmalarım
       </div>
       {error && <div className="text-xs text-brand-red dark:text-red-400">{error}</div>}

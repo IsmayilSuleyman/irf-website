@@ -280,7 +280,7 @@ export function AssetHoldingsCard({
   return (
     <div className="glass flex flex-col gap-4 p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-[14px] uppercase tracking-[0.22em] text-brand-green/80">
+        <span className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           Aktivlərim
         </span>
         <span className="num text-sm font-semibold text-black/85 dark:text-white/90">

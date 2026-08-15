@@ -92,7 +92,7 @@ export function OrderTicket({
   return (
     <div className="glass flex flex-col gap-5 p-6">
       <div className="flex items-center justify-between">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           Sifariş ver
         </div>
         <div className="flex gap-1 rounded-full bg-black/5 dark:bg-white/10 p-1">

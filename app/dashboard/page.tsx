@@ -690,7 +690,7 @@ export default async function DashboardPage({
             <MotionSection id="portfel" delay={0.15} className="scroll-mt-32 hairline -mt-8 pt-6">
               <div className="glass p-6 flex flex-col gap-6">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
                     Fond Portfeli
                   </div>
                   <RefreshButton />

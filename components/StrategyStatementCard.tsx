@@ -42,7 +42,7 @@ export function StrategyStatementCard({
   return (
     <div className="glass p-6 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           Fondumuzun strategiyası haqqında bəyanat
         </div>
         {canEdit && !editing && (

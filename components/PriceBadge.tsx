@@ -11,7 +11,7 @@ export function PriceBadge({
 }) {
   return (
     <div className="glass flex flex-col gap-2 p-6">
-      <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
         1 payın qiyməti
       </div>
       <div className="flex flex-col gap-1 text-sm">
