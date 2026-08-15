@@ -166,7 +166,7 @@ export function PerformanceChart({
           it already name the series), mode switch right; the range buttons
           moved below the plot (Yahoo-app composition, see bottom). */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+        <span className="text-[14px] uppercase tracking-[0.22em] text-brand-green/80">
           Tarixçə
         </span>
         <div className="flex items-center gap-2">
