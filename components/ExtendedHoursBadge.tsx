@@ -92,8 +92,12 @@ export function ExtendedHoursBadge({
 
       {open && (
         <div
-          className={`absolute top-full z-50 mt-2 w-80 max-w-[85vw] rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-neutral-900/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] backdrop-blur-md ${
-            align === "right" ? "right-0" : "left-0"
+          className={`absolute top-full z-50 mt-2 rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-neutral-900/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] backdrop-blur-md ${
+            // Right-anchored (chart-card placement) stays narrower so the
+            // panel can't run off the left edge of a phone screen.
+            align === "right"
+              ? "right-0 w-72 max-w-[75vw]"
+              : "left-0 w-80 max-w-[85vw]"
           }`}
         >
           <div className="flex items-baseline justify-between gap-3">
