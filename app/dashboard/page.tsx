@@ -387,24 +387,31 @@ export default async function DashboardPage({
               <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
             }
           />
-          <MarketTickerStrip
-            quotes={marketTicker}
-            irf={{ priceAzn: fund.unitPrice, changePct: unitDayPct }}
-            statusRow={
-              <div className="flex flex-wrap items-center gap-2">
-                <MarketCountdown history={regularHistory} />
-                {/* Personal view carries the badge beside the chart card's
-                    eye instead; the fund view has no chart card. */}
-                {fundView && badgePortfolio && (
-                  <ExtendedHoursBadge
-                    data={badgePortfolio}
-                    scope="fund"
-                    history={extendedHistory}
-                  />
-                )}
-              </div>
-            }
-          />
+          {fundView ? (
+            /* Ümumfond baxış skips the ticker card entirely — just the bare
+               status chips (the badge lives here because this view has no
+               chart card to dock it on). */
+            <div className="flex flex-wrap items-center gap-2">
+              <MarketCountdown history={regularHistory} />
+              {badgePortfolio && (
+                <ExtendedHoursBadge
+                  data={badgePortfolio}
+                  scope="fund"
+                  history={extendedHistory}
+                />
+              )}
+            </div>
+          ) : (
+            <MarketTickerStrip
+              quotes={marketTicker}
+              irf={{ priceAzn: fund.unitPrice, changePct: unitDayPct }}
+              statusRow={
+                <div className="flex flex-wrap items-center gap-2">
+                  <MarketCountdown history={regularHistory} />
+                </div>
+              }
+            />
+          )}
         </MotionSection>
 
         {/* Personal view: the holding value lives inside the history chart
