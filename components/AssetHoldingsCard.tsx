@@ -338,32 +338,40 @@ export function AssetHoldingsCard({
                     <span className="num min-w-0 truncate text-base font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-lg">
                       {row.symbol}
                     </span>
-                    <div className="-mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <span className="min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
+                    {/* One row, always: the name is the only shrinkable
+                        segment (truncates first), the numeric segments stay
+                        whole, and anything still over the edge clips instead
+                        of wrapping. */}
+                    <div className="-mt-1 flex min-w-0 items-baseline gap-x-2 overflow-hidden">
+                      <span className="min-w-0 truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
                         {row.name}
                       </span>
-                      <AnimatePresence initial={false}>
-                        {visible.percent && totalValue > 0 && (
-                          <AnimatedFigure keyName="percent" inline>
-                            <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
-                              {((row.valueAzn / totalValue) * 100).toFixed(1)}%
-                            </span>
-                          </AnimatedFigure>
-                        )}
-                      </AnimatePresence>
-                      <AnimatePresence initial={false}>
-                        {visible.maya && row.mayaAzn != null && (
-                          <AnimatedFigure keyName="maya" inline>
-                            <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
-                              maya:{" "}
-                              <Masked mask="••••">
-                                {formatAzn(row.mayaAzn)}
-                              </Masked>
-                              {row.avgText ? ` · ort. ${row.avgText}` : ""}
-                            </span>
-                          </AnimatedFigure>
-                        )}
-                      </AnimatePresence>
+                      <span className="shrink-0">
+                        <AnimatePresence initial={false}>
+                          {visible.percent && totalValue > 0 && (
+                            <AnimatedFigure keyName="percent" inline>
+                              <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
+                                {((row.valueAzn / totalValue) * 100).toFixed(1)}%
+                              </span>
+                            </AnimatedFigure>
+                          )}
+                        </AnimatePresence>
+                      </span>
+                      <span className="shrink-0">
+                        <AnimatePresence initial={false}>
+                          {visible.maya && row.mayaAzn != null && (
+                            <AnimatedFigure keyName="maya" inline>
+                              <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
+                                maya:{" "}
+                                <Masked mask="••••">
+                                  {formatAzn(row.mayaAzn)}
+                                </Masked>
+                                {row.avgText ? ` · ort. ${row.avgText}` : ""}
+                              </span>
+                            </AnimatedFigure>
+                          )}
+                        </AnimatePresence>
+                      </span>
                     </div>
                   </div>
                 </div>
