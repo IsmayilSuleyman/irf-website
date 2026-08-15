@@ -3,7 +3,12 @@
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Masked } from "@/components/Masked";
-import { formatAzn, formatGrouped, formatUsd } from "@/lib/portfolio";
+import {
+  formatAzn,
+  formatGrouped,
+  formatUnits,
+  formatUsd,
+} from "@/lib/portfolio";
 import { ASSET_ICONS } from "@/components/assetIcons";
 import type { AssetPosition } from "@/lib/personalAssets";
 
@@ -48,8 +53,10 @@ type Row = {
   icon: ReactNode;
   symbol: string;
   name: string;
-  /** Paid basis, AZN — fractional unit counts stay off the card by design. */
+  /** Paid basis, AZN — fractional unit counts stay off the collapsed row. */
   mayaAzn: number | null;
+  /** Exact unit count — drill-down only. */
+  units: number;
   avgText: string | null;
   priceText: string | null;
   valueAzn: number;
@@ -202,6 +209,8 @@ export function AssetHoldingsCard({
   const [totalMode, setTotalMode] = useState<Record<string, "pct" | "amount">>(
     {},
   );
+  // Which rows have their detail drill-down open (AllocationList recipe).
+  const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
 
   const rows: Row[] = [
     ...(irf
@@ -217,6 +226,7 @@ export function AssetHoldingsCard({
                 : irf.avgBuyAzn != null
                   ? irf.avgBuyAzn * irf.units
                   : null,
+            units: irf.units,
             avgText:
               irf.avgBuyAzn != null
                 ? `${formatGrouped(irf.avgBuyAzn, 2)}₼`
@@ -239,6 +249,7 @@ export function AssetHoldingsCard({
       symbol: p.symbol,
       name: p.label,
       mayaAzn: p.costBasisAzn,
+      units: p.units,
       avgText: p.avgBuyUsd != null ? `${formatGrouped(p.avgBuyUsd, 2)}$` : null,
       priceText: p.priceUsd != null ? formatUsd(p.priceUsd) : null,
       valueAzn: p.valueAzn ?? 0,
@@ -269,7 +280,7 @@ export function AssetHoldingsCard({
   return (
     <div className="glass flex flex-col gap-4 p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-[14px] uppercase tracking-[0.22em] text-brand-green/80">
+        <span className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           Aktivlərim
         </span>
         <span className="num text-sm font-semibold text-black/85 dark:text-white/90">
@@ -323,10 +334,25 @@ export function AssetHoldingsCard({
             visible.totalChange &&
             (row.totalPnlPct != null || row.totalPnlAzn != null);
           const showDay = visible.dayChange && row.dayChangePct != null;
+          const isOpen = !!openRows[row.key];
+          const toggleOpen = () =>
+            setOpenRows((m) => ({ ...m, [row.key]: !m[row.key] }));
           return (
             <li key={row.key} className="flex flex-col py-3">
               <div className="flex items-start gap-2 sm:gap-3">
-                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                <div
+                  className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-2 sm:gap-2.5"
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isOpen}
+                  onClick={toggleOpen}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleOpen();
+                    }
+                  }}
+                >
                   <RankBadge rank={rank} delta={delta} />
                   <span
                     aria-hidden
@@ -335,8 +361,22 @@ export function AssetHoldingsCard({
                     {row.icon}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-0">
-                    <span className="num min-w-0 truncate text-base font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-lg">
-                      {row.symbol}
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="num min-w-0 truncate text-base font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-lg">
+                        {row.symbol}
+                      </span>
+                      <svg
+                        aria-hidden
+                        viewBox="0 0 10 6"
+                        className={`h-1.5 w-2.5 shrink-0 fill-none stroke-current text-black/30 transition-transform dark:text-white/35 ${
+                          isOpen ? "rotate-180" : ""
+                        }`}
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="m1 1 4 4 4-4" />
+                      </svg>
                     </span>
                     {/* One row, always: the name is the only shrinkable
                         segment (truncates first), the numeric segments stay
@@ -435,6 +475,55 @@ export function AssetHoldingsCard({
                   </div>
                 </div>
               </div>
+
+              {/* Detail drill-down — the exact figures the collapsed row
+                  rounds or omits, in the AllocationList panel style. */}
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.22, ease: "easeOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-4 pt-2.5 text-[11px] text-black/45 dark:text-white/50 sm:pl-12">
+                      <span>
+                        Ədəd:{" "}
+                        <span className="num text-black/70 dark:text-white/75">
+                          <Masked mask="••">{formatUnits(row.units)}</Masked>
+                        </span>
+                      </span>
+                      {row.mayaAzn != null && (
+                        <span>
+                          Ödənilən məbləğ:{" "}
+                          <span className="num text-black/70 dark:text-white/75">
+                            <Masked mask="••••">
+                              {formatAzn(row.mayaAzn)}
+                            </Masked>
+                          </span>
+                        </span>
+                      )}
+                      {row.avgText && (
+                        <span>
+                          Ortalama alış qiyməti:{" "}
+                          <span className="num text-black/70 dark:text-white/75">
+                            {row.avgText}
+                          </span>
+                        </span>
+                      )}
+                      {totalValue > 0 && (
+                        <span>
+                          Portfel payı:{" "}
+                          <span className="num text-black/70 dark:text-white/75">
+                            {((row.valueAzn / totalValue) * 100).toFixed(1)}%
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </li>
           );
         })}

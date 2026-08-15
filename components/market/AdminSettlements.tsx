@@ -54,7 +54,7 @@ export function AdminSettlements({ pending }: { pending: TradeRow[] }) {
   return (
     <div className="glass-tinted flex flex-col gap-4 p-6">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           İdarəetmə · Hesablaşmalar
         </div>
         <button

@@ -157,7 +157,7 @@ export function InvestmentPolicyCard({
   return (
     <div className="glass flex flex-col gap-6 p-6">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+        <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           İnvestisiya Siyasəti
         </div>
         <div className="text-[11px] text-black/45 dark:text-white/50">

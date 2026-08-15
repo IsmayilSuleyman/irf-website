@@ -13,7 +13,7 @@ export function SectorBreakdown({ rows }: { rows: SectorRow[] }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
         Sektor bölgüsü
       </div>
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
