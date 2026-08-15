@@ -316,7 +316,11 @@ export function AssetHoldingsCard({
           const rank = i + 1;
           const delta = (yesterdayRank.get(row.key) ?? rank) - rank;
           const showPrice = visible.price && row.priceText != null;
-          const showTotal = visible.totalChange && row.totalPnlPct != null;
+          // A gifted position has no basis to percent against (pct null) but
+          // still shows its ₼ gain as an amount-only pill.
+          const showTotal =
+            visible.totalChange &&
+            (row.totalPnlPct != null || row.totalPnlAzn != null);
           const showDay = visible.dayChange && row.dayChangePct != null;
           return (
             <li key={row.key} className="flex flex-col py-3">
@@ -386,10 +390,18 @@ export function AssetHoldingsCard({
                       {showTotal && (
                         <AnimatedFigure keyName="totalChange">
                           <ChangeBadge
-                            pct={row.totalPnlPct as number}
+                            pct={row.totalPnlPct ?? 0}
                             amountAzn={row.totalPnlAzn}
-                            mode={totalMode[row.key] ?? "pct"}
-                            onToggle={() => flipMode(setTotalMode, row.key)}
+                            mode={
+                              row.totalPnlPct == null
+                                ? "amount"
+                                : (totalMode[row.key] ?? "pct")
+                            }
+                            onToggle={
+                              row.totalPnlPct == null
+                                ? undefined
+                                : () => flipMode(setTotalMode, row.key)
+                            }
                           />
                         </AnimatedFigure>
                       )}
