@@ -3,12 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Masked } from "@/components/Masked";
-import {
-  formatAzn,
-  formatGrouped,
-  formatUnits,
-  formatUsd,
-} from "@/lib/portfolio";
+import { formatAzn, formatGrouped, formatUsd } from "@/lib/portfolio";
 import { ASSET_ICONS } from "@/components/assetIcons";
 import type { AssetPosition } from "@/lib/personalAssets";
 
@@ -37,7 +32,7 @@ type ColumnKey =
   | "totalChange"
   | "dayChange"
   | "percent"
-  | "units";
+  | "maya";
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "value", label: "Ümumi Dəyəri" },
@@ -45,7 +40,7 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "totalChange", label: "Ümumi Dəyişim" },
   { key: "dayChange", label: "Günlük Dəyişim" },
   { key: "percent", label: "Faizlə Dəyəri" },
-  { key: "units", label: "Ədəd" },
+  { key: "maya", label: "Maya dəyəri" },
 ];
 
 type Row = {
@@ -53,7 +48,8 @@ type Row = {
   icon: ReactNode;
   symbol: string;
   name: string;
-  units: number;
+  /** Paid basis, AZN — fractional unit counts stay off the card by design. */
+  mayaAzn: number | null;
   avgText: string | null;
   priceText: string | null;
   valueAzn: number;
@@ -200,7 +196,7 @@ export function AssetHoldingsCard({
     totalChange: true,
     dayChange: true,
     percent: true,
-    units: true,
+    maya: true,
   });
   const [dayMode, setDayMode] = useState<Record<string, "pct" | "amount">>({});
   const [totalMode, setTotalMode] = useState<Record<string, "pct" | "amount">>(
@@ -215,7 +211,12 @@ export function AssetHoldingsCard({
             icon: ASSET_ICONS.irf,
             symbol: "İRF",
             name: "İRF Payı",
-            units: irf.units,
+            mayaAzn:
+              irf.totalPnlAzn != null
+                ? irf.valueAzn - irf.totalPnlAzn
+                : irf.avgBuyAzn != null
+                  ? irf.avgBuyAzn * irf.units
+                  : null,
             avgText:
               irf.avgBuyAzn != null
                 ? `${formatGrouped(irf.avgBuyAzn, 2)}₼`
@@ -237,7 +238,7 @@ export function AssetHoldingsCard({
       icon: p.iconKey ? ASSET_ICONS[p.iconKey] : null,
       symbol: p.symbol,
       name: p.label,
-      units: p.units,
+      mayaAzn: p.costBasisAzn,
       avgText: p.avgBuyUsd != null ? `${formatGrouped(p.avgBuyUsd, 2)}$` : null,
       priceText: p.priceUsd != null ? formatUsd(p.priceUsd) : null,
       valueAzn: p.valueAzn ?? 0,
@@ -351,11 +352,13 @@ export function AssetHoldingsCard({
                         )}
                       </AnimatePresence>
                       <AnimatePresence initial={false}>
-                        {visible.units && (
-                          <AnimatedFigure keyName="units" inline>
+                        {visible.maya && row.mayaAzn != null && (
+                          <AnimatedFigure keyName="maya" inline>
                             <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
-                              <Masked mask="••">{formatUnits(row.units)}</Masked>{" "}
-                              ədəd
+                              maya:{" "}
+                              <Masked mask="••••">
+                                {formatAzn(row.mayaAzn)}
+                              </Masked>
                               {row.avgText ? ` · ort. ${row.avgText}` : ""}
                             </span>
                           </AnimatedFigure>

@@ -5,7 +5,6 @@ import {
   formatAzn,
   formatGrouped,
   formatGroupedTrim,
-  formatUnits,
 } from "@/lib/portfolio";
 import { Masked } from "@/components/Masked";
 import { ASSET_ICONS } from "@/components/assetIcons";
@@ -168,23 +167,19 @@ export function MarketTickerStrip({
               ) : null}
             </span>
           </div>
+          {/* Positions read as money, not fractional unit counts — İsmayıl's
+              call for the whole personal-assets surface. */}
           <div className="mt-1.5 text-black/55 dark:text-white/60">
             {open.units > 0 ? (
               <>
                 Sizin mövqeyiniz:{" "}
-                <span className="num">
-                  <Masked mask="••">{formatUnits(open.units)}</Masked>
-                </span>{" "}
-                ədəd
                 {open.valueAzn != null ? (
-                  <>
-                    {" "}
-                    ·{" "}
-                    <span className="num font-medium text-black/70 dark:text-white/75">
-                      <Masked mask="••••">{formatAzn(open.valueAzn)}</Masked>
-                    </span>
-                  </>
-                ) : null}
+                  <span className="num font-medium text-black/70 dark:text-white/75">
+                    <Masked mask="••••">{formatAzn(open.valueAzn)}</Masked>
+                  </span>
+                ) : (
+                  "—"
+                )}
               </>
             ) : (
               "Bu aktivdə hələ mövqeyiniz yoxdur."
