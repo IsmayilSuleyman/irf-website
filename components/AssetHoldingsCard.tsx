@@ -31,21 +31,13 @@ export type IrfHoldingSummary = {
   totalPnlAzn: number | null;
 };
 
-type ColumnKey =
-  | "value"
-  | "price"
-  | "totalChange"
-  | "dayChange"
-  | "percent"
-  | "maya";
+type ColumnKey = "value" | "price" | "totalChange" | "dayChange";
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "value", label: "Ümumi Dəyəri" },
   { key: "price", label: "Hazırki Qiymət" },
   { key: "totalChange", label: "Ümumi Dəyişim" },
   { key: "dayChange", label: "Günlük Dəyişim" },
-  { key: "percent", label: "Faizlə Dəyəri" },
-  { key: "maya", label: "Maya dəyəri" },
 ];
 
 type Row = {
@@ -202,8 +194,6 @@ export function AssetHoldingsCard({
     price: true,
     totalChange: true,
     dayChange: true,
-    percent: true,
-    maya: true,
   });
   const [dayMode, setDayMode] = useState<Record<string, "pct" | "amount">>({});
   const [totalMode, setTotalMode] = useState<Record<string, "pct" | "amount">>(
@@ -378,41 +368,11 @@ export function AssetHoldingsCard({
                         <path d="m1 1 4 4 4-4" />
                       </svg>
                     </span>
-                    {/* One row, always: the name is the only shrinkable
-                        segment (truncates first), the numeric segments stay
-                        whole, and anything still over the edge clips instead
-                        of wrapping. */}
-                    <div className="-mt-1 flex min-w-0 items-baseline gap-x-2 overflow-hidden">
-                      <span className="min-w-0 truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
-                        {row.name}
-                      </span>
-                      <span className="shrink-0">
-                        <AnimatePresence initial={false}>
-                          {visible.percent && totalValue > 0 && (
-                            <AnimatedFigure keyName="percent" inline>
-                              <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
-                                {((row.valueAzn / totalValue) * 100).toFixed(1)}%
-                              </span>
-                            </AnimatedFigure>
-                          )}
-                        </AnimatePresence>
-                      </span>
-                      <span className="shrink-0">
-                        <AnimatePresence initial={false}>
-                          {visible.maya && row.mayaAzn != null && (
-                            <AnimatedFigure keyName="maya" inline>
-                              <span className="num whitespace-nowrap text-[11px] text-black/45 dark:text-white/50">
-                                maya:{" "}
-                                <Masked mask="••••">
-                                  {formatAzn(row.mayaAzn)}
-                                </Masked>
-                                {row.avgText ? ` · ort. ${row.avgText}` : ""}
-                              </span>
-                            </AnimatedFigure>
-                          )}
-                        </AnimatePresence>
-                      </span>
-                    </div>
+                    {/* Just the asset's name — the exact figures (maya, %,
+                        units, avg) live in the drill-down below. */}
+                    <span className="-mt-1 min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
+                      {row.name}
+                    </span>
                   </div>
                 </div>
 
