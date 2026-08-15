@@ -344,6 +344,23 @@ export default async function DashboardPage({
       )
     : { ask: buyPrice(fund.unitPrice), bid: sellPrice(fund.unitPrice) };
 
+  // The chart headline's right-edge cluster: the extended-hours badge (when
+  // a session is live) next to the hide-amounts eye. Personal view only —
+  // the fund view keeps both in its own rows.
+  const chartActions = (
+    <div className="flex items-center gap-2">
+      {badgePortfolio && (
+        <ExtendedHoursBadge
+          data={badgePortfolio}
+          scope="personal"
+          history={extendedHistory}
+          align="right"
+        />
+      )}
+      <PrivacyToggle />
+    </div>
+  );
+
   return (
     <main className="px-6 pb-24">
       <Header dateLabel={dateLabel} />
@@ -376,10 +393,12 @@ export default async function DashboardPage({
             statusRow={
               <div className="flex flex-wrap items-center gap-2">
                 <MarketCountdown history={regularHistory} />
-                {badgePortfolio && (
+                {/* Personal view carries the badge beside the chart card's
+                    eye instead; the fund view has no chart card. */}
+                {fundView && badgePortfolio && (
                   <ExtendedHoursBadge
                     data={badgePortfolio}
-                    scope={fundView ? "fund" : "personal"}
+                    scope="fund"
                     history={extendedHistory}
                   />
                 )}
@@ -422,7 +441,7 @@ export default async function DashboardPage({
                     totalChange={holdingPnl}
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
-                    action={<PrivacyToggle />}
+                    action={chartActions}
                   />
                 }
                 priceHero={
@@ -434,7 +453,7 @@ export default async function DashboardPage({
                     totalLabel="son 3 ayda"
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
-                    action={<PrivacyToggle />}
+                    action={chartActions}
                   />
                 }
               />

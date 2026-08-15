@@ -34,10 +34,13 @@ export function ExtendedHoursBadge({
   data,
   scope,
   history = [],
+  align = "left",
 }: {
   data: ExtendedPortfolio;
   scope: "fund" | "personal";
   history?: SessionHistoryPoint[];
+  /** Popover anchor edge — "right" when the badge sits near a card's right edge. */
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const up = data.changePct >= 0;
@@ -88,7 +91,11 @@ export function ExtendedHoursBadge({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-80 max-w-[85vw] rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-neutral-900/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] backdrop-blur-md">
+        <div
+          className={`absolute top-full z-50 mt-2 w-80 max-w-[85vw] rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-neutral-900/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] backdrop-blur-md ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
+        >
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
               {chartTitle}

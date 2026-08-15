@@ -264,7 +264,9 @@ export function ChartSummary({
 
   return (
     <div className="mb-5 flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-3">
+      {/* flex-wrap: on very narrow phones the action cluster drops below the
+          figure instead of clipping past the card edge. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div
           className="num font-black leading-none tracking-tight"
           style={{ fontSize: "clamp(2.75rem, 8vw, 4rem)" }}
