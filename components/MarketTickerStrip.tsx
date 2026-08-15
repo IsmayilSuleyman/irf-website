@@ -10,14 +10,15 @@ import type { TickerQuote } from "@/lib/marketTicker";
 const fmtPct = (changePct: number) =>
   `${changePct >= 0 ? "+" : "−"}${formatGroupedTrim(Math.abs(changePct) * 100, 2)}%`;
 
-// Tiny per-asset marks in front of the labels — inline SVGs/glyphs only, in
-// each asset's own colour (Bitcoin orange, metal discs, oil drop, the brand
-// spark for the fund), keyed by the instrument keys from lib/marketTicker.
+// Tiny per-asset marks in front of the labels — inline SVGs/glyphs only,
+// kept to the site's palette (brand green for the market/brand marks, the
+// muted gray scale for the rest); shape does the distinguishing. Keyed by
+// the instrument keys from lib/marketTicker.
 const ICONS: Record<string, ReactNode> = {
   sp500: (
     <svg
       viewBox="0 0 24 24"
-      className="h-3 w-3 shrink-0 text-indigo-500 dark:text-indigo-400"
+      className="h-3 w-3 shrink-0 text-brand-green dark:text-emerald-400"
       fill="none"
       stroke="currentColor"
       strokeWidth="2.5"
@@ -32,7 +33,7 @@ const ICONS: Record<string, ReactNode> = {
   btc: (
     <span
       aria-hidden
-      className="shrink-0 text-[11px] font-bold leading-none text-[#f7931a]"
+      className="shrink-0 text-[11px] font-bold leading-none text-black/55 dark:text-white/60"
     >
       ₿
     </span>
@@ -40,19 +41,19 @@ const ICONS: Record<string, ReactNode> = {
   gold: (
     <span
       aria-hidden
-      className="h-3 w-3 shrink-0 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500"
+      className="h-3 w-3 shrink-0 rounded-full bg-black/30 dark:bg-white/40"
     />
   ),
   silver: (
     <span
       aria-hidden
-      className="h-3 w-3 shrink-0 rounded-full bg-gradient-to-br from-gray-200 to-gray-400 dark:from-gray-300 dark:to-gray-500"
+      className="h-3 w-3 shrink-0 rounded-full border-[1.5px] border-black/40 dark:border-white/50"
     />
   ),
   oil: (
     <svg
       viewBox="0 0 24 24"
-      className="h-3 w-3 shrink-0 text-neutral-600 dark:text-neutral-300"
+      className="h-3 w-3 shrink-0 text-black/45 dark:text-white/50"
       fill="currentColor"
       aria-hidden
     >
