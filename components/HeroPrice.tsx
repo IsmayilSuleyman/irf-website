@@ -264,22 +264,21 @@ export function ChartSummary({
 
   return (
     <div className="mb-5 flex flex-col gap-2">
-      {/* flex-wrap: on very narrow phones the action cluster drops below the
-          figure instead of clipping past the card edge. */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div
-          className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(2.75rem, 8vw, 4rem)" }}
-        >
-          {masked ? <Masked mask="••••">{headline}</Masked> : headline}
-        </div>
-        {/* ml-auto: when a long figure wraps the cluster onto its own line,
-            it stays docked to the card's right edge. */}
-        {action ? <div className="ml-auto shrink-0">{action}</div> : null}
+      <div
+        className="num font-black leading-none tracking-tight"
+        style={{ fontSize: "clamp(2.75rem, 8vw, 4rem)" }}
+      >
+        {masked ? <Masked mask="••••">{headline}</Masked> : headline}
       </div>
-      <div className="flex flex-col gap-1">
-        {line(dayChange, "bu gün")}
-        {line(totalChange, totalLabel)}
+      {/* The badge + eye cluster rides beside the change rows, top-aligned
+          with the "bu gün" line — İsmayıl's pick over shrinking the figure
+          to make room next to it. */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          {line(dayChange, "bu gün")}
+          {line(totalChange, totalLabel)}
+        </div>
+        {action ? <div className="shrink-0">{action}</div> : null}
       </div>
       <div className="text-xs text-black/45 dark:text-white/50">
         <Masked mask="••">{formatUnits(units)}</Masked> pay · ortalama alış
