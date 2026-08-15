@@ -25,7 +25,6 @@ import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
 import { UnitPriceRow } from "@/components/UnitPriceRow";
 import { getMarketTicker } from "@/lib/marketTicker";
-import { FundSummary } from "@/components/FundSummary";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
 import {
@@ -439,18 +438,6 @@ export default async function DashboardPage({
               <UnitPriceRow ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
             </MotionSection>
           </>
-        )}
-
-        {/* Fund info — hidden in the whole-fund view; the hero already shows the totals. */}
-        {!fundView && (
-        <MotionSection id="fond" delay={0.1} className="scroll-mt-32 hairline -mt-8 pt-6">
-          <FundSummary
-            totalCapital={fund.totalCapital}
-            totalCostBasis={totalCostBasis}
-            netCapital={fund.netCapital}
-            changes={periodChanges}
-          />
-        </MotionSection>
         )}
 
         {/* Strategy statement — personal view only */}
