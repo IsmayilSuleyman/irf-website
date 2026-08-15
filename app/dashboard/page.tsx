@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import {
+  getAssetTransactions,
   getFundData,
   getHolderByName,
   getHoldings,
@@ -9,6 +10,12 @@ import {
   computeHolderValueHistory,
   computeHoldingDeltaSince,
 } from "@/lib/sheets";
+import {
+  buildAssetPositions,
+  getAssetQuotes,
+  PURCHASABLE_ASSETS,
+} from "@/lib/personalAssets";
+import { AssetHoldingsCard } from "@/components/AssetHoldingsCard";
 import {
   getPriceHistory,
   computePeriodChanges,
@@ -108,7 +115,7 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, marketTicker] =
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, marketTicker, assetTxs] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -124,6 +131,7 @@ export default async function DashboardPage({
       getPurchaseCadence(),
       getMarketSignals(),
       getMarketTicker(),
+      getAssetTransactions(),
     ]);
   const canEditStrategy = isAdmin;
 
@@ -344,6 +352,38 @@ export default async function DashboardPage({
       )
     : { ask: buyPrice(fund.unitPrice), bid: sellPrice(fund.unitPrice) };
 
+  // Personal ETF desk: the viewer's positions from the Aktivlər ledger,
+  // valued at live ETF quotes (SPY/IBIT/GLDM/SIVR — what holders actually
+  // buy, unlike the tiles' headline indices), plus per-tile info for the
+  // strip's expandable panels.
+  const assetQuotes = await getAssetQuotes([
+    ...PURCHASABLE_ASSETS.map((a) => a.symbol),
+    ...assetTxs.map((t) => t.symbol),
+  ]);
+  const assetPositions = buildAssetPositions(holder.name, assetTxs, assetQuotes);
+  const positionBySymbol = Object.fromEntries(
+    assetPositions.map((p) => [p.symbol, p]),
+  );
+  const tileAssets = Object.fromEntries(
+    PURCHASABLE_ASSETS.map((a) => {
+      const q = assetQuotes[a.symbol];
+      const pos = positionBySymbol[a.symbol];
+      return [
+        a.key,
+        {
+          symbol: a.symbol,
+          priceUsd: q?.priceUsd ?? null,
+          dayChangePct:
+            q?.priceUsd != null && q?.prevCloseUsd != null && q.prevCloseUsd > 0
+              ? q.priceUsd / q.prevCloseUsd - 1
+              : null,
+          units: pos?.units ?? 0,
+          valueAzn: pos?.valueAzn ?? null,
+        },
+      ];
+    }),
+  );
+
   // The chart headline's right-edge cluster: the extended-hours badge (when
   // a session is live) next to the hide-amounts eye. Personal view only —
   // the fund view keeps both in its own rows.
@@ -405,6 +445,8 @@ export default async function DashboardPage({
             <MarketTickerStrip
               quotes={marketTicker}
               irf={{ priceAzn: fund.unitPrice, changePct: unitDayPct }}
+              assets={tileAssets}
+              showBuyHint={!isAdmin}
               statusRow={
                 <div className="flex flex-wrap items-center gap-2">
                   <MarketCountdown history={regularHistory} />
@@ -468,6 +510,17 @@ export default async function DashboardPage({
             <MotionSection delay={0.08} className="-mt-12">
               <UnitPriceRow ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
             </MotionSection>
+            {/* Aktivlərim — the viewer's personal ETF positions; renders
+                nothing while the Aktivlər ledger has no rows for them. */}
+            {assetPositions.length > 0 && (
+              <MotionSection
+                id="aktivlerim"
+                delay={0.1}
+                className="scroll-mt-32 hairline -mt-8 pt-6"
+              >
+                <AssetHoldingsCard positions={assetPositions} />
+              </MotionSection>
+            )}
           </>
         )}
 
