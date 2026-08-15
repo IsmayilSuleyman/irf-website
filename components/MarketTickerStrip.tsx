@@ -52,7 +52,10 @@ export function MarketTickerStrip({
   statusRow?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2.5 rounded-2xl border border-black/10 bg-white/40 p-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 sm:p-3">
+    // relative z-20: the card's backdrop-filter creates a stacking context,
+    // so the chip popovers' z-50 can't escape it on their own — lifting the
+    // whole card keeps them above the chart card below (header stays z-40).
+    <div className="relative z-20 flex flex-col gap-2.5 rounded-2xl border border-black/10 bg-white/40 p-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 sm:p-3">
       <div className="no-scrollbar flex gap-2 overflow-x-auto">
         {quotes.map((q) => (
           <Tile
