@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Masked } from "@/components/Masked";
 import {
   formatAzn,
@@ -8,9 +9,10 @@ import {
 import { ASSET_ICONS } from "@/components/assetIcons";
 import type { AssetPosition } from "@/lib/personalAssets";
 
-// "Aktivlərim" — the holder's personal ETF positions from the Aktivlər
-// ledger, valued live. Renders nothing when the viewer holds nothing (which
-// also self-hides it for İsmayıl — he is the counterparty, never a buyer).
+// "Aktivlərim" — the holder's whole personal book: the İRF pay position
+// first (AZN-denominated, day change from the unit price), then the ETF
+// positions from the Aktivlər ledger valued live. Renders nothing when the
+// viewer holds neither.
 
 const pct = (n: number) =>
   `${n >= 0 ? "+" : "−"}${formatGroupedTrim(Math.abs(n) * 100, 2)}%`;
@@ -22,17 +24,75 @@ const toneOf = (n: number | null) =>
       ? "text-brand-green dark:text-emerald-400"
       : "text-brand-red dark:text-red-400";
 
+export type IrfHoldingSummary = {
+  units: number;
+  avgBuyAzn: number | null;
+  valueAzn: number;
+  dayChangePct: number | null;
+  totalPnlAzn: number | null;
+};
+
+type DisplayRow = {
+  key: string;
+  icon: ReactNode;
+  label: string;
+  symbol: string;
+  units: number;
+  avgText: string | null;
+  valueAzn: number | null;
+  dayChangePct: number | null;
+  totalPnlAzn: number | null;
+};
+
 export function AssetHoldingsCard({
   positions,
+  irf,
+  showBuyHint = true,
 }: {
   positions: AssetPosition[];
+  /** The viewer's İRF pay position, rendered as the first row. */
+  irf?: IrfHoldingSummary | null;
+  /** false for İsmayıl — the how-to-order note is not for the counterparty. */
+  showBuyHint?: boolean;
 }) {
-  if (positions.length === 0) return null;
+  const rows: DisplayRow[] = [
+    ...(irf
+      ? [
+          {
+            key: "irf",
+            icon: ASSET_ICONS.irf,
+            label: "İRF Payı",
+            symbol: "İRF",
+            units: irf.units,
+            avgText:
+              irf.avgBuyAzn != null
+                ? `ort. ${formatGrouped(irf.avgBuyAzn, 2)}₼`
+                : null,
+            valueAzn: irf.valueAzn,
+            dayChangePct: irf.dayChangePct,
+            totalPnlAzn: irf.totalPnlAzn,
+          },
+        ]
+      : []),
+    ...positions.map((p) => ({
+      key: p.symbol,
+      icon: p.iconKey ? ASSET_ICONS[p.iconKey] : null,
+      label: p.label,
+      symbol: p.symbol,
+      units: p.units,
+      avgText:
+        p.avgBuyUsd != null ? `ort. ${formatGrouped(p.avgBuyUsd, 2)}$` : null,
+      valueAzn: p.valueAzn,
+      dayChangePct: p.dayChangePct,
+      totalPnlAzn: p.totalPnlAzn,
+    })),
+  ];
+  if (rows.length === 0) return null;
 
-  const totalValue = positions.reduce((s, p) => s + (p.valueAzn ?? 0), 0);
-  const hasPnl = positions.some((p) => p.totalPnlAzn != null);
+  const totalValue = rows.reduce((s, r) => s + (r.valueAzn ?? 0), 0);
+  const hasPnl = rows.some((r) => r.totalPnlAzn != null);
   const totalPnl = hasPnl
-    ? positions.reduce((s, p) => s + (p.totalPnlAzn ?? 0), 0)
+    ? rows.reduce((s, r) => s + (r.totalPnlAzn ?? 0), 0)
     : null;
 
   return (
@@ -54,46 +114,41 @@ export function AssetHoldingsCard({
       </div>
 
       <div className="flex flex-col gap-3.5">
-        {positions.map((p) => (
-          <div
-            key={p.symbol}
-            className="flex items-center justify-between gap-3"
-          >
+        {rows.map((r) => (
+          <div key={r.key} className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">
-              {p.iconKey ? ASSET_ICONS[p.iconKey] : null}
+              {r.icon}
               <div className="flex min-w-0 flex-col">
                 <span className="truncate text-sm font-semibold text-black/85 dark:text-white/90">
-                  {p.label}{" "}
+                  {r.label}{" "}
                   <span className="num text-[11px] font-medium text-black/45 dark:text-white/50">
-                    {p.symbol}
+                    {r.symbol}
                   </span>
                 </span>
                 <span className="num text-[11px] text-black/45 dark:text-white/50">
-                  <Masked mask="••">{formatUnits(p.units)}</Masked> ədəd
-                  {p.avgBuyUsd != null
-                    ? ` · ort. ${formatGrouped(p.avgBuyUsd, 2)}$`
-                    : ""}
+                  <Masked mask="••">{formatUnits(r.units)}</Masked> ədəd
+                  {r.avgText ? ` · ${r.avgText}` : ""}
                 </span>
               </div>
             </div>
             <div className="flex shrink-0 flex-col items-end">
               <span className="num text-sm font-semibold text-black/85 dark:text-white/90">
-                {p.valueAzn != null ? (
-                  <Masked mask="••••">{formatAzn(p.valueAzn)}</Masked>
+                {r.valueAzn != null ? (
+                  <Masked mask="••••">{formatAzn(r.valueAzn)}</Masked>
                 ) : (
                   "—"
                 )}
               </span>
               <span className="num text-[11px]">
-                {p.dayChangePct != null ? (
-                  <span className={toneOf(p.dayChangePct)}>
-                    {pct(p.dayChangePct)}
+                {r.dayChangePct != null ? (
+                  <span className={toneOf(r.dayChangePct)}>
+                    {pct(r.dayChangePct)}
                   </span>
                 ) : null}
-                {p.totalPnlAzn != null ? (
-                  <span className={`ml-2 ${toneOf(p.totalPnlAzn)}`}>
+                {r.totalPnlAzn != null ? (
+                  <span className={`ml-2 ${toneOf(r.totalPnlAzn)}`}>
                     <Masked mask="••••">
-                      {`${p.totalPnlAzn >= 0 ? "+" : ""}${formatAzn(p.totalPnlAzn)}`}
+                      {`${r.totalPnlAzn >= 0 ? "+" : ""}${formatAzn(r.totalPnlAzn)}`}
                     </Masked>
                   </span>
                 ) : null}
@@ -103,10 +158,13 @@ export function AssetHoldingsCard({
         ))}
       </div>
 
-      <p className="text-[11px] leading-relaxed text-black/45 dark:text-white/50">
-        İRF paylarından ayrı saxlanılan şəxsi aktivlər. Almaq və ya satmaq
-        üçün İsmayıl ilə əlaqə saxlayın — sifarişlər şifahi qəbul olunur.
-      </p>
+      {showBuyHint && (
+        <p className="text-[11px] leading-relaxed text-black/45 dark:text-white/50">
+          SPY, IBIT, GLDM və SIVR — İRF paylarından ayrı saxlanılan şəxsi ETF
+          aktivləri. Almaq və ya satmaq üçün İsmayıl ilə əlaqə saxlayın —
+          sifarişlər şifahi qəbul olunur.
+        </p>
+      )}
     </div>
   );
 }

@@ -510,15 +510,29 @@ export default async function DashboardPage({
             <MotionSection delay={0.08} className="-mt-12">
               <UnitPriceRow ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
             </MotionSection>
-            {/* Aktivlərim — the viewer's personal ETF positions; renders
-                nothing while the Aktivlər ledger has no rows for them. */}
-            {assetPositions.length > 0 && (
+            {/* Aktivlərim — the viewer's whole personal book: İRF pays
+                first, then ETF positions from the Aktivlər ledger. */}
+            {(assetPositions.length > 0 || effectiveUnits > 0) && (
               <MotionSection
                 id="aktivlerim"
                 delay={0.1}
                 className="scroll-mt-32 hairline -mt-8 pt-6"
               >
-                <AssetHoldingsCard positions={assetPositions} />
+                <AssetHoldingsCard
+                  positions={assetPositions}
+                  irf={
+                    effectiveUnits > 0
+                      ? {
+                          units: effectiveUnits,
+                          avgBuyAzn: perf.avgBuyPrice,
+                          valueAzn: holdingValue,
+                          dayChangePct: unitDayPct,
+                          totalPnlAzn: holdingPnl,
+                        }
+                      : null
+                  }
+                  showBuyHint={!isAdmin}
+                />
               </MotionSection>
             )}
           </>
