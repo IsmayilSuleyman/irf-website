@@ -452,24 +452,25 @@ export default async function DashboardPage({
 
       <PrivacyProvider initialHidden={amountsHidden}>
       <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
-        {/* Desktop top-right controls. The hide-amounts eye lives beside the
-            chart card's headline in the personal view; the fund view (no
-            chart card) keeps it here. */}
-        <div className="hidden items-center justify-end gap-3 sm:-mb-12 sm:flex">
-          {fundView && <PrivacyToggle />}
-          <FundViewToggle active={fundView} />
-        </div>
-
-        {/* Hero — greeting, then the Yahoo-style ticker card: market-status
-            chips on top, benchmark tiles + İRF unit price below. */}
+        {/* Hero — greeting with the view controls inline on its own line
+            (every breakpoint), then the Yahoo-style ticker card:
+            market-status chips on top, benchmark tiles + İRF unit price
+            below. The hide-amounts eye lives beside the chart card's
+            headline in the personal view; the fund view (no chart card)
+            keeps it here. */}
         <MotionSection id="icmal" className="scroll-mt-36 flex flex-col gap-5">
           <Greeting
             holderName={holder.name}
-            privacyToggle={
-              fundView ? <PrivacyToggle className="sm:hidden" /> : undefined
-            }
+            privacyToggle={fundView ? <PrivacyToggle /> : undefined}
             toggle={
-              <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
+              <>
+                <span className="sm:hidden">
+                  <FundViewToggle active={fundView} compact />
+                </span>
+                <span className="hidden sm:inline-flex">
+                  <FundViewToggle active={fundView} />
+                </span>
+              </>
             }
           />
           {fundView ? (
