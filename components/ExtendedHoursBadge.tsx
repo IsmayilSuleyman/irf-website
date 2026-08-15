@@ -34,10 +34,13 @@ export function ExtendedHoursBadge({
   data,
   scope,
   history = [],
+  align = "left",
 }: {
   data: ExtendedPortfolio;
   scope: "fund" | "personal";
   history?: SessionHistoryPoint[];
+  /** Popover anchor edge — "right" when the badge sits near a card's right edge. */
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const up = data.changePct >= 0;
@@ -71,17 +74,28 @@ export function ExtendedHoursBadge({
         className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-3 py-1.5 text-[11px] font-medium shadow-sm"
       >
         <span className={`shrink-0 ${meta.iconTint}`}>{meta.icon}</span>
-        <span className="text-black/45 dark:text-white/50">{meta.label}:</span>
+        {/* Phones show icon + percent only, so the badge shares one row with
+            the countdown chip; the label and ₼ delta live in the popover
+            (and return inline on sm+). */}
+        <span className="hidden text-black/45 dark:text-white/50 sm:inline">
+          {meta.label}:
+        </span>
         <span className={`num font-semibold ${numberTone}`}>{pct}</span>
         {showDelta ? (
-          <Masked mask="••••" className="text-black/45 dark:text-white/50">
-            <span className={`num opacity-90 ${numberTone}`}>({delta})</span>
-          </Masked>
+          <span className="hidden sm:inline">
+            <Masked mask="••••" className="text-black/45 dark:text-white/50">
+              <span className={`num opacity-90 ${numberTone}`}>({delta})</span>
+            </Masked>
+          </span>
         ) : null}
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-80 max-w-[85vw] rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-neutral-900/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] backdrop-blur-md">
+        <div
+          className={`absolute top-full z-50 mt-2 w-80 max-w-[85vw] rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-neutral-900/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.25)] backdrop-blur-md ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
+        >
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
               {chartTitle}

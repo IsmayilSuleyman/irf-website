@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import {
+  getAssetTransactions,
   getFundData,
   getHolderByName,
   getHoldings,
@@ -10,6 +10,13 @@ import {
   computeHolderValueHistory,
   computeHoldingDeltaSince,
 } from "@/lib/sheets";
+import {
+  buildAssetPositions,
+  getAssetQuotes,
+  getAssetValueOverlay,
+  PURCHASABLE_ASSETS,
+} from "@/lib/personalAssets";
+import { AssetHoldingsCard } from "@/components/AssetHoldingsCard";
 import {
   getPriceHistory,
   computePeriodChanges,
@@ -22,9 +29,10 @@ import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
 import { PerformanceChart } from "@/components/PerformanceChart";
-import { HeroPrice } from "@/components/HeroPrice";
-import { PriceBadge } from "@/components/PriceBadge";
-import { FundSummary } from "@/components/FundSummary";
+import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
+import { MarketTickerStrip } from "@/components/MarketTickerStrip";
+import { UnitPriceRow } from "@/components/UnitPriceRow";
+import { getMarketTicker } from "@/lib/marketTicker";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
 import {
@@ -108,7 +116,7 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals] =
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, marketTicker, assetTxs] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -123,6 +131,8 @@ export default async function DashboardPage({
       getWeeklyBudgetAzn(),
       getPurchaseCadence(),
       getMarketSignals(),
+      getMarketTicker(),
+      getAssetTransactions(),
     ]);
   const canEditStrategy = isAdmin;
 
@@ -264,6 +274,22 @@ export default async function DashboardPage({
   );
   const periodChanges = computePeriodChanges(fund.unitPrice, priceHistory);
   const previousPricePoint = findLatestPriceBeforeDate(priceHistory, new Date());
+  // The İRF tile's day change: unit price vs the last recorded price point —
+  // the same reference the personal day-change figure uses.
+  const unitDayPct =
+    previousPricePoint && previousPricePoint.price > 0
+      ? fund.unitPrice / previousPricePoint.price - 1
+      : null;
+  // Unit-price deltas for the chart card's price-mode headline: day vs the
+  // last recorded point, and the 3-month move (İsmayıl's pick over an
+  // all-time figure) from the same reference computePeriodChanges uses.
+  const unitDayChange = previousPricePoint
+    ? fund.unitPrice - previousPricePoint.price
+    : null;
+  const unit3mChange =
+    periodChanges.m3.pastPrice != null
+      ? fund.unitPrice - periodChanges.m3.pastPrice
+      : null;
   const holdingValue = fund.unitPrice * effectiveUnits;
   const holdingPnl =
     perf.avgBuyPrice != null ? perf.pnlAzn : null;
@@ -327,95 +353,237 @@ export default async function DashboardPage({
       )
     : { ask: buyPrice(fund.unitPrice), bid: sellPrice(fund.unitPrice) };
 
+  // Personal ETF desk: the viewer's positions from the Aktivlər ledger,
+  // valued at live ETF quotes (SPY/IBIT/GLDM/SIVR — what holders actually
+  // buy, unlike the tiles' headline indices), plus per-tile info for the
+  // strip's expandable panels.
+  const assetQuotes = await getAssetQuotes([
+    ...PURCHASABLE_ASSETS.map((a) => a.symbol),
+    ...assetTxs.map((t) => t.symbol),
+  ]);
+  const assetPositions = buildAssetPositions(holder.name, assetTxs, assetQuotes);
+  const positionBySymbol = Object.fromEntries(
+    assetPositions.map((p) => [p.symbol, p]),
+  );
+  const tileAssets = Object.fromEntries(
+    PURCHASABLE_ASSETS.map((a) => {
+      const q = assetQuotes[a.symbol];
+      const pos = positionBySymbol[a.symbol];
+      return [
+        a.key,
+        {
+          symbol: a.symbol,
+          priceUsd: q?.priceUsd ?? null,
+          dayChangePct:
+            q?.priceUsd != null && q?.prevCloseUsd != null && q.prevCloseUsd > 0
+              ? q.priceUsd / q.prevCloseUsd - 1
+              : null,
+          units: pos?.units ?? 0,
+          valueAzn: pos?.valueAzn ?? null,
+        },
+      ];
+    }),
+  );
+
+  // The combined personal book for the Tarixçə card: İRF holding plus the
+  // ETF positions, and the chart series with the ETF book's value added at
+  // each plotted date — so the headline, the plotted line and Aktivlərim's
+  // total always describe the same number. With no ETF rows everything
+  // degrades to the plain İRF figures.
+  const etfValueNow = assetPositions.reduce((s, p) => s + (p.valueAzn ?? 0), 0);
+  const etfDayAzn = assetPositions.reduce(
+    (s, p) => s + (p.dayChangeAzn ?? 0),
+    0,
+  );
+  const etfPnlAzn = assetPositions.reduce(
+    (s, p) => s + (p.totalPnlAzn ?? 0),
+    0,
+  );
+  const assetOverlay =
+    assetPositions.length > 0
+      ? await getAssetValueOverlay(
+          holder.name,
+          assetTxs,
+          chartData.map((p) => p.date.slice(0, 10)),
+        )
+      : null;
+  const bookChartData = assetOverlay
+    ? chartData.map((p) => {
+        const o = assetOverlay[p.date.slice(0, 10)];
+        return o
+          ? {
+              ...p,
+              value: p.value + o.valueAzn,
+              invested: Math.max(0, p.invested + o.investedAzn),
+            }
+          : p;
+      })
+    : chartData;
+  const bookValue = holdingValue + etfValueNow;
+  const bookDayChange =
+    dayChange != null || assetPositions.some((p) => p.dayChangeAzn != null)
+      ? (dayChange ?? 0) + etfDayAzn
+      : null;
+  const bookPnl =
+    holdingPnl != null || assetPositions.some((p) => p.totalPnlAzn != null)
+      ? (holdingPnl ?? 0) + etfPnlAzn
+      : null;
+
+  // The chart headline's right-edge cluster: the extended-hours badge (when
+  // a session is live) next to the hide-amounts eye. Personal view only —
+  // the fund view keeps both in its own rows.
+  const chartActions = (
+    <div className="flex items-center gap-2">
+      {badgePortfolio && (
+        <ExtendedHoursBadge
+          data={badgePortfolio}
+          scope="personal"
+          history={extendedHistory}
+          align="right"
+        />
+      )}
+      <PrivacyToggle />
+    </div>
+  );
+
   return (
     <main className="px-6 pb-24">
       <Header dateLabel={dateLabel} />
 
       <PrivacyProvider initialHidden={amountsHidden}>
       <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
-        {/* Desktop top-right controls: hide-amounts eye + fund-view toggle in
-            one row (no extra height). On mobile both live in the greeting row. */}
-        <div className="hidden items-center justify-end gap-3 sm:-mb-12 sm:flex">
-          <PrivacyToggle />
-          <FundViewToggle active={fundView} />
-        </div>
-
-        {/* Hero */}
-        <MotionSection id="icmal" className="scroll-mt-36 grid grid-cols-1 lg:grid-cols-3 gap-x-12 gap-y-6 items-end">
-          <div className="lg:col-span-2 flex flex-col gap-5">
-            {fundView ? (
-              <HeroPrice
-                variant="fund"
-                holderName={holder.name}
-                value={fund.totalCapital}
-                dayChange={fundDayChange}
-                totalChange={fundTotalChange}
-                privacyToggle={<PrivacyToggle className="sm:hidden" />}
-                toggle={
-                  <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
-                }
-              />
-            ) : (
-              <HeroPrice
-                holderName={holder.name}
-                holdingValue={holdingValue}
-                holdingPnl={holdingPnl}
-                dayChange={dayChange}
-                units={effectiveUnits}
-                avgBuyPrice={perf.avgBuyPrice}
-                privacyToggle={<PrivacyToggle className="sm:hidden" />}
-                toggle={
-                  <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
-                }
-              />
-            )}
+        {/* Hero — greeting with the view controls inline on its own line
+            (every breakpoint), then the Yahoo-style ticker card:
+            market-status chips on top, benchmark tiles + İRF unit price
+            below. The hide-amounts eye lives beside the chart card's
+            headline in the personal view; the fund view (no chart card)
+            keeps it here. */}
+        <MotionSection id="icmal" className="scroll-mt-36 flex flex-col gap-5">
+          <Greeting
+            holderName={holder.name}
+            privacyToggle={fundView ? <PrivacyToggle /> : undefined}
+            toggle={
+              <>
+                <span className="sm:hidden">
+                  <FundViewToggle active={fundView} compact />
+                </span>
+                <span className="hidden sm:inline-flex">
+                  <FundViewToggle active={fundView} />
+                </span>
+              </>
+            }
+          />
+          {fundView ? (
+            /* Ümumfond baxış skips the ticker card entirely — just the bare
+               status chips (the badge lives here because this view has no
+               chart card to dock it on). */
             <div className="flex flex-wrap items-center gap-2">
               <MarketCountdown history={regularHistory} />
               {badgePortfolio && (
                 <ExtendedHoursBadge
                   data={badgePortfolio}
-                  scope={fundView ? "fund" : "personal"}
+                  scope="fund"
                   history={extendedHistory}
                 />
               )}
-              {!fundView && (
-                <Link
-                  href="/market"
-                  className="group inline-flex items-center gap-1.5 rounded-full border border-brand-green/30 bg-brand-green/5 px-3 py-1.5 text-[11px] font-medium text-brand-green dark:text-emerald-400 shadow-sm transition hover:bg-brand-green/10"
-                >
-                  <span>Bazar</span>
-                  <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
-                </Link>
-              )}
             </div>
-          </div>
-          <div className="lg:col-span-1 flex flex-col gap-3">
-            {fundView ? (
+          ) : (
+            <MarketTickerStrip
+              quotes={marketTicker}
+              irf={{ priceAzn: fund.unitPrice, changePct: unitDayPct }}
+              assets={tileAssets}
+              showBuyHint={!isAdmin}
+              statusRow={
+                <div className="flex flex-wrap items-center gap-2">
+                  <MarketCountdown history={regularHistory} />
+                </div>
+              }
+            />
+          )}
+        </MotionSection>
+
+        {/* Personal view: the holding value lives inside the history chart
+            card (Yahoo's portfolio-performance composition), with the
+            buy/sell quotes in a compact row under it. Fund view keeps the
+            plain fund hero next to the shareholders list — its dedicated
+            "Ümumfond dəyər tarixçəsi" chart comes later. */}
+        {fundView ? (
+          <MotionSection delay={0.05} className="-mt-6 grid grid-cols-1 items-end gap-x-12 gap-y-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <HeroPrice
+                variant="fund"
+                showGreeting={false}
+                holderName={holder.name}
+                value={fund.totalCapital}
+                dayChange={fundDayChange}
+                totalChange={fundTotalChange}
+              />
+            </div>
+            <div className="lg:col-span-1">
               <ShareholdersList holders={fund.holders} />
-            ) : (
-              <PriceBadge current={fund.unitPrice} ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
-            )}
-          </div>
-        </MotionSection>
-
-        {/* Chart — personal holding history. The whole-fund view will get a
-            dedicated "Ümumfond dəyər tarixçəsi" chart later; hidden for now. */}
-        {!fundView && (
-          <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-10">
-            <PerformanceChart data={chartData} priceData={priceChartData} />
+            </div>
           </MotionSection>
-        )}
-
-        {/* Fund info — hidden in the whole-fund view; the hero already shows the totals. */}
-        {!fundView && (
-        <MotionSection id="fond" delay={0.1} className="scroll-mt-32 hairline -mt-8 pt-6">
-          <FundSummary
-            totalCapital={fund.totalCapital}
-            totalCostBasis={totalCostBasis}
-            netCapital={fund.netCapital}
-            changes={periodChanges}
-          />
-        </MotionSection>
+        ) : (
+          <>
+            <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-6">
+              <PerformanceChart
+                data={bookChartData}
+                priceData={priceChartData}
+                hero={
+                  <ChartSummary
+                    value={bookValue}
+                    dayChange={bookDayChange}
+                    totalChange={bookPnl}
+                    units={effectiveUnits}
+                    avgBuyPrice={perf.avgBuyPrice}
+                    action={chartActions}
+                  />
+                }
+                priceHero={
+                  <ChartSummary
+                    masked={false}
+                    value={fund.unitPrice}
+                    dayChange={unitDayChange}
+                    totalChange={unit3mChange}
+                    totalLabel="son 3 ayda"
+                    units={effectiveUnits}
+                    avgBuyPrice={perf.avgBuyPrice}
+                    action={chartActions}
+                  />
+                }
+              />
+            </MotionSection>
+            <MotionSection delay={0.08} className="-mt-12">
+              <UnitPriceRow ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
+            </MotionSection>
+            {/* Aktivlərim — the viewer's whole personal book: İRF pays
+                first, then ETF positions from the Aktivlər ledger. */}
+            {(assetPositions.length > 0 || effectiveUnits > 0) && (
+              <MotionSection
+                id="aktivlerim"
+                delay={0.1}
+                className="scroll-mt-32 hairline -mt-8 pt-6"
+              >
+                <AssetHoldingsCard
+                  positions={assetPositions}
+                  irf={
+                    effectiveUnits > 0
+                      ? {
+                          units: effectiveUnits,
+                          avgBuyAzn: perf.avgBuyPrice,
+                          priceAzn: fund.unitPrice,
+                          valueAzn: holdingValue,
+                          dayChangePct: unitDayPct,
+                          dayChangeAzn: dayChange,
+                          totalPnlAzn: holdingPnl,
+                        }
+                      : null
+                  }
+                  showBuyHint={!isAdmin}
+                />
+              </MotionSection>
+            )}
+          </>
         )}
 
         {/* Strategy statement — personal view only */}
@@ -438,8 +606,10 @@ export default async function DashboardPage({
           </MotionSection>
         )}
 
-        {/* Fond portfeli */}
-        {holdings.length > 0 && (() => {
+        {/* Fond portfeli — fund view only (İsmayıl's call: the personal view
+            stays a personal statement; everything fund-wide lives under
+            Ümumfond baxış). */}
+        {fundView && holdings.length > 0 && (() => {
           // Group by sector, sort sectors by total value desc, stocks within
           // each sector by value desc. This ordering is shared by the pie
           // (so stocks sit inside their sector wedge), the list, and the
@@ -625,9 +795,9 @@ export default async function DashboardPage({
         })()}
 
         {/* İnvestisiya siyasəti — sleeve allocation vs the written policy,
-            unwind schedule and the dip-buying trigger. Personal view only,
-            like the strategy statement it extends. */}
-        {!fundView && holdings.length > 0 && (
+            unwind schedule and the dip-buying trigger. Fund view, with the
+            rest of the fund-wide sections. */}
+        {fundView && holdings.length > 0 && (
           <MotionSection
             id="siyaset"
             delay={0.16}
@@ -640,8 +810,8 @@ export default async function DashboardPage({
           </MotionSection>
         )}
 
-        {/* Həftəlik alış bileti */}
-        {!fundView && ticket.picks.length > 0 && (
+        {/* Həftəlik alış bileti — fund view only */}
+        {fundView && ticket.picks.length > 0 && (
           <MotionSection
             id="bilet"
             delay={0.17}

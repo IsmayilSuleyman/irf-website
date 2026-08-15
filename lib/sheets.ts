@@ -293,6 +293,69 @@ export async function getHoldings(): Promise<Holding[]> {
   return parseHoldings(snap.watchlist);
 }
 
+export type AssetTransaction = {
+  holderName: string;
+  date: string;
+  /** Uppercased ETF ticker, e.g. SPY / IBIT / GLDM / SIVR. */
+  symbol: string;
+  /** Fractional allowed; negative = sale (Transactions-tab convention). */
+  units: number;
+  /** Actual USD fill price per unit (market price at the deal). */
+  priceUsd: number;
+  /**
+   * Col G: what the holder actually paid, AZN. null (blank cell) means
+   * "paid the market fill" — units × price × peg; an explicit 0 is a gift,
+   * whose whole value then counts as gain. Ignored on sale rows.
+   */
+  paidAzn: number | null;
+};
+
+// Personal ETF ledger (the Aktivlər tab): İsmayıl records verbally-agreed
+// buys/sells here, one row per deal. Fetched OUTSIDE the batchGet on
+// purpose — batchGet fails wholesale on an unknown range, so a
+// not-yet-created tab must not take the whole dashboard's sheet data down
+// with it. Any failure just reads as an empty ledger.
+const getAssetSheetRows = unstable_cache(
+  async (): Promise<string[][]> => {
+    const sheetId = process.env.SHEET_ID;
+    if (!sheetId) return [];
+    try {
+      const sheets = google.sheets({ version: "v4", auth: getAuth() });
+      const res = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: "'Aktivlər'!A2:G200",
+      });
+      return (res.data.values ?? []) as string[][];
+    } catch (err) {
+      console.error("Aktivlər sheet fetch failed:", err);
+      return [];
+    }
+  },
+  ["irf-asset-transactions"],
+  { revalidate: 60, tags: ["sheet"] },
+);
+
+export async function getAssetTransactions(): Promise<AssetTransaction[]> {
+  const rows = await getAssetSheetRows();
+  const out: AssetTransaction[] = [];
+  for (const row of rows) {
+    if (!row) continue;
+    const holderName = row[0]?.toString().trim();
+    const symbol = row[2]?.toString().trim().toUpperCase();
+    if (!holderName || !symbol) continue;
+    const date = row[1]?.toString().trim() ?? "";
+    const units = parseAzn(row[3]);
+    const priceUsd = parseAzn(row[4]);
+    if (!Number.isFinite(units) || units === 0) continue;
+    // Blank G ≠ "0" — a blank falls back to the market fill, an explicit 0
+    // records a gift.
+    const paidRaw = row[6]?.toString().trim();
+    const paidAzn = paidRaw ? parseAzn(paidRaw) : null;
+    out.push({ holderName, date, symbol, units, priceUsd, paidAzn });
+  }
+  return out;
+}
+
 export type Debt = {
   name: string;
   originalAzn: number;

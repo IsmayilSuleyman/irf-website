@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Area,
   CartesianGrid,
@@ -57,9 +57,19 @@ type ModeKey = (typeof MODES)[number]["key"];
 export function PerformanceChart({
   data,
   priceData,
+  hero,
+  priceHero,
 }: {
   data: Point[];
   priceData?: Point[];
+  /**
+   * Optional summary block (headline figure + change lines) rendered inside
+   * the card between the header and the plot — the Yahoo-app "portfolio
+   * performance" composition. `hero` shows in value mode, `priceHero` in
+   * price mode, so the headline always matches the plotted series.
+   */
+  hero?: ReactNode;
+  priceHero?: ReactNode;
 }) {
   const { hidden } = usePrivacy();
   const hasValue = data != null && data.length > 0;
@@ -152,24 +162,22 @@ export function PerformanceChart({
 
   return (
     <div className="glass w-full p-6">
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-            {mode === "price"
-              ? "1 payın qiymətinin tarixçəsi"
-              : "Sahiblik dəyərinin tarixçəsi"}
-          </span>
-          <span className="text-[10px] text-black/45 dark:text-white/50 sm:hidden">₼</span>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+      {/* Header: one short label left ("Tarixçə" — the mode buttons beside
+          it already name the series), mode switch right; the range buttons
+          moved below the plot (Yahoo-app composition, see bottom). */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[14px] uppercase tracking-[0.22em] text-brand-green/80">
+          Tarixçə
+        </span>
+        <div className="flex items-center gap-2">
           {/* On phones the pill rides in the chart's top-right corner instead
               (see below), where there is empty plot area and the control row
               is already tight. */}
-          {changePill("hidden self-start sm:inline-block sm:self-auto")}
+          {changePill("hidden sm:inline-block")}
           {/* Series switch — same button language as the range buttons so it
               reads as a control, not a label. */}
           {hasValue && hasPrice && (
-            <div className="grid grid-cols-2 gap-1 sm:flex sm:items-center">
+            <div className="flex items-center gap-1">
               {MODES.map((m) => (
                 <button
                   key={m.key}
@@ -185,32 +193,11 @@ export function PerformanceChart({
                   {m.label}
                 </button>
               ))}
-              <span
-                aria-hidden
-                className="mx-1 hidden h-4 w-px bg-black/10 dark:bg-white/15 sm:inline-block"
-              />
             </div>
           )}
-          <div className="grid grid-cols-5 gap-1 sm:flex sm:items-center">
-            {RANGES.map((r) => (
-              <button
-                key={r.key}
-                type="button"
-                onClick={() => setRange(r.key)}
-                aria-pressed={range === r.key}
-                className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
-                  range === r.key
-                    ? "border-brand-green bg-brand-green text-white shadow-sm"
-                    : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
-                }`}
-              >
-                {r.label}
-              </button>
-            ))}
-            <span className="ml-1 hidden text-[10px] text-black/45 dark:text-white/50 sm:inline">₼</span>
-          </div>
         </div>
       </div>
+      {mode === "price" ? priceHero : hero}
       <div className="relative h-72">
         {/* Phone placement: inside the plot, top right. pointer-events-none so
             it never swallows a tap meant for the chart's tooltip. */}
@@ -307,6 +294,30 @@ export function PerformanceChart({
             </ComposedChart>
           </ResponsiveContainer>
         )}
+      </div>
+      {/* Range buttons below the plot — full-width tap targets on phones,
+          inline on larger screens. */}
+      <div className="mt-4 flex items-center gap-1.5 sm:gap-2">
+        <div className="grid flex-1 grid-cols-5 gap-1.5 sm:flex sm:flex-none sm:items-center sm:gap-2">
+          {RANGES.map((r) => (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => setRange(r.key)}
+              aria-pressed={range === r.key}
+              className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
+                range === r.key
+                  ? "border-brand-green bg-brand-green text-white shadow-sm"
+                  : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <span className="hidden text-[10px] text-black/45 dark:text-white/50 sm:inline">
+          ₼
+        </span>
       </div>
     </div>
   );
