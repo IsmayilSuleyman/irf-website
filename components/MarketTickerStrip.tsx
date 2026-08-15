@@ -48,12 +48,11 @@ export function MarketTickerStrip({
   quotes: TickerQuote[];
   /** The fund's own tile: unit price in AZN + its day change. */
   irf: { priceAzn: number; changePct: number | null };
-  /** The countdown / extended-hours chips row rendered above the tiles. */
+  /** The countdown / extended-hours chips row rendered below the tiles. */
   statusRow?: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-2.5 rounded-2xl border border-black/10 bg-white/40 p-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 sm:p-3">
-      {statusRow}
       <div className="no-scrollbar flex gap-2 overflow-x-auto">
         {quotes.map((q) => (
           <Tile
@@ -69,6 +68,7 @@ export function MarketTickerStrip({
           changePct={irf.changePct}
         />
       </div>
+      {statusRow}
     </div>
   );
 }
