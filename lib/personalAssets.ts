@@ -1,6 +1,10 @@
 import { unstable_cache } from "next/cache";
 import { USD_TO_AZN } from "@/lib/portfolio";
-import { getExtendedQuotes } from "@/lib/yahoo";
+import {
+  getDailyCloses,
+  getExtendedQuotes,
+  type DailyClose,
+} from "@/lib/yahoo";
 import type { AssetTransaction } from "@/lib/sheets";
 
 // The personal ETF desk: holders (everyone but İsmayıl) buy SPY/IBIT/GLDM/
@@ -91,9 +95,11 @@ export async function getAssetQuotes(
 
 /**
  * Fold one holder's ledger rows into live-valued positions. Buys accumulate
- * cost at their fill price; sells release units at the running average (the
- * average buy price itself doesn't move on a sale — standard cost-basis
- * accounting). Dust below 1e-9 units drops out.
+ * the market cost at their fill price and the PAID basis from col G (blank
+ * G = market fill; 0 = gift). Sells release units and both bases at the
+ * running average — standard cost-basis accounting, col G ignored on sales.
+ * Dust below 1e-9 units drops out. P&L runs against the paid basis, so a
+ * gifted position counts its whole value as gain.
  */
 export function buildAssetPositions(
   holderName: string,
@@ -101,17 +107,24 @@ export function buildAssetPositions(
   quotes: Record<string, AssetQuote>,
 ): AssetPosition[] {
   const mine = txs.filter((t) => norm(t.holderName) === norm(holderName));
-  const acc = new Map<string, { units: number; costUsd: number }>();
+  const acc = new Map<
+    string,
+    { units: number; costUsd: number; paidAzn: number }
+  >();
   for (const t of mine) {
-    const a = acc.get(t.symbol) ?? { units: 0, costUsd: 0 };
+    const a = acc.get(t.symbol) ?? { units: 0, costUsd: 0, paidAzn: 0 };
     if (t.units >= 0) {
       a.units += t.units;
       a.costUsd += t.units * t.priceUsd;
+      a.paidAzn += t.paidAzn ?? t.units * t.priceUsd * USD_TO_AZN;
     } else {
       const sellUnits = Math.min(-t.units, a.units);
-      const avg = a.units > 0 ? a.costUsd / a.units : 0;
+      if (a.units > 0) {
+        const frac = sellUnits / a.units;
+        a.costUsd -= a.costUsd * frac;
+        a.paidAzn -= a.paidAzn * frac;
+      }
       a.units -= sellUnits;
-      a.costUsd -= sellUnits * avg;
     }
     acc.set(t.symbol, a);
   }
@@ -124,7 +137,7 @@ export function buildAssetPositions(
     const price = q?.priceUsd ?? null;
     const prev = q?.prevCloseUsd ?? null;
     const avgBuyUsd = a.units > 0 ? a.costUsd / a.units : null;
-    const costBasisAzn = a.costUsd * USD_TO_AZN;
+    const costBasisAzn = a.paidAzn;
     const valueAzn = price != null ? a.units * price * USD_TO_AZN : null;
     out.push({
       symbol,
@@ -149,5 +162,113 @@ export function buildAssetPositions(
     });
   }
   out.sort((x, y) => (y.valueAzn ?? 0) - (x.valueAzn ?? 0));
+  return out;
+}
+
+// Daily closes per symbol for the chart overlay; closes change once a day,
+// so a 1h cache is plenty. Failures read as "no history" and the overlay
+// falls back to valuing that symbol at cost.
+const getCachedDailyCloses = unstable_cache(
+  async (symbol: string, days: number): Promise<DailyClose[]> => {
+    try {
+      return await getDailyCloses(symbol, days);
+    } catch (err) {
+      console.error(
+        `[personal-assets] closes fetch failed for ${symbol}:`,
+        err,
+      );
+      return [];
+    }
+  },
+  ["personal-asset-closes"],
+  { revalidate: 3600 },
+);
+
+export type AssetOverlayPoint = { valueAzn: number; investedAzn: number };
+
+/**
+ * The holder's ETF book valued at each requested date (ISO YYYY-MM-DD keys),
+ * for adding onto the İRF value chart so the Tarixçə headline, the plotted
+ * series and Aktivlərim's total all describe the same personal book. null
+ * when the holder has no ledger rows. Dates before a symbol's first close
+ * (or symbols whose history fetch fails) are valued at cost.
+ */
+export async function getAssetValueOverlay(
+  holderName: string,
+  txs: AssetTransaction[],
+  dates: string[],
+): Promise<Record<string, AssetOverlayPoint> | null> {
+  const mine = txs.filter((t) => norm(t.holderName) === norm(holderName));
+  if (mine.length === 0 || dates.length === 0) return null;
+
+  // Ledger rows follow the Transactions tab's date convention (parseable by
+  // new Date); an unparseable date reads as "held from the start" so the
+  // position never silently vanishes from the chart.
+  const txMs = (t: AssetTransaction) => {
+    const n = new Date(t.date).getTime();
+    return Number.isFinite(n) ? n : 0;
+  };
+  const earliest = Math.min(...mine.map(txMs));
+  const days = Math.min(
+    2000,
+    Math.max(30, Math.ceil((Date.now() - Math.max(earliest, 0)) / 86_400_000) + 7),
+  );
+  const symbols = [...new Set(mine.map((t) => t.symbol))].sort();
+  const closesBySymbol = new Map<string, DailyClose[]>();
+  await Promise.all(
+    symbols.map(async (s) => {
+      closesBySymbol.set(s, await getCachedDailyCloses(s, days));
+    }),
+  );
+
+  // Closes come back ascending; the last one at or before the date wins.
+  const closeAtOrBefore = (symbol: string, date: string): number | null => {
+    const closes = closesBySymbol.get(symbol) ?? [];
+    let best: number | null = null;
+    for (const c of closes) {
+      if (c.t <= date) best = c.close;
+      else break;
+    }
+    return best;
+  };
+
+  const out: Record<string, AssetOverlayPoint> = {};
+  for (const date of dates) {
+    const dayEnd = new Date(`${date}T23:59:59Z`).getTime();
+    // Same fold as buildAssetPositions: market cost for pricing fallbacks,
+    // PAID basis (col G, gifts = 0) for the Maya dəyəri overlay.
+    const held = new Map<
+      string,
+      { units: number; costUsd: number; paidAzn: number }
+    >();
+    for (const t of mine) {
+      if (txMs(t) > dayEnd) continue;
+      const a = held.get(t.symbol) ?? { units: 0, costUsd: 0, paidAzn: 0 };
+      if (t.units >= 0) {
+        a.units += t.units;
+        a.costUsd += t.units * t.priceUsd;
+        a.paidAzn += t.paidAzn ?? t.units * t.priceUsd * USD_TO_AZN;
+      } else {
+        const sellUnits = Math.min(-t.units, a.units);
+        if (a.units > 0) {
+          const frac = sellUnits / a.units;
+          a.costUsd -= a.costUsd * frac;
+          a.paidAzn -= a.paidAzn * frac;
+        }
+        a.units -= sellUnits;
+      }
+      held.set(t.symbol, a);
+    }
+    let valueAzn = 0;
+    let investedAzn = 0;
+    for (const [symbol, a] of held) {
+      if (a.units <= 1e-9) continue;
+      const close = closeAtOrBefore(symbol, date);
+      const px = close ?? (a.units > 0 ? a.costUsd / a.units : 0);
+      valueAzn += a.units * px * USD_TO_AZN;
+      investedAzn += a.paidAzn;
+    }
+    out[date] = { valueAzn, investedAzn };
+  }
   return out;
 }

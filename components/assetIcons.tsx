@@ -50,14 +50,15 @@ export const ASSET_ICONS: Record<string, ReactNode> = {
       <path d="M12 2.7c3.2 3.9 6 7.4 6 10.8a6 6 0 1 1-12 0c0-3.4 2.8-6.9 6-10.8Z" />
     </svg>
   ),
+  // The fund's real cross mark, cropped square from the logo artwork
+  // (public/images/irf-mark.png) — green on transparent, works in both
+  // themes without the wordmark's dark-mode invert.
   irf: (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-3 w-3 shrink-0 text-brand-green dark:text-emerald-400"
-      fill="currentColor"
+    <img
+      src="/images/irf-mark.png"
+      alt=""
       aria-hidden
-    >
-      <path d="M12 2c1.2 3.6 2.4 4.8 6 6-3.6 1.2-4.8 2.4-6 6-1.2-3.6-2.4-4.8-6-6 3.6-1.2 4.8-2.4 6-6Z" />
-    </svg>
+      className="h-3.5 w-3.5 shrink-0"
+    />
   ),
 };

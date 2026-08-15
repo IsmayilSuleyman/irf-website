@@ -300,8 +300,14 @@ export type AssetTransaction = {
   symbol: string;
   /** Fractional allowed; negative = sale (Transactions-tab convention). */
   units: number;
-  /** Actual USD fill price per unit. */
+  /** Actual USD fill price per unit (market price at the deal). */
   priceUsd: number;
+  /**
+   * Col G: what the holder actually paid, AZN. null (blank cell) means
+   * "paid the market fill" — units × price × peg; an explicit 0 is a gift,
+   * whose whole value then counts as gain. Ignored on sale rows.
+   */
+  paidAzn: number | null;
 };
 
 // Personal ETF ledger (the Aktivlər tab): İsmayıl records verbally-agreed
@@ -317,7 +323,7 @@ const getAssetSheetRows = unstable_cache(
       const sheets = google.sheets({ version: "v4", auth: getAuth() });
       const res = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: "'Aktivlər'!A2:E200",
+        range: "'Aktivlər'!A2:G200",
       });
       return (res.data.values ?? []) as string[][];
     } catch (err) {
@@ -341,7 +347,11 @@ export async function getAssetTransactions(): Promise<AssetTransaction[]> {
     const units = parseAzn(row[3]);
     const priceUsd = parseAzn(row[4]);
     if (!Number.isFinite(units) || units === 0) continue;
-    out.push({ holderName, date, symbol, units, priceUsd });
+    // Blank G ≠ "0" — a blank falls back to the market fill, an explicit 0
+    // records a gift.
+    const paidRaw = row[6]?.toString().trim();
+    const paidAzn = paidRaw ? parseAzn(paidRaw) : null;
+    out.push({ holderName, date, symbol, units, priceUsd, paidAzn });
   }
   return out;
 }

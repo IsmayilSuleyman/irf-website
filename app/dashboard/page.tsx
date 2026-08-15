@@ -13,6 +13,7 @@ import {
 import {
   buildAssetPositions,
   getAssetQuotes,
+  getAssetValueOverlay,
   PURCHASABLE_ASSETS,
 } from "@/lib/personalAssets";
 import { AssetHoldingsCard } from "@/components/AssetHoldingsCard";
@@ -384,6 +385,50 @@ export default async function DashboardPage({
     }),
   );
 
+  // The combined personal book for the Tarixçə card: İRF holding plus the
+  // ETF positions, and the chart series with the ETF book's value added at
+  // each plotted date — so the headline, the plotted line and Aktivlərim's
+  // total always describe the same number. With no ETF rows everything
+  // degrades to the plain İRF figures.
+  const etfValueNow = assetPositions.reduce((s, p) => s + (p.valueAzn ?? 0), 0);
+  const etfDayAzn = assetPositions.reduce(
+    (s, p) => s + (p.dayChangeAzn ?? 0),
+    0,
+  );
+  const etfPnlAzn = assetPositions.reduce(
+    (s, p) => s + (p.totalPnlAzn ?? 0),
+    0,
+  );
+  const assetOverlay =
+    assetPositions.length > 0
+      ? await getAssetValueOverlay(
+          holder.name,
+          assetTxs,
+          chartData.map((p) => p.date.slice(0, 10)),
+        )
+      : null;
+  const bookChartData = assetOverlay
+    ? chartData.map((p) => {
+        const o = assetOverlay[p.date.slice(0, 10)];
+        return o
+          ? {
+              ...p,
+              value: p.value + o.valueAzn,
+              invested: Math.max(0, p.invested + o.investedAzn),
+            }
+          : p;
+      })
+    : chartData;
+  const bookValue = holdingValue + etfValueNow;
+  const bookDayChange =
+    dayChange != null || assetPositions.some((p) => p.dayChangeAzn != null)
+      ? (dayChange ?? 0) + etfDayAzn
+      : null;
+  const bookPnl =
+    holdingPnl != null || assetPositions.some((p) => p.totalPnlAzn != null)
+      ? (holdingPnl ?? 0) + etfPnlAzn
+      : null;
+
   // The chart headline's right-edge cluster: the extended-hours badge (when
   // a session is live) next to the hide-amounts eye. Personal view only —
   // the fund view keeps both in its own rows.
@@ -481,13 +526,13 @@ export default async function DashboardPage({
           <>
             <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-6">
               <PerformanceChart
-                data={chartData}
+                data={bookChartData}
                 priceData={priceChartData}
                 hero={
                   <ChartSummary
-                    value={holdingValue}
-                    dayChange={dayChange}
-                    totalChange={holdingPnl}
+                    value={bookValue}
+                    dayChange={bookDayChange}
+                    totalChange={bookPnl}
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
                     action={chartActions}
