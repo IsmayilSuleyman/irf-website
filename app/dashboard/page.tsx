@@ -460,8 +460,10 @@ export default async function DashboardPage({
           </MotionSection>
         )}
 
-        {/* Fond portfeli */}
-        {holdings.length > 0 && (() => {
+        {/* Fond portfeli — fund view only (İsmayıl's call: the personal view
+            stays a personal statement; everything fund-wide lives under
+            Ümumfond baxış). */}
+        {fundView && holdings.length > 0 && (() => {
           // Group by sector, sort sectors by total value desc, stocks within
           // each sector by value desc. This ordering is shared by the pie
           // (so stocks sit inside their sector wedge), the list, and the
@@ -647,9 +649,9 @@ export default async function DashboardPage({
         })()}
 
         {/* İnvestisiya siyasəti — sleeve allocation vs the written policy,
-            unwind schedule and the dip-buying trigger. Personal view only,
-            like the strategy statement it extends. */}
-        {!fundView && holdings.length > 0 && (
+            unwind schedule and the dip-buying trigger. Fund view, with the
+            rest of the fund-wide sections. */}
+        {fundView && holdings.length > 0 && (
           <MotionSection
             id="siyaset"
             delay={0.16}
@@ -662,8 +664,8 @@ export default async function DashboardPage({
           </MotionSection>
         )}
 
-        {/* Həftəlik alış bileti */}
-        {!fundView && ticket.picks.length > 0 && (
+        {/* Həftəlik alış bileti — fund view only */}
+        {fundView && ticket.picks.length > 0 && (
           <MotionSection
             id="bilet"
             delay={0.17}
