@@ -22,8 +22,10 @@ import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
 import { PerformanceChart } from "@/components/PerformanceChart";
-import { HeroPrice } from "@/components/HeroPrice";
-import { PriceBadge } from "@/components/PriceBadge";
+import { Greeting, HeroPrice, HoldingSummary } from "@/components/HeroPrice";
+import { MarketTickerStrip } from "@/components/MarketTickerStrip";
+import { UnitPriceRow } from "@/components/UnitPriceRow";
+import { getMarketTicker } from "@/lib/marketTicker";
 import { FundSummary } from "@/components/FundSummary";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
@@ -108,7 +110,7 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals] =
+  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, marketTicker] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -123,6 +125,7 @@ export default async function DashboardPage({
       getWeeklyBudgetAzn(),
       getPurchaseCadence(),
       getMarketSignals(),
+      getMarketTicker(),
     ]);
   const canEditStrategy = isAdmin;
 
@@ -264,6 +267,12 @@ export default async function DashboardPage({
   );
   const periodChanges = computePeriodChanges(fund.unitPrice, priceHistory);
   const previousPricePoint = findLatestPriceBeforeDate(priceHistory, new Date());
+  // The İRF tile's day change: unit price vs the last recorded price point —
+  // the same reference the personal day-change figure uses.
+  const unitDayPct =
+    previousPricePoint && previousPricePoint.price > 0
+      ? fund.unitPrice / previousPricePoint.price - 1
+      : null;
   const holdingValue = fund.unitPrice * effectiveUnits;
   const holdingPnl =
     perf.avgBuyPrice != null ? perf.pnlAzn : null;
@@ -340,70 +349,86 @@ export default async function DashboardPage({
           <FundViewToggle active={fundView} />
         </div>
 
-        {/* Hero */}
-        <MotionSection id="icmal" className="scroll-mt-36 grid grid-cols-1 lg:grid-cols-3 gap-x-12 gap-y-6 items-end">
-          <div className="lg:col-span-2 flex flex-col gap-5">
-            {fundView ? (
+        {/* Hero — greeting, then the Yahoo-style ticker card: market-status
+            chips on top, benchmark tiles + İRF unit price below. */}
+        <MotionSection id="icmal" className="scroll-mt-36 flex flex-col gap-5">
+          <Greeting
+            holderName={holder.name}
+            privacyToggle={<PrivacyToggle className="sm:hidden" />}
+            toggle={
+              <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
+            }
+          />
+          <MarketTickerStrip
+            quotes={marketTicker}
+            irf={{ priceAzn: fund.unitPrice, changePct: unitDayPct }}
+            statusRow={
+              <div className="flex flex-wrap items-center gap-2">
+                <MarketCountdown history={regularHistory} />
+                {badgePortfolio && (
+                  <ExtendedHoursBadge
+                    data={badgePortfolio}
+                    scope={fundView ? "fund" : "personal"}
+                    history={extendedHistory}
+                  />
+                )}
+                {!fundView && (
+                  <Link
+                    href="/market"
+                    aria-label="Bazara keç"
+                    title="Bazar"
+                    className="group ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-brand-green/30 bg-brand-green/10 text-brand-green shadow-sm transition hover:bg-brand-green/20 dark:text-emerald-400"
+                  >
+                    <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
+                  </Link>
+                )}
+              </div>
+            }
+          />
+        </MotionSection>
+
+        {/* Personal view: the holding value lives inside the history chart
+            card (Yahoo's portfolio-performance composition), with the
+            buy/sell quotes in a compact row under it. Fund view keeps the
+            plain fund hero next to the shareholders list — its dedicated
+            "Ümumfond dəyər tarixçəsi" chart comes later. */}
+        {fundView ? (
+          <MotionSection delay={0.05} className="-mt-6 grid grid-cols-1 items-end gap-x-12 gap-y-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
               <HeroPrice
                 variant="fund"
+                showGreeting={false}
                 holderName={holder.name}
                 value={fund.totalCapital}
                 dayChange={fundDayChange}
                 totalChange={fundTotalChange}
-                privacyToggle={<PrivacyToggle className="sm:hidden" />}
-                toggle={
-                  <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
-                }
               />
-            ) : (
-              <HeroPrice
-                holderName={holder.name}
-                holdingValue={holdingValue}
-                holdingPnl={holdingPnl}
-                dayChange={dayChange}
-                units={effectiveUnits}
-                avgBuyPrice={perf.avgBuyPrice}
-                privacyToggle={<PrivacyToggle className="sm:hidden" />}
-                toggle={
-                  <FundViewToggle active={fundView} compact className="ml-auto sm:hidden" />
-                }
-              />
-            )}
-            <div className="flex flex-wrap items-center gap-2">
-              <MarketCountdown history={regularHistory} />
-              {badgePortfolio && (
-                <ExtendedHoursBadge
-                  data={badgePortfolio}
-                  scope={fundView ? "fund" : "personal"}
-                  history={extendedHistory}
-                />
-              )}
-              {!fundView && (
-                <Link
-                  href="/market"
-                  className="group inline-flex items-center gap-1.5 rounded-full border border-brand-green/30 bg-brand-green/5 px-3 py-1.5 text-[11px] font-medium text-brand-green dark:text-emerald-400 shadow-sm transition hover:bg-brand-green/10"
-                >
-                  <span>Bazar</span>
-                  <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
-                </Link>
-              )}
             </div>
-          </div>
-          <div className="lg:col-span-1 flex flex-col gap-3">
-            {fundView ? (
+            <div className="lg:col-span-1">
               <ShareholdersList holders={fund.holders} />
-            ) : (
-              <PriceBadge current={fund.unitPrice} ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
-            )}
-          </div>
-        </MotionSection>
-
-        {/* Chart — personal holding history. The whole-fund view will get a
-            dedicated "Ümumfond dəyər tarixçəsi" chart later; hidden for now. */}
-        {!fundView && (
-          <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-10">
-            <PerformanceChart data={chartData} priceData={priceChartData} />
+            </div>
           </MotionSection>
+        ) : (
+          <>
+            <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-6">
+              <PerformanceChart
+                data={chartData}
+                priceData={priceChartData}
+                hero={
+                  <HoldingSummary
+                    value={holdingValue}
+                    dayChange={dayChange}
+                    totalChange={holdingPnl}
+                    units={effectiveUnits}
+                    avgBuyPrice={perf.avgBuyPrice}
+                  />
+                }
+              />
+            </MotionSection>
+            <MotionSection delay={0.08} className="-mt-12">
+              <UnitPriceRow ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
+            </MotionSection>
+          </>
         )}
 
         {/* Fund info — hidden in the whole-fund view; the hero already shows the totals. */}

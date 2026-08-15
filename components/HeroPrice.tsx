@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { formatAzn, formatUnits } from "@/lib/portfolio";
+import { formatAzn, formatGroupedTrim, formatUnits } from "@/lib/portfolio";
 import { Odometer } from "@/components/Odometer";
 import { Masked } from "@/components/Masked";
 
@@ -13,6 +13,7 @@ type PersonalProps = {
   avgBuyPrice: number | null;
   toggle?: ReactNode;
   privacyToggle?: ReactNode;
+  showGreeting?: boolean;
 };
 
 type FundProps = {
@@ -23,6 +24,7 @@ type FundProps = {
   totalChange: number | null;
   toggle?: ReactNode;
   privacyToggle?: ReactNode;
+  showGreeting?: boolean;
 };
 
 const changeTone = (n: number | null) =>
@@ -34,7 +36,7 @@ const changeText = (n: number | null) =>
 // Neutral colour for masked amounts — the dots must not leak the sign.
 const MASK_TONE = "text-black/35 dark:text-white/40";
 
-function Greeting({
+export function Greeting({
   holderName,
   toggle,
   privacyToggle,
@@ -79,6 +81,7 @@ export function HeroPrice(props: PersonalProps | FundProps) {
     avgBuyPrice,
     toggle,
     privacyToggle,
+    showGreeting = true,
   } = props;
 
   const dayChangeStr = changeText(dayChange);
@@ -86,11 +89,13 @@ export function HeroPrice(props: PersonalProps | FundProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <Greeting
-        holderName={holderName}
-        toggle={toggle}
-        privacyToggle={privacyToggle}
-      />
+      {showGreeting && (
+        <Greeting
+          holderName={holderName}
+          toggle={toggle}
+          privacyToggle={privacyToggle}
+        />
+      )}
       <div className="flex items-end gap-4">
         {/* Kept in lockstep with FundHero below — İsmayıl wants the big
             money figure a notch smaller in BOTH dashboard views. */}
@@ -143,17 +148,20 @@ function FundHero({
   totalChange,
   toggle,
   privacyToggle,
+  showGreeting = true,
 }: FundProps) {
   const dayStr = changeText(dayChange);
   const totalStr = changeText(totalChange);
 
   return (
     <div className="flex flex-col gap-4">
-      <Greeting
-        holderName={holderName}
-        toggle={toggle}
-        privacyToggle={privacyToggle}
-      />
+      {showGreeting && (
+        <Greeting
+          holderName={holderName}
+          toggle={toggle}
+          privacyToggle={privacyToggle}
+        />
+      )}
       <div className="flex items-end gap-4">
         {/* One notch below the personal hero — the whole-fund total reads
             calmer slightly smaller. */}
@@ -183,6 +191,76 @@ function FundHero({
             </Masked>
           </span>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The Yahoo-style holding summary that sits inside the performance chart
+ * card (personal view): the value, its day/total change with percentages,
+ * and the units line. Percentages derive from the value itself so they can
+ * never disagree with the ₼ figures beside them; they stay visible in
+ * hide-amounts mode like every other return in the app.
+ */
+export function HoldingSummary({
+  value,
+  dayChange,
+  totalChange,
+  units,
+  avgBuyPrice,
+}: {
+  value: number;
+  dayChange: number | null;
+  totalChange: number | null;
+  units: number;
+  avgBuyPrice: number | null;
+}) {
+  const line = (amount: number | null, label: string) => {
+    if (amount == null) return null;
+    const base = value - amount;
+    const pct = base > 0 ? amount / base : null;
+    return (
+      <div className="num text-xs font-medium">
+        <Masked mask="••••" className={MASK_TONE}>
+          <span className={changeTone(amount)}>{changeText(amount)}</span>
+        </Masked>
+        {pct != null ? (
+          <span className={changeTone(amount)}>
+            {" "}
+            ({pct >= 0 ? "+" : "-"}
+            {formatGroupedTrim(Math.abs(pct) * 100, 2)}%)
+          </span>
+        ) : null}{" "}
+        <span className="font-normal text-black/55 dark:text-white/60">
+          {label}
+        </span>
+      </div>
+    );
+  };
+
+  return (
+    <div className="mb-5 flex flex-col gap-2">
+      <div
+        className="num font-black leading-none tracking-tight"
+        style={{ fontSize: "clamp(2.75rem, 8vw, 4rem)" }}
+      >
+        <Masked mask="••••">
+          <Odometer value={value} fractionDigits={2} suffix="₼" />
+        </Masked>
+      </div>
+      <div className="flex flex-col gap-1">
+        {line(dayChange, "bu gün")}
+        {line(totalChange, "ümumi fərq")}
+      </div>
+      <div className="text-xs text-black/45 dark:text-white/50">
+        <Masked mask="••">{formatUnits(units)}</Masked> pay · ortalama alış
+        qiyməti{" "}
+        <span className="text-black/70 dark:text-white/75">
+          <Masked mask="••••">
+            {avgBuyPrice != null ? formatAzn(avgBuyPrice) : "N/A"}
+          </Masked>
+        </span>
       </div>
     </div>
   );
