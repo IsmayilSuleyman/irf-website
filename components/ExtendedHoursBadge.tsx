@@ -71,12 +71,19 @@ export function ExtendedHoursBadge({
         className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-3 py-1.5 text-[11px] font-medium shadow-sm"
       >
         <span className={`shrink-0 ${meta.iconTint}`}>{meta.icon}</span>
-        <span className="text-black/45 dark:text-white/50">{meta.label}:</span>
+        {/* Phones show icon + percent only, so the badge shares one row with
+            the countdown chip; the label and ₼ delta live in the popover
+            (and return inline on sm+). */}
+        <span className="hidden text-black/45 dark:text-white/50 sm:inline">
+          {meta.label}:
+        </span>
         <span className={`num font-semibold ${numberTone}`}>{pct}</span>
         {showDelta ? (
-          <Masked mask="••••" className="text-black/45 dark:text-white/50">
-            <span className={`num opacity-90 ${numberTone}`}>({delta})</span>
-          </Masked>
+          <span className="hidden sm:inline">
+            <Masked mask="••••" className="text-black/45 dark:text-white/50">
+              <span className={`num opacity-90 ${numberTone}`}>({delta})</span>
+            </Masked>
+          </span>
         ) : null}
       </button>
 

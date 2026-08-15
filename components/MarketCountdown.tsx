@@ -62,7 +62,12 @@ export function MarketCountdown({
     >
       <RefreshTimer />
       <span className={marketOpen ? "text-brand-green dark:text-emerald-400" : "text-black/45 dark:text-white/50"}>
-        {marketOpen ? "ABŞ bazarları açıqdır" : "ABŞ bazarları bağlıdır"}
+        {/* Phones get the short form so the chip shares one row with the
+            extended-hours badge; the title attribute keeps the full context. */}
+        <span className="hidden sm:inline">
+          {marketOpen ? "ABŞ bazarları açıqdır" : "ABŞ bazarları bağlıdır"}
+        </span>
+        <span className="sm:hidden">{marketOpen ? "Açıqdır" : "Bağlıdır"}</span>
       </span>
       <span className="text-black/20 dark:text-white/30">·</span>
       <span className="text-black/45 dark:text-white/50">
