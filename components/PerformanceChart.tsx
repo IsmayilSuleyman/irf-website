@@ -169,7 +169,9 @@ export function PerformanceChart({
         <span className="text-[14px] uppercase tracking-[0.22em] text-brand-green/80">
           Tarixçə
         </span>
-        <div className="flex items-center gap-2">
+        {/* ml-auto keeps the cluster on the right even when narrow screens
+            wrap it onto its own line below the title. */}
+        <div className="ml-auto flex items-center gap-2">
           {/* On phones the pill rides in the chart's top-right corner instead
               (see below), where there is empty plot area and the control row
               is already tight. */}
