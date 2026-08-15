@@ -525,8 +525,10 @@ export default async function DashboardPage({
                       ? {
                           units: effectiveUnits,
                           avgBuyAzn: perf.avgBuyPrice,
+                          priceAzn: fund.unitPrice,
                           valueAzn: holdingValue,
                           dayChangePct: unitDayPct,
+                          dayChangeAzn: dayChange,
                           totalPnlAzn: holdingPnl,
                         }
                       : null
