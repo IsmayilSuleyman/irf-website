@@ -162,13 +162,12 @@ export function PerformanceChart({
 
   return (
     <div className="glass w-full p-6">
-      {/* Header: series label left, mode switch right; the range buttons
+      {/* Header: one short label left ("Tarixçə" — the mode buttons beside
+          it already name the series), mode switch right; the range buttons
           moved below the plot (Yahoo-app composition, see bottom). */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <span className="text-[10px] uppercase tracking-[0.22em] text-brand-green/80">
-          {mode === "price"
-            ? "1 payın qiymətinin tarixçəsi"
-            : "Sahiblik dəyərinin tarixçəsi"}
+          Tarixçə
         </span>
         <div className="flex items-center gap-2">
           {/* On phones the pill rides in the chart's top-right corner instead
