@@ -273,7 +273,9 @@ export function ChartSummary({
         >
           {masked ? <Masked mask="••••">{headline}</Masked> : headline}
         </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
+        {/* ml-auto: when a long figure wraps the cluster onto its own line,
+            it stays docked to the card's right edge. */}
+        {action ? <div className="ml-auto shrink-0">{action}</div> : null}
       </div>
       <div className="flex flex-col gap-1">
         {line(dayChange, "bu gün")}

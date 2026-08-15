@@ -166,10 +166,13 @@ export function PerformanceChart({
           it already name the series), mode switch right; the range buttons
           moved below the plot (Yahoo-app composition, see bottom). */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[14px] uppercase tracking-[0.22em] text-brand-green/80">
+        {/* Phone sizes are trimmed so the title and both mode buttons share
+            ONE line on ≥360px screens; ml-auto keeps the cluster right-
+            aligned if an ultra-narrow screen still wraps it. */}
+        <span className="whitespace-nowrap text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           Tarixçə
         </span>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {/* On phones the pill rides in the chart's top-right corner instead
               (see below), where there is empty plot area and the control row
               is already tight. */}
@@ -184,7 +187,7 @@ export function PerformanceChart({
                   type="button"
                   onClick={() => setMode(m.key)}
                   aria-pressed={mode === m.key}
-                  className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
+                  className={`whitespace-nowrap rounded-lg border px-1 py-1.5 text-center text-[10px] font-medium tracking-[0.02em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
                     mode === m.key
                       ? "border-brand-green bg-brand-green text-white shadow-sm"
                       : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
