@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import {
   getFundData,
@@ -22,7 +21,7 @@ import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
 import { PerformanceChart } from "@/components/PerformanceChart";
-import { Greeting, HeroPrice, HoldingSummary } from "@/components/HeroPrice";
+import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
 import { UnitPriceRow } from "@/components/UnitPriceRow";
 import { getMarketTicker } from "@/lib/marketTicker";
@@ -273,6 +272,16 @@ export default async function DashboardPage({
     previousPricePoint && previousPricePoint.price > 0
       ? fund.unitPrice / previousPricePoint.price - 1
       : null;
+  // Unit-price deltas for the chart card's price-mode headline: day vs the
+  // last recorded point, and the 3-month move (İsmayıl's pick over an
+  // all-time figure) from the same reference computePeriodChanges uses.
+  const unitDayChange = previousPricePoint
+    ? fund.unitPrice - previousPricePoint.price
+    : null;
+  const unit3mChange =
+    periodChanges.m3.pastPrice != null
+      ? fund.unitPrice - periodChanges.m3.pastPrice
+      : null;
   const holdingValue = fund.unitPrice * effectiveUnits;
   const holdingPnl =
     perf.avgBuyPrice != null ? perf.pnlAzn : null;
@@ -372,16 +381,6 @@ export default async function DashboardPage({
                     history={extendedHistory}
                   />
                 )}
-                {!fundView && (
-                  <Link
-                    href="/market"
-                    aria-label="Bazara keç"
-                    title="Bazar"
-                    className="group ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-brand-green/30 bg-brand-green/10 text-brand-green shadow-sm transition hover:bg-brand-green/20 dark:text-emerald-400"
-                  >
-                    <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
-                  </Link>
-                )}
               </div>
             }
           />
@@ -415,10 +414,21 @@ export default async function DashboardPage({
                 data={chartData}
                 priceData={priceChartData}
                 hero={
-                  <HoldingSummary
+                  <ChartSummary
                     value={holdingValue}
                     dayChange={dayChange}
                     totalChange={holdingPnl}
+                    units={effectiveUnits}
+                    avgBuyPrice={perf.avgBuyPrice}
+                  />
+                }
+                priceHero={
+                  <ChartSummary
+                    masked={false}
+                    value={fund.unitPrice}
+                    dayChange={unitDayChange}
+                    totalChange={unit3mChange}
+                    totalLabel="son 3 ayda"
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
                   />

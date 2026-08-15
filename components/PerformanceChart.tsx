@@ -58,15 +58,18 @@ export function PerformanceChart({
   data,
   priceData,
   hero,
+  priceHero,
 }: {
   data: Point[];
   priceData?: Point[];
   /**
-   * Optional summary block (holding value + change lines) rendered inside
+   * Optional summary block (headline figure + change lines) rendered inside
    * the card between the header and the plot — the Yahoo-app "portfolio
-   * performance" composition.
+   * performance" composition. `hero` shows in value mode, `priceHero` in
+   * price mode, so the headline always matches the plotted series.
    */
   hero?: ReactNode;
+  priceHero?: ReactNode;
 }) {
   const { hidden } = usePrivacy();
   const hasValue = data != null && data.length > 0;
@@ -195,7 +198,7 @@ export function PerformanceChart({
           )}
         </div>
       </div>
-      {hero}
+      {mode === "price" ? priceHero : hero}
       <div className="relative h-72">
         {/* Phone placement: inside the plot, top right. pointer-events-none so
             it never swallows a tap meant for the chart's tooltip. */}

@@ -197,34 +197,49 @@ function FundHero({
 }
 
 /**
- * The Yahoo-style holding summary that sits inside the performance chart
- * card (personal view): the value, its day/total change with percentages,
- * and the units line. Percentages derive from the value itself so they can
- * never disagree with the ₼ figures beside them; they stay visible in
- * hide-amounts mode like every other return in the app.
+ * The Yahoo-style summary that sits inside the performance chart card
+ * (personal view): the headline figure, its day/total change with
+ * percentages, and the units line. Percentages derive from the value
+ * itself so they can never disagree with the ₼ figures beside them; they
+ * stay visible in hide-amounts mode like every other return in the app.
+ * Value mode shows the personal holding (masked in hide-amounts mode);
+ * price mode passes masked=false — the unit price is the same public
+ * number for every holder.
  */
-export function HoldingSummary({
+export function ChartSummary({
   value,
   dayChange,
   totalChange,
   units,
   avgBuyPrice,
+  masked = true,
+  totalLabel = "ümumi fərq",
 }: {
   value: number;
   dayChange: number | null;
   totalChange: number | null;
   units: number;
   avgBuyPrice: number | null;
+  masked?: boolean;
+  /** Second line's label — "ümumi fərq" by default, "son 3 ayda" in price mode. */
+  totalLabel?: string;
 }) {
   const line = (amount: number | null, label: string) => {
     if (amount == null) return null;
     const base = value - amount;
     const pct = base > 0 ? amount / base : null;
+    const amountNode = (
+      <span className={changeTone(amount)}>{changeText(amount)}</span>
+    );
     return (
       <div className="num text-xs font-medium">
-        <Masked mask="••••" className={MASK_TONE}>
-          <span className={changeTone(amount)}>{changeText(amount)}</span>
-        </Masked>
+        {masked ? (
+          <Masked mask="••••" className={MASK_TONE}>
+            {amountNode}
+          </Masked>
+        ) : (
+          amountNode
+        )}
         {pct != null ? (
           <span className={changeTone(amount)}>
             {" "}
@@ -239,19 +254,19 @@ export function HoldingSummary({
     );
   };
 
+  const headline = <Odometer value={value} fractionDigits={2} suffix="₼" />;
+
   return (
     <div className="mb-5 flex flex-col gap-2">
       <div
         className="num font-black leading-none tracking-tight"
         style={{ fontSize: "clamp(2.75rem, 8vw, 4rem)" }}
       >
-        <Masked mask="••••">
-          <Odometer value={value} fractionDigits={2} suffix="₼" />
-        </Masked>
+        {masked ? <Masked mask="••••">{headline}</Masked> : headline}
       </div>
       <div className="flex flex-col gap-1">
         {line(dayChange, "bu gün")}
-        {line(totalChange, "ümumi fərq")}
+        {line(totalChange, totalLabel)}
       </div>
       <div className="text-xs text-black/45 dark:text-white/50">
         <Masked mask="••">{formatUnits(units)}</Masked> pay · ortalama alış
