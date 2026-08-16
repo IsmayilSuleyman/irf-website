@@ -24,14 +24,12 @@ import {
 } from "@/lib/priceHistory";
 import { getHolderMarketState } from "@/lib/holdings";
 import { getMarketQuotes } from "@/lib/market";
-import { bestQuotes, buyPrice, sellPrice } from "@/lib/priceMath";
 import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
 import { PerformanceChart } from "@/components/PerformanceChart";
 import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
-import { UnitPriceRow } from "@/components/UnitPriceRow";
 import { getMarketTicker } from "@/lib/marketTicker";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
@@ -342,17 +340,6 @@ export default async function DashboardPage({
     ? holdings.reduce((s, h) => s + (h.dayChangeUsd ?? 0), 0)
     : null;
 
-  // Badge prices reflect the live order book (best bid/ask) on top of the Fund
-  // quote; fall back to the plain Fund ±commission quote if market data is down.
-  const badgeQuotes = marketQuotes
-    ? bestQuotes(
-        fund.unitPrice,
-        marketQuotes.bestBuyOrder,
-        marketQuotes.bestSellOrder,
-        marketQuotes.fundCanSell,
-      )
-    : { ask: buyPrice(fund.unitPrice), bid: sellPrice(fund.unitPrice) };
-
   // Personal ETF desk: the viewer's positions from the Aktivlər ledger,
   // valued at live ETF quotes (SPY/IBIT/GLDM/SIVR — what holders actually
   // buy, unlike the tiles' headline indices), plus per-tile info for the
@@ -560,16 +547,15 @@ export default async function DashboardPage({
                 }
               />
             </MotionSection>
-            <MotionSection delay={0.08} className="-mt-12">
-              <UnitPriceRow ask={badgeQuotes.ask} bid={badgeQuotes.bid} />
-            </MotionSection>
             {/* Aktivlərim — the viewer's whole personal book: İRF pays
-                first, then ETF positions from the Aktivlər ledger. */}
+                first, then ETF positions from the Aktivlər ledger. Sits
+                right under the chart card (the unit-price row is gone —
+                Alış/Satış live on /market). */}
             {(assetPositions.length > 0 || effectiveUnits > 0) && (
               <MotionSection
                 id="aktivlerim"
-                delay={0.1}
-                className="scroll-mt-32 hairline -mt-8 pt-6"
+                delay={0.08}
+                className="scroll-mt-32 -mt-11"
               >
                 <AssetHoldingsCard
                   positions={assetPositions}
