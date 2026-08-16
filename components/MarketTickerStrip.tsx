@@ -30,6 +30,17 @@ export type TileAsset = {
 const fmtPct = (changePct: number) =>
   `${changePct >= 0 ? "+" : "−"}${formatGroupedTrim(Math.abs(changePct) * 100, 2)}%`;
 
+// One-breath primers for the tile panels — what the index/asset is and
+// which ETF İsmayıl buys to track it.
+const DESCRIPTIONS: Record<string, string> = {
+  sp500:
+    "ABŞ-ın 500 ən böyük şirkətini əhatə edən fond indeksi — dünya bazarının əsas barometri. SPY bu indeksi izləyən ETF-dir.",
+  btc: "Bitcoin — ən böyük kriptovalyuta. IBIT (iShares Bitcoin Trust) onun qiymətini birbaşa izləyən ETF-dir.",
+  gold: "Qızıl — klassik qoruyucu aktiv, inflyasiyaya qarşı sığorta. GLDM fiziki qızılı izləyən ETF-dir.",
+  silver:
+    "Gümüş — həm qiymətli metal, həm sənaye xammalı. SIVR fiziki gümüşü izləyən ETF-dir.",
+};
+
 const toneOf = (changePct: number | null) =>
   changePct == null
     ? "text-black/45 dark:text-white/50"
@@ -262,9 +273,71 @@ export function MarketTickerStrip({
               ) : null}
             </span>
           </div>
-          {/* Positions read as money, not fractional unit counts — İsmayıl's
-              call for the whole personal-assets surface. */}
-          <div className="mt-1.5 text-black/55 dark:text-white/60">
+
+          {/* 1. What this asset is. */}
+          {openKey != null && DESCRIPTIONS[openKey] ? (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-black/55 dark:text-white/60">
+              {DESCRIPTIONS[openKey]}
+            </p>
+          ) : null}
+
+          {/* 2. Five years of price history. */}
+          {(() => {
+            const hist = quotes.find((x) => x.key === openKey)?.history5y ?? [];
+            if (hist.length < 2) return null;
+            const pct5y = hist[0] > 0 ? hist[hist.length - 1] / hist[0] - 1 : null;
+            const line = sparkPath(hist, 100, 30, 2);
+            const gid = `hist-${openKey}`;
+            return (
+              <div className="mt-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[10px] uppercase tracking-[0.14em] text-black/45 dark:text-white/50">
+                    Son 5 il
+                  </span>
+                  {pct5y != null ? (
+                    <span className={`num text-[11px] font-semibold ${toneOf(pct5y)}`}>
+                      {fmtPct(pct5y)}
+                    </span>
+                  ) : null}
+                </div>
+                <svg
+                  viewBox="0 0 100 30"
+                  preserveAspectRatio="none"
+                  aria-hidden
+                  className={`mt-1 h-16 w-full sm:h-20 ${toneOf(pct5y)}`}
+                >
+                  <defs>
+                    <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="0%"
+                        stopColor="currentColor"
+                        stopOpacity="0.22"
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="currentColor"
+                        stopOpacity="0"
+                      />
+                    </linearGradient>
+                  </defs>
+                  <path d={`${line} L100 30 L0 30 Z`} fill={`url(#${gid})`} />
+                  <path
+                    d={line}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity="0.85"
+                  />
+                </svg>
+              </div>
+            );
+          })()}
+
+          {/* 3. Your position. Positions read as money, not fractional unit
+              counts — İsmayıl's call for the whole personal-assets surface. */}
+          <div className="mt-2.5 text-black/55 dark:text-white/60">
             {open.units > 0 ? (
               <>
                 Sizin mövqeyiniz:{" "}
