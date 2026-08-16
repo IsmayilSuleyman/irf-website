@@ -523,8 +523,9 @@ export function AllocationList({
                   </span>
                   {/* Company name under the ticker (aligns with the badge
                       row); on phones only the name shows here — the extras
-                      wrapper unhides at sm via display:contents. */}
-                  <div className="-mt-1 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      wrapper unhides at sm via display:contents. Small
+                      positive gap, matching Aktivlərim. */}
+                  <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                     {secondary && (
                       <span className="min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
                         {secondary}
