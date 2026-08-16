@@ -1,5 +1,5 @@
 import { unstable_cache } from "next/cache";
-import { getExtendedQuotes } from "@/lib/yahoo";
+import { getExtendedQuotes, getIntradaySpark } from "@/lib/yahoo";
 
 // The dashboard's Yahoo-style ticker strip: a fixed basket of world
 // benchmarks shown next to the fund's own unit price. Brent is the oil
@@ -15,6 +15,8 @@ export type TickerQuote = {
    * Yahoo omits the previous close.
    */
   changePct: number | null;
+  /** The latest session's intraday closes, for the tile sparkline. */
+  spark: number[];
 };
 
 const INSTRUMENTS = [
@@ -29,20 +31,26 @@ const INSTRUMENTS = [
 // viewer (same recipe as the extended-portfolio quote cache).
 const getCachedTicker = unstable_cache(
   async (): Promise<TickerQuote[]> => {
-    const quotes = await getExtendedQuotes(INSTRUMENTS.map((i) => i.symbol));
+    // Quotes and per-instrument intraday sparks in one parallel pass; a
+    // failed spark is just an empty line, never a missing tile.
+    const [quotes, sparks] = await Promise.all([
+      getExtendedQuotes(INSTRUMENTS.map((i) => i.symbol)),
+      Promise.all(INSTRUMENTS.map((i) => getIntradaySpark(i.symbol))),
+    ]);
     const out: TickerQuote[] = [];
-    for (const inst of INSTRUMENTS) {
+    INSTRUMENTS.forEach((inst, i) => {
       const q = quotes.get(inst.symbol);
       const price = q?.regularMarketPrice;
-      if (price == null || price <= 0) continue;
+      if (price == null || price <= 0) return;
       const prev = q?.regularMarketPreviousClose;
       out.push({
         key: inst.key,
         label: inst.label,
         price,
         changePct: prev != null && prev > 0 ? price / prev - 1 : null,
+        spark: sparks[i] ?? [],
       });
-    }
+    });
     return out;
   },
   ["market-ticker-quotes"],

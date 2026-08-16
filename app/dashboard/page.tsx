@@ -490,7 +490,14 @@ export default async function DashboardPage({
           ) : (
             <MarketTickerStrip
               quotes={marketTicker}
-              irf={{ priceAzn: fund.unitPrice, changePct: unitDayPct }}
+              irf={{
+                priceAzn: fund.unitPrice,
+                changePct: unitDayPct,
+                // Unit-price history stands in for an intraday line — the
+                // pay reprices daily, so its "movement" is the last stretch
+                // of recorded prices.
+                spark: priceChartData.slice(-30).map((p) => p.value),
+              }}
               assets={tileAssets}
               showBuyHint={!isAdmin}
               statusRow={

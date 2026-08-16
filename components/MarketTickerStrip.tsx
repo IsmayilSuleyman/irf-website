@@ -37,11 +37,90 @@ const toneOf = (changePct: number | null) =>
       ? "text-brand-green dark:text-emerald-400"
       : "text-brand-red dark:text-red-400";
 
+/** Normalize a series into an SVG path over a w×h box (padded vertically). */
+function sparkPath(values: number[], w: number, h: number, pad: number): string {
+  if (values.length < 2) return "";
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const step = w / (values.length - 1);
+  return values
+    .map(
+      (v, i) =>
+        `${i === 0 ? "M" : "L"}${(i * step).toFixed(2)} ${(
+          h - pad - ((v - min) / span) * (h - pad * 2)
+        ).toFixed(2)}`,
+    )
+    .join(" ");
+}
+
+/**
+ * The day's movement as a soft glowing line behind the tile content: a
+ * blurred glow pass under a crisp line, with a gradient wash fading toward
+ * the tile floor. Colors ride currentColor so the day's direction tints
+ * everything at once. Tiny fixed-size layer — no measurable GPU cost.
+ */
+function TileSpark({
+  values,
+  changePct,
+  gradientId,
+}: {
+  values: number[];
+  changePct: number | null;
+  gradientId: string;
+}) {
+  const line = sparkPath(values, 100, 26, 3);
+  if (!line) return null;
+  const area = `${line} L100 26 L0 26 Z`;
+  return (
+    <svg
+      viewBox="0 0 100 26"
+      preserveAspectRatio="none"
+      aria-hidden
+      className={`pointer-events-none absolute inset-x-0 bottom-0 h-9 w-full ${
+        changePct != null && changePct < 0
+          ? "text-brand-red dark:text-red-400"
+          : "text-brand-green dark:text-emerald-400"
+      }`}
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gradientId})`} />
+      {/* Glow pass: same line, wider and blurred, under the crisp stroke. */}
+      <path
+        d={line}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.35"
+        style={{ filter: "blur(2.5px)" }}
+      />
+      <path
+        d={line}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.75"
+      />
+    </svg>
+  );
+}
+
 function Tile({
   label,
   price,
   changePct,
   icon,
+  spark,
+  sparkId,
   expandable = false,
   selected = false,
   onClick,
@@ -50,32 +129,44 @@ function Tile({
   price: string;
   changePct: number | null;
   icon?: ReactNode;
+  spark?: number[];
+  sparkId: string;
   expandable?: boolean;
   selected?: boolean;
   onClick?: () => void;
 }) {
   const inner = (
     <>
-      <div className="flex items-center gap-1.5">
+      {spark && spark.length > 1 ? (
+        <TileSpark
+          values={spark}
+          changePct={changePct}
+          gradientId={`spark-${sparkId}`}
+        />
+      ) : null}
+      <div className="relative flex items-center gap-1.5">
         {icon}
         <span className="truncate text-[10px] font-semibold text-black/55 dark:text-white/60">
           {label}
         </span>
       </div>
-      <div className="num mt-1.5 whitespace-nowrap text-[13px] font-semibold text-black/85 dark:text-white/90">
+      <div className="num relative mt-1.5 whitespace-nowrap text-[13px] font-semibold text-black/85 dark:text-white/90">
         {price}
       </div>
-      <div className={`num mt-0.5 text-[10px] font-semibold ${toneOf(changePct)}`}>
+      <div
+        className={`num relative mt-0.5 text-[10px] font-semibold ${toneOf(changePct)}`}
+      >
         {changePct == null ? "—" : fmtPct(changePct)}
       </div>
     </>
   );
-  const base = "min-w-[6.25rem] flex-1 rounded-xl border px-3 py-2.5 shadow-sm";
+  // Glossy shell: vertical sheen gradient + a hairline top highlight; the
+  // sparkline layer sits behind the relatively-positioned content above.
+  const base =
+    "relative min-w-[6.25rem] flex-1 overflow-hidden rounded-xl border px-3 py-2.5 shadow-sm bg-gradient-to-b from-white/90 via-white/65 to-white/50 dark:from-white/15 dark:via-white/[0.07] dark:to-white/[0.03] [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.35),0_1px_2px_0_rgba(0,0,0,0.05)]";
   if (!expandable) {
     return (
-      <div
-        className={`${base} border-black/10 bg-white/70 dark:border-white/10 dark:bg-white/10`}
-      >
+      <div className={`${base} border-black/10 dark:border-white/10`}>
         {inner}
       </div>
     );
@@ -87,8 +178,8 @@ function Tile({
       aria-expanded={selected}
       className={`${base} text-left transition ${
         selected
-          ? "border-brand-green/60 bg-brand-green/10 dark:border-emerald-400/60 dark:bg-brand-green/15"
-          : "border-black/10 bg-white/70 hover:border-brand-green/40 dark:border-white/10 dark:bg-white/10 dark:hover:border-emerald-400/40"
+          ? "border-brand-green/60 ring-1 ring-inset ring-brand-green/30 dark:border-emerald-400/60"
+          : "border-black/10 hover:border-brand-green/40 dark:border-white/10 dark:hover:border-emerald-400/40"
       }`}
     >
       {inner}
@@ -104,8 +195,8 @@ export function MarketTickerStrip({
   showBuyHint = true,
 }: {
   quotes: TickerQuote[];
-  /** The fund's own tile: unit price in AZN + its day change. */
-  irf: { priceAzn: number; changePct: number | null };
+  /** The fund's own tile: unit price in AZN + its day change + price history sparkline. */
+  irf: { priceAzn: number; changePct: number | null; spark?: number[] };
   /** The countdown / extended-hours chips row rendered below the tiles. */
   statusRow?: ReactNode;
   /** Purchasable-ETF info per instrument key; tiles without one stay static. */
@@ -133,6 +224,8 @@ export function MarketTickerStrip({
             price={`${formatGrouped(q.price, 2)}$`}
             changePct={q.changePct}
             icon={ASSET_ICONS[q.key]}
+            spark={q.spark}
+            sparkId={q.key}
             expandable={assets?.[q.key] != null}
             selected={openKey === q.key}
             onClick={() =>
@@ -145,6 +238,8 @@ export function MarketTickerStrip({
           price={`${formatGrouped(irf.priceAzn, 2)}₼`}
           changePct={irf.changePct}
           icon={ASSET_ICONS.irf}
+          spark={irf.spark}
+          sparkId="irf"
         />
       </div>
       {open && (
