@@ -150,11 +150,11 @@ function Tile({
           {label}
         </span>
       </div>
-      <div className="num relative mt-1.5 whitespace-nowrap text-[13px] font-semibold text-black/85 dark:text-white/90">
+      <div className="num tile-figure relative mt-1.5 whitespace-nowrap text-[13px] font-semibold text-black/85 dark:text-white/90">
         {price}
       </div>
       <div
-        className={`num relative mt-0.5 text-[10px] font-semibold ${toneOf(changePct)}`}
+        className={`num tile-figure relative mt-0.5 text-[10px] font-semibold ${toneOf(changePct)}`}
       >
         {changePct == null ? "—" : fmtPct(changePct)}
       </div>
