@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   formatAzn,
   formatGrouped,
@@ -253,7 +254,18 @@ export function MarketTickerStrip({
           sparkId="irf"
         />
       </div>
+      {/* Unfold animation; mode="wait" + key means switching tiles collapses
+          the old panel before the next one slides open. */}
+      <AnimatePresence initial={false} mode="wait">
       {open && (
+        <motion.div
+          key={openKey}
+          initial={{ height: 0, opacity: 0, y: -6 }}
+          animate={{ height: "auto", opacity: 1, y: 0 }}
+          exit={{ height: 0, opacity: 0, y: -6 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="overflow-hidden"
+        >
         <div className="rounded-xl border border-brand-green/30 bg-brand-green/5 px-3.5 py-3 text-[12px]">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span className="font-semibold text-black/85 dark:text-white/90">
@@ -361,7 +373,9 @@ export function MarketTickerStrip({
             </div>
           )}
         </div>
+        </motion.div>
       )}
+      </AnimatePresence>
       {statusRow}
     </div>
   );
