@@ -302,7 +302,7 @@ body {
   color: transparent;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 0 9px var(--name-glow));
-  animation: hero-name-shimmer 4.5s ease-in-out infinite;
+  animation: hero-name-shimmer 8s ease-in-out infinite;
 }
 /* Both endpoints park the highlight outside the visible window, so the
    loop's jump back is invisible. */
