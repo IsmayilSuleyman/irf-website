@@ -28,17 +28,32 @@ export const ASSET_ICONS: Record<string, ReactNode> = {
       ₿
     </span>
   ),
+  // Bullion bars — a small ingot stacked on a big one. Gold is the filled
+  // stack, silver the outlined one; both stay in the site's gray scale.
   gold: (
-    <span
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3 w-3 shrink-0 text-black/45 dark:text-white/55"
+      fill="currentColor"
       aria-hidden
-      className="h-3 w-3 shrink-0 rounded-full bg-black/30 dark:bg-white/40"
-    />
+    >
+      <path d="M9 5h6l2.4 4.5H6.6L9 5Z" />
+      <path d="M6.5 12.5h11L20 18H4l2.5-5.5Z" />
+    </svg>
   ),
   silver: (
-    <span
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3 w-3 shrink-0 text-black/45 dark:text-white/55"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinejoin="round"
       aria-hidden
-      className="h-3 w-3 shrink-0 rounded-full border-[1.5px] border-black/40 dark:border-white/50"
-    />
+    >
+      <path d="M9 5h6l2.4 4.5H6.6L9 5Z" />
+      <path d="M6.5 12.5h11L20 18H4l2.5-5.5Z" />
+    </svg>
   ),
   oil: (
     <svg
