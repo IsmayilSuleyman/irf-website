@@ -515,7 +515,7 @@ export default async function DashboardPage({
             plain fund hero next to the shareholders list — its dedicated
             "Ümumfond dəyər tarixçəsi" chart comes later. */}
         {fundView ? (
-          <MotionSection delay={0.05} className="-mt-6 grid grid-cols-1 items-end gap-x-12 gap-y-6 lg:grid-cols-3">
+          <MotionSection delay={0.05} className="-mt-11 grid grid-cols-1 items-end gap-x-12 gap-y-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <HeroPrice
                 variant="fund"
@@ -532,7 +532,7 @@ export default async function DashboardPage({
           </MotionSection>
         ) : (
           <>
-            <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-6">
+            <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-11">
               <PerformanceChart
                 data={bookChartData}
                 priceData={priceChartData}
