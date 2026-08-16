@@ -53,17 +53,14 @@ export function Greeting({
       <div className="flex items-center justify-between gap-2">
         <div className="text-[13px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400">
           Xoş gəldin,
-          <span className="hero-name hidden text-[16px] sm:inline">
-            {" "}
-            {holderName}
-          </span>
+          <span className="hero-name hidden sm:inline"> {holderName}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {privacyToggle}
           {toggle}
         </div>
       </div>
-      <div className="hero-name text-[16px] font-semibold uppercase tracking-[0.22em] sm:hidden">
+      <div className="hero-name text-[13px] font-semibold uppercase tracking-[0.22em] sm:hidden">
         {holderName}
       </div>
     </div>
@@ -104,7 +101,7 @@ export function HeroPrice(props: PersonalProps | FundProps) {
             money figure a notch smaller in BOTH dashboard views. */}
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)" }}
+          style={{ fontSize: "clamp(3rem, 9.35vw, 5.95rem)" }}
         >
           <Masked mask="••••">
             <Odometer value={holdingValue} fractionDigits={2} suffix="₼" />
@@ -170,7 +167,7 @@ function FundHero({
             calmer slightly smaller. */}
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(3.5rem, 11vw, 7rem)" }}
+          style={{ fontSize: "clamp(3rem, 9.35vw, 5.95rem)" }}
         >
           <Masked mask="••••">
             <Odometer value={value} fractionDigits={2} suffix="₼" />
@@ -266,7 +263,7 @@ export function ChartSummary({
     <div className="mb-5 flex flex-col gap-2">
       <div
         className="num font-black leading-none tracking-tight"
-        style={{ fontSize: "clamp(2.75rem, 8vw, 4rem)" }}
+        style={{ fontSize: "clamp(2.34rem, 6.8vw, 3.4rem)" }}
       >
         {masked ? <Masked mask="••••">{headline}</Masked> : headline}
       </div>

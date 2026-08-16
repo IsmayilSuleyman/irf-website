@@ -89,7 +89,7 @@ function TileSpark({
       viewBox="0 0 100 26"
       preserveAspectRatio="none"
       aria-hidden
-      className={`pointer-events-none absolute inset-x-0 bottom-0 h-9 w-full ${
+      className={`pointer-events-none absolute inset-x-0 bottom-0 h-1/2 w-full ${
         changePct != null && changePct < 0
           ? "text-brand-red dark:text-red-400"
           : "text-brand-green dark:text-emerald-400"
@@ -162,7 +162,7 @@ function Tile({
           {label}
         </span>
       </div>
-      <div className="num tile-figure relative mt-1.5 whitespace-nowrap text-[13px] font-semibold text-black/85 dark:text-white/90">
+      <div className="num tile-figure relative mt-auto whitespace-nowrap text-[13px] font-semibold text-black/85 dark:text-white/90">
         {price}
       </div>
       <div
@@ -174,8 +174,10 @@ function Tile({
   );
   // Glossy shell: vertical sheen gradient + a hairline top highlight; the
   // sparkline layer sits behind the relatively-positioned content above.
+  // aspect-square: Yahoo-card proportions — label pinned top, figures
+  // bottom (mt-auto), the sparkline filling the lower half behind them.
   const base =
-    "relative min-w-[6.25rem] flex-1 overflow-hidden rounded-xl border px-3 py-2.5 shadow-sm bg-gradient-to-b from-white/80 via-white/60 to-white/50 dark:from-white/10 dark:via-white/[0.05] dark:to-white/[0.03] [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.22),0_1px_2px_0_rgba(0,0,0,0.05)]";
+    "relative flex aspect-square min-w-[6.25rem] flex-1 flex-col overflow-hidden rounded-xl border px-3 py-2.5 shadow-sm bg-gradient-to-b from-white/80 via-white/60 to-white/50 dark:from-white/10 dark:via-white/[0.05] dark:to-white/[0.03] [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.22),0_1px_2px_0_rgba(0,0,0,0.05)]";
   if (!expandable) {
     return (
       <div className={`${base} border-black/10 dark:border-white/10`}>
