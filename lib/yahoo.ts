@@ -69,6 +69,45 @@ export async function getDailyCloses(
   return out;
 }
 
+/**
+ * The latest session's intraday closes (15-minute bars) for one symbol —
+ * the ticker tiles' sparkline. "Latest session" is the last trading day
+ * present in the feed, grouped in the exchange's own timezone (meta
+ * gmtoffset), so a Saturday render still shows Friday's curve and 24/7
+ * instruments (BTC-USD) show their current UTC day. [] on any failure.
+ */
+export async function getIntradaySpark(symbol: string): Promise<number[]> {
+  try {
+    const res = (await yahooFinance.chart(
+      toYahooSymbol(symbol),
+      {
+        period1: new Date(Date.now() - 3 * 86_400_000),
+        interval: "15m",
+      },
+      { validateResult: false },
+    )) as unknown as {
+      meta?: { gmtoffset?: unknown };
+      quotes?: Array<{ date?: unknown; close?: unknown }>;
+    };
+    const pts: Array<{ t: number; c: number }> = [];
+    for (const q of res?.quotes ?? []) {
+      const c = Number(q?.close);
+      const d =
+        q?.date instanceof Date ? q.date : new Date(String(q?.date ?? ""));
+      if (!Number.isFinite(c) || c <= 0 || Number.isNaN(d.getTime())) continue;
+      pts.push({ t: d.getTime(), c });
+    }
+    if (pts.length < 2) return [];
+    pts.sort((a, b) => a.t - b.t);
+    const offMs = (Number(res?.meta?.gmtoffset) || 0) * 1000;
+    const dayOf = (ms: number) => Math.floor((ms + offMs) / 86_400_000);
+    const lastDay = dayOf(pts[pts.length - 1].t);
+    return pts.filter((p) => dayOf(p.t) === lastDay).map((p) => p.c);
+  } catch {
+    return [];
+  }
+}
+
 export type IndexSnapshot = { price: number; allTimeHigh: number };
 
 /**

@@ -257,6 +257,19 @@ body {
   stroke: #10150f !important;
 }
 
+/* Ticker tiles: a soft halo in the tile's own background tone behind the
+   figures, so they stay legible over the sparkline glowing beneath them. */
+.tile-figure {
+  text-shadow:
+    0 1px 2px rgba(255, 255, 255, 0.9),
+    0 0 6px rgba(255, 255, 255, 0.65);
+}
+.dark .tile-figure {
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.7),
+    0 0 6px rgba(0, 0, 0, 0.55);
+}
+
 /* Greeting name — gradient text with a soft brand glow and a slow shimmer
    sweep (a highlight crosses ~every 4.5s, then rests). One short text node,
    so the effect costs next to nothing; the sweep stops entirely for

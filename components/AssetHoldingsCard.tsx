@@ -370,7 +370,7 @@ export function AssetHoldingsCard({
                     </span>
                     {/* Just the asset's name — the exact figures (maya, %,
                         units, avg) live in the drill-down below. */}
-                    <span className="-mt-1 min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
+                    <span className="mt-0.5 min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
                       {row.name}
                     </span>
                   </div>

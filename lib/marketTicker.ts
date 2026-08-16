@@ -1,5 +1,9 @@
 import { unstable_cache } from "next/cache";
-import { getExtendedQuotes } from "@/lib/yahoo";
+import {
+  getDailyCloses,
+  getExtendedQuotes,
+  getIntradaySpark,
+} from "@/lib/yahoo";
 
 // The dashboard's Yahoo-style ticker strip: a fixed basket of world
 // benchmarks shown next to the fund's own unit price. Brent is the oil
@@ -15,7 +19,35 @@ export type TickerQuote = {
    * Yahoo omits the previous close.
    */
   changePct: number | null;
+  /** The latest session's intraday closes, for the tile sparkline. */
+  spark: number[];
+  /** Five years of daily closes, downsampled — the tile panel's history chart. */
+  history5y: number[];
 };
+
+// Daily closes move once a day; cache the 5-year series long (6h) and let
+// the 60s ticker cache read it cheaply. Downsampled to ≤120 points — plenty
+// for a panel-height curve — always keeping the true last close.
+const getCached5y = unstable_cache(
+  async (symbol: string): Promise<number[]> => {
+    try {
+      const closes = await getDailyCloses(symbol, 5 * 365 + 30);
+      const values = closes.map((c) => c.close);
+      if (values.length < 2) return [];
+      const stride = Math.max(1, Math.ceil(values.length / 120));
+      const out = values.filter((_, i) => i % stride === 0);
+      if (out[out.length - 1] !== values[values.length - 1]) {
+        out.push(values[values.length - 1]);
+      }
+      return out;
+    } catch (err) {
+      console.error(`[market-ticker] 5y closes failed for ${symbol}:`, err);
+      return [];
+    }
+  },
+  ["market-ticker-5y"],
+  { revalidate: 21600 },
+);
 
 const INSTRUMENTS = [
   { key: "sp500", label: "S&P 500", symbol: "^GSPC" },
@@ -29,20 +61,28 @@ const INSTRUMENTS = [
 // viewer (same recipe as the extended-portfolio quote cache).
 const getCachedTicker = unstable_cache(
   async (): Promise<TickerQuote[]> => {
-    const quotes = await getExtendedQuotes(INSTRUMENTS.map((i) => i.symbol));
+    // Quotes, intraday sparks and 5y histories in one parallel pass; a
+    // failed series is just an empty line, never a missing tile.
+    const [quotes, sparks, histories] = await Promise.all([
+      getExtendedQuotes(INSTRUMENTS.map((i) => i.symbol)),
+      Promise.all(INSTRUMENTS.map((i) => getIntradaySpark(i.symbol))),
+      Promise.all(INSTRUMENTS.map((i) => getCached5y(i.symbol))),
+    ]);
     const out: TickerQuote[] = [];
-    for (const inst of INSTRUMENTS) {
+    INSTRUMENTS.forEach((inst, i) => {
       const q = quotes.get(inst.symbol);
       const price = q?.regularMarketPrice;
-      if (price == null || price <= 0) continue;
+      if (price == null || price <= 0) return;
       const prev = q?.regularMarketPreviousClose;
       out.push({
         key: inst.key,
         label: inst.label,
         price,
         changePct: prev != null && prev > 0 ? price / prev - 1 : null,
+        spark: sparks[i] ?? [],
+        history5y: histories[i] ?? [],
       });
-    }
+    });
     return out;
   },
   ["market-ticker-quotes"],
