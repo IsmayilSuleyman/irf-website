@@ -51,12 +51,9 @@ export function Greeting({
           so the eye adds no extra row height). On mobile the name drops to its
           own row below (so it never truncates); on desktop it stays inline. */}
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400">
+        <div className="text-[13px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400">
           Xoş gəldin,
-          <span className="hero-name hidden text-[13px] sm:inline">
-            {" "}
-            {holderName}
-          </span>
+          <span className="hero-name hidden sm:inline"> {holderName}</span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {privacyToggle}
