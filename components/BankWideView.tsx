@@ -120,6 +120,7 @@ export function BankWideView({
   const {
     totalDepositsAzn,
     bondFundingAzn,
+    assetReserveAzn,
     totalLoansAzn,
     netLiquidityAzn,
     liquidityPct,
@@ -171,6 +172,14 @@ export function BankWideView({
               · istiqraz vəsaiti{" "}
               <span className="font-medium text-bank-blue dark:text-blue-400">
                 {formatAzn(bondFundingAzn)}
+              </span>
+            </span>
+          ) : null}
+          {assetReserveAzn > 0 ? (
+            <span title="Holderların ETF alışlarını təmin edən vəsait — faizsiz, toxunulmaz; kredit resurslarına və xalis likvidliyə daxil deyil.">
+              · digər aktivlər ehtiyatı{" "}
+              <span className="font-medium text-black/70 dark:text-white/75">
+                {formatAzn(assetReserveAzn)}
               </span>
             </span>
           ) : null}

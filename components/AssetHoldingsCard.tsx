@@ -10,6 +10,7 @@ import {
   formatUsd,
 } from "@/lib/portfolio";
 import { ASSET_ICONS } from "@/components/assetIcons";
+import { RowSpark } from "@/components/RowSpark";
 import type { AssetPosition } from "@/lib/personalAssets";
 
 // "Aktivlərim" — the holder's whole personal book: İRF pays and the ETF
@@ -29,7 +30,10 @@ export type IrfHoldingSummary = {
   /** The viewer's own ₼ day delta (their slice, not the fund's). */
   dayChangeAzn: number | null;
   totalPnlAzn: number | null;
+  /** Six-month unit prices, for the row sparkline. */
+  spark?: number[];
 };
+
 
 type ColumnKey = "value" | "price" | "totalChange" | "dayChange";
 
@@ -49,6 +53,8 @@ type Row = {
   mayaAzn: number | null;
   /** Exact unit count — drill-down only. */
   units: number;
+  /** Six-month price series for the row-backdrop sparkline. */
+  spark?: number[];
   avgText: string | null;
   priceText: string | null;
   valueAzn: number;
@@ -181,11 +187,14 @@ function RankBadge({ rank, delta }: { rank: number; delta: number }) {
 export function AssetHoldingsCard({
   positions,
   irf,
+  sparks,
   showBuyHint = true,
 }: {
   positions: AssetPosition[];
   /** The viewer's İRF pay position. */
   irf?: IrfHoldingSummary | null;
+  /** Six-month daily closes per ETF symbol, for the row sparklines. */
+  sparks?: Record<string, number[]>;
   /** false for İsmayıl — the how-to-order note is not for the counterparty. */
   showBuyHint?: boolean;
 }) {
@@ -217,6 +226,7 @@ export function AssetHoldingsCard({
                   ? irf.avgBuyAzn * irf.units
                   : null,
             units: irf.units,
+            spark: irf.spark,
             avgText:
               irf.avgBuyAzn != null
                 ? `${formatGrouped(irf.avgBuyAzn, 2)}₼`
@@ -240,6 +250,7 @@ export function AssetHoldingsCard({
       name: p.label,
       mayaAzn: p.costBasisAzn,
       units: p.units,
+      spark: sparks?.[p.symbol],
       avgText: p.avgBuyUsd != null ? `${formatGrouped(p.avgBuyUsd, 2)}$` : null,
       priceText: p.priceUsd != null ? formatUsd(p.priceUsd) : null,
       valueAzn: p.valueAzn ?? 0,
@@ -329,7 +340,12 @@ export function AssetHoldingsCard({
             setOpenRows((m) => ({ ...m, [row.key]: !m[row.key] }));
           return (
             <li key={row.key} className="flex flex-col py-3">
-              <div className="flex items-start gap-2 sm:gap-3">
+              <div className="relative flex items-start gap-2 sm:gap-3">
+                {/* Six-month movement as the row's backdrop — the tile
+                    treatment, so it costs no horizontal space. */}
+                {row.spark && row.spark.length > 1 ? (
+                  <RowSpark values={row.spark} id={`rowspark-${row.key}`} />
+                ) : null}
                 <div
                   className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-2 sm:gap-2.5"
                   role="button"
@@ -352,7 +368,7 @@ export function AssetHoldingsCard({
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-0">
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="num min-w-0 truncate text-base font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-lg">
+                      <span className="num min-w-0 truncate text-sm font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-base">
                         {row.symbol}
                       </span>
                       <svg
@@ -376,7 +392,7 @@ export function AssetHoldingsCard({
                   </div>
                 </div>
 
-                <div className="grid shrink-0 grid-cols-[auto_56px] items-center gap-x-2 gap-y-1 text-right sm:grid-cols-[auto_64px] sm:gap-x-4">
+                <div className="tile-figure grid shrink-0 grid-cols-[auto_56px] items-center gap-x-2 gap-y-1 text-right sm:grid-cols-[auto_64px] sm:gap-x-4">
                   <div className="num text-xs font-medium text-black/85 dark:text-white/90 sm:text-[13px]">
                     <AnimatePresence initial={false}>
                       {visible.value && (

@@ -163,11 +163,11 @@ function FundHero({
         />
       )}
       <div className="flex items-end gap-4">
-        {/* One notch below the personal hero — the whole-fund total reads
-            calmer slightly smaller. */}
+        {/* Sized for the fund view's two-thirds column, with the combined
+            holders card taking the remaining third. */}
         <div
           className="num font-black leading-none tracking-tight"
-          style={{ fontSize: "clamp(3rem, 9.35vw, 5.95rem)" }}
+          style={{ fontSize: "clamp(2.5rem, 8vw, 4.5rem)" }}
         >
           <Masked mask="••••">
             <Odometer value={value} fractionDigits={2} suffix="₼" />

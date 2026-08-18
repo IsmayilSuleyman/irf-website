@@ -11,7 +11,9 @@ import {
   computeHoldingDeltaSince,
 } from "@/lib/sheets";
 import {
+  buildAssetHolderSummaries,
   buildAssetPositions,
+  getAssetRowSparks,
   getAssetQuotes,
   getAssetValueOverlay,
   PURCHASABLE_ASSETS,
@@ -31,6 +33,7 @@ import { PerformanceChart } from "@/components/PerformanceChart";
 import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
 import { getMarketTicker } from "@/lib/marketTicker";
+import { isTickerSymbol } from "@/lib/yahoo";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
 import {
@@ -349,6 +352,32 @@ export default async function DashboardPage({
     ...assetTxs.map((t) => t.symbol),
   ]);
   const assetPositions = buildAssetPositions(holder.name, assetTxs, assetQuotes);
+  // Row sparklines for Aktivlərim: six months of daily closes per held
+  // ETF, and the unit price's six-month tail for the İRF row.
+  const assetRowSparks = await getAssetRowSparks(
+    assetPositions.map((p) => p.symbol),
+  );
+  const irfRowSpark = priceHistory
+    .filter(
+      (p) =>
+        new Date(p.recordedAt).getTime() >= Date.now() - 186 * 86_400_000,
+    )
+    .map((p) => p.price);
+  // Fund view: every holder's ETF book for the Digər Aktivlər Sahibləri
+  // card (separate from Pay sahibləri — these sit outside the fund).
+  const assetHolders = fundView
+    ? buildAssetHolderSummaries(assetTxs, assetQuotes)
+    : [];
+  // Fond Portfeli row sparklines — fund view only, one cached series per
+  // non-cash holding.
+  const fondSparks =
+    fundView && holdings.length > 0
+      ? await getAssetRowSparks(
+          holdings
+            .filter((h) => !h.isCash && isTickerSymbol(h.symbol))
+            .map((h) => h.symbol),
+        )
+      : {};
   const positionBySymbol = Object.fromEntries(
     assetPositions.map((p) => [p.symbol, p]),
   );
@@ -460,21 +489,8 @@ export default async function DashboardPage({
               </>
             }
           />
-          {fundView ? (
-            /* Ümumfond baxış skips the ticker card entirely — just the bare
-               status chips (the badge lives here because this view has no
-               chart card to dock it on). */
-            <div className="flex flex-wrap items-center gap-2">
-              <MarketCountdown history={regularHistory} />
-              {badgePortfolio && (
-                <ExtendedHoursBadge
-                  data={badgePortfolio}
-                  scope="fund"
-                  history={extendedHistory}
-                />
-              )}
-            </div>
-          ) : (
+          {fundView ? null : ( /* Ümumfond baxış skips the ticker card; its
+               status chips sit under the fund figure instead. */
             <MarketTickerStrip
               quotes={marketTicker}
               irf={{
@@ -501,9 +517,12 @@ export default async function DashboardPage({
             buy/sell quotes in a compact row under it. Fund view keeps the
             plain fund hero next to the shareholders list — its dedicated
             "Ümumfond dəyər tarixçəsi" chart comes later. */}
+        {/* Fund view, one desktop row: the fund figure in a narrow left
+            column (its font sized down to fit), the two holder cards side
+            by side on the right. Mobile stacks: figure, then the cards. */}
         {fundView ? (
-          <MotionSection delay={0.05} className="-mt-11 grid grid-cols-1 items-end gap-x-12 gap-y-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
+          <MotionSection delay={0.05} className="-mt-11 grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-3 lg:items-start">
+            <div className="flex flex-col gap-5 lg:col-span-2">
               <HeroPrice
                 variant="fund"
                 showGreeting={false}
@@ -512,9 +531,26 @@ export default async function DashboardPage({
                 dayChange={fundDayChange}
                 totalChange={fundTotalChange}
               />
+              {/* Market status + extended-hours badge, below the figure —
+                  this view has no ticker card or chart card to carry them.
+                  compact: the narrow column can't fit the full wording even
+                  on desktop. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <MarketCountdown history={regularHistory} compact />
+                {badgePortfolio && (
+                  <ExtendedHoursBadge
+                    data={badgePortfolio}
+                    scope="fund"
+                    history={extendedHistory}
+                  />
+                )}
+              </div>
             </div>
             <div className="lg:col-span-1">
-              <ShareholdersList holders={fund.holders} />
+              <ShareholdersList
+                holders={fund.holders}
+                assetHolders={assetHolders}
+              />
             </div>
           </MotionSection>
         ) : (
@@ -569,9 +605,11 @@ export default async function DashboardPage({
                           dayChangePct: unitDayPct,
                           dayChangeAzn: dayChange,
                           totalPnlAzn: holdingPnl,
+                          spark: irfRowSpark,
                         }
                       : null
                   }
+                  sparks={assetRowSparks}
                   showBuyHint={!isAdmin}
                 />
               </MotionSection>
@@ -724,6 +762,7 @@ export default async function DashboardPage({
                           ? momentumBySymbol
                           : undefined
                       }
+                      sparks={fondSparks}
                     />
                   </div>
                   <div className="lg:col-span-1 flex flex-col gap-6">

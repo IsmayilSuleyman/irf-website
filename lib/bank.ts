@@ -500,6 +500,13 @@ export type BankWideAggregate = {
   totalDepositsAzn: number;
   /** Cash raised from settled primary bond sales of active series. */
   bondFundingAzn: number;
+  /**
+   * Cash holders paid for personal ETF assets (Aktivlər ledger, col G),
+   * resting at the bank as a non-interest, untouchable reserve. Held
+   * SEPARATELY on purpose: it never joins totalFundingAzn, so nothing
+   * downstream (net liquidity, credit offers) can lend it out.
+   */
+  assetReserveAzn: number;
   /** Deposits + bond funding — everything the bank can lend from. */
   totalFundingAzn: number;
   totalLoansAzn: number;
@@ -586,6 +593,9 @@ export function computeBankWide(
   // Bond primary-sale proceeds (Supabase) count as lendable funding next to
   // the sheet's deposits; caller fetches it so this stays a pure function.
   bondFundingAzn = 0,
+  // The ETF paid-basis reserve (lib/personalAssets.computeAssetReserveAzn) —
+  // carried for display only, deliberately outside the funding math.
+  assetReserveAzn = 0,
 ): BankWideAggregate {
   // Anchor "today" at UTC midnight — diffs are then stable regardless of when
   // in the day the request hits.
@@ -754,6 +764,7 @@ export function computeBankWide(
   return {
     totalDepositsAzn,
     bondFundingAzn,
+    assetReserveAzn,
     totalFundingAzn,
     totalLoansAzn,
     netLiquidityAzn,
