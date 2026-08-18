@@ -11,12 +11,14 @@ import {
   computeHoldingDeltaSince,
 } from "@/lib/sheets";
 import {
+  buildAssetHolderSummaries,
   buildAssetPositions,
   getAssetMonthSparks,
   getAssetQuotes,
   getAssetValueOverlay,
   PURCHASABLE_ASSETS,
 } from "@/lib/personalAssets";
+import { AssetHoldersList } from "@/components/AssetHoldersList";
 import { AssetHoldingsCard } from "@/components/AssetHoldingsCard";
 import {
   getPriceHistory,
@@ -362,6 +364,11 @@ export default async function DashboardPage({
         new Date(p.recordedAt).getTime() >= Date.now() - 31 * 86_400_000,
     )
     .map((p) => p.price);
+  // Fund view: every holder's ETF book for the Digər Aktivlər Sahibləri
+  // card (separate from Pay sahibləri — these sit outside the fund).
+  const assetHolders = fundView
+    ? buildAssetHolderSummaries(assetTxs, assetQuotes)
+    : [];
   // Fond Portfeli row sparklines — fund view only, one cached series per
   // non-cash holding.
   const fondSparks =
@@ -535,8 +542,9 @@ export default async function DashboardPage({
                 )}
               </div>
             </div>
-            <div className="lg:col-span-1">
+            <div className="flex flex-col gap-6 lg:col-span-1">
               <ShareholdersList holders={fund.holders} />
+              <AssetHoldersList holders={assetHolders} />
             </div>
           </MotionSection>
         ) : (

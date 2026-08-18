@@ -165,6 +165,53 @@ export function buildAssetPositions(
   return out;
 }
 
+export type AssetHolderSummary = {
+  name: string;
+  /** Live value of the holder's ETF book, AZN. */
+  valueAzn: number;
+  /** Paid basis (col G) locked behind their open positions, AZN. */
+  paidAzn: number;
+};
+
+/**
+ * Every holder's ETF book — the fund view's "Digər Aktivlər Sahibləri" card
+ * and the İsmayılBank reserve read from this. Names keep their first-seen
+ * sheet casing; holders whose positions netted to zero drop out.
+ */
+export function buildAssetHolderSummaries(
+  txs: AssetTransaction[],
+  quotes: Record<string, AssetQuote>,
+): AssetHolderSummary[] {
+  const byName = new Map<string, string>();
+  for (const t of txs) {
+    const k = norm(t.holderName);
+    if (!byName.has(k)) byName.set(k, t.holderName);
+  }
+  const out: AssetHolderSummary[] = [];
+  for (const display of byName.values()) {
+    const positions = buildAssetPositions(display, txs, quotes);
+    if (positions.length === 0) continue;
+    out.push({
+      name: display,
+      valueAzn: positions.reduce((s, p) => s + (p.valueAzn ?? 0), 0),
+      paidAzn: positions.reduce((s, p) => s + p.costBasisAzn, 0),
+    });
+  }
+  out.sort((a, b) => b.valueAzn - a.valueAzn);
+  return out;
+}
+
+/**
+ * The İsmayılBank reserve backing all open ETF positions: the summed paid
+ * basis across every holder. It sits at the bank as a non-interest,
+ * untouchable deposit-like reserve — and by construction it never enters
+ * the bank's lendable funding (deposits + bond proceeds), so credit
+ * capacity can't reach it.
+ */
+export function computeAssetReserveAzn(txs: AssetTransaction[]): number {
+  return buildAssetHolderSummaries(txs, {}).reduce((s, h) => s + h.paidAzn, 0);
+}
+
 // Daily closes per symbol for the chart overlay; closes change once a day,
 // so a 1h cache is plenty. Failures read as "no history" and the overlay
 // falls back to valuing that symbol at cost.

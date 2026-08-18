@@ -19,6 +19,8 @@ import {
   getMyBondHoldings,
 } from "@/lib/bonds";
 import { computeLiquidityProjection } from "@/lib/liquidityProjection";
+import { getAssetTransactions } from "@/lib/sheets";
+import { computeAssetReserveAzn } from "@/lib/personalAssets";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 import { BankViewToggle } from "@/components/BankViewToggle";
@@ -269,12 +271,21 @@ export default async function BankPage({
   const dateLabel = formatBakuDate(new Date());
 
   if (bankView) {
-    const [accounts, bondFundingAzn, bondBreakdown] = await Promise.all([
-      getBankAccounts(),
-      getBondFundingAzn(),
-      getBondFundingBreakdown(),
-    ]);
-    const aggregate = computeBankWide(accounts, new Date(), bondFundingAzn);
+    const [accounts, bondFundingAzn, bondBreakdown, assetTxs] =
+      await Promise.all([
+        getBankAccounts(),
+        getBondFundingAzn(),
+        getBondFundingBreakdown(),
+        getAssetTransactions(),
+      ]);
+    const aggregate = computeBankWide(
+      accounts,
+      new Date(),
+      bondFundingAzn,
+      // ETF paid-basis reserve — displayed as its own untouchable line,
+      // never part of lendable funding.
+      computeAssetReserveAzn(assetTxs),
+    );
     const projection = computeLiquidityProjection(
       accounts,
       bondBreakdown,
