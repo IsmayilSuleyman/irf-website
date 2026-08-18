@@ -522,7 +522,7 @@ export default async function DashboardPage({
             by side on the right. Mobile stacks: figure, then the cards. */}
         {fundView ? (
           <MotionSection delay={0.05} className="-mt-11 grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-3 lg:items-start">
-            <div className="flex flex-col gap-5 lg:col-span-1">
+            <div className="flex flex-col gap-5 lg:col-span-2">
               <HeroPrice
                 variant="fund"
                 showGreeting={false}
@@ -546,7 +546,7 @@ export default async function DashboardPage({
                 )}
               </div>
             </div>
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-1">
               <ShareholdersList
                 holders={fund.holders}
                 assetHolders={assetHolders}

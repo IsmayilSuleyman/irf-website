@@ -89,9 +89,11 @@ export function ShareholdersList({
               />
             ))}
           </div>
+          {/* The logo wordmark already says İsmayılBank — the text only
+              carries the rest of the sentence. */}
           <p className="mt-1 flex items-center gap-1.5 text-[10px] leading-relaxed text-black/45 dark:text-white/50">
-            <IsmayilBankLogo size={14} />
-            İsmayılBank tərəfindən təqdim olunur
+            <IsmayilBankLogo size={15} />
+            tərəfindən təqdim olunur
           </p>
         </>
       )}
