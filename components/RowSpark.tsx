@@ -1,11 +1,11 @@
 import type {} from "react";
 
 // The shared six-month sparkline used by Aktivlərim and Fond Portfeli
-// rows — drawn as a BACKDROP behind the row (the ticker-tile treatment)
-// so it costs no horizontal space: a soft gradient wash and a quiet line
-// behind the content, tinted by the period's direction. It stops short of
-// the right-hand numbers columns (İsmayıl's ask) and fades out at that
-// edge so the cut reads as intentional. Pure SVG.
+// rows — a fixed-width mini-chart anchored on the RIGHT, ending just
+// before the numbers columns (İsmayıl's ask: the graph lives beside the
+// figures, not smeared from the row's left edge). Drawn as a backdrop
+// (pointer-events-none, behind the content) with both edges faded so it
+// blends into the row, tinted by the period's direction. Pure SVG.
 
 /** Normalize a series into an SVG path over a w×h box (padded vertically). */
 export function sparkPath(
@@ -36,12 +36,13 @@ export function RowSpark({ values, id }: { values: number[]; id: string }) {
   return (
     // The right offsets clear the widest tile-figure numbers grid
     // (auto + 56px cols on phones, auto + 64px from sm up), so the curve
-    // never runs beneath the value/price figures.
+    // never runs beneath the value/price figures; the fixed width keeps
+    // every row's chart the same size, aligned like a column.
     <svg
       viewBox="0 0 100 30"
       preserveAspectRatio="none"
       aria-hidden
-      className={`pointer-events-none absolute bottom-0 left-0 right-36 h-3/4 sm:right-44 ${
+      className={`pointer-events-none absolute bottom-1 right-36 h-3/4 w-24 sm:right-44 sm:w-40 ${
         up
           ? "text-brand-green dark:text-emerald-400"
           : "text-brand-red dark:text-red-400"
@@ -53,8 +54,9 @@ export function RowSpark({ values, id }: { values: number[]; id: string }) {
           <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
         <linearGradient id={`${id}-fade`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#fff" />
-          <stop offset="86%" stopColor="#fff" />
+          <stop offset="0%" stopColor="#fff" stopOpacity="0" />
+          <stop offset="12%" stopColor="#fff" />
+          <stop offset="88%" stopColor="#fff" />
           <stop offset="100%" stopColor="#fff" stopOpacity="0" />
         </linearGradient>
         <mask id={`${id}-mask`} maskUnits="userSpaceOnUse">
