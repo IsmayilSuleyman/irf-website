@@ -13,7 +13,7 @@ import {
 import {
   buildAssetHolderSummaries,
   buildAssetPositions,
-  getAssetMonthSparks,
+  getAssetRowSparks,
   getAssetQuotes,
   getAssetValueOverlay,
   PURCHASABLE_ASSETS,
@@ -352,15 +352,15 @@ export default async function DashboardPage({
     ...assetTxs.map((t) => t.symbol),
   ]);
   const assetPositions = buildAssetPositions(holder.name, assetTxs, assetQuotes);
-  // Row sparklines for Aktivlərim: a month of daily closes per held ETF,
-  // and the unit price's last-month tail for the İRF row.
-  const assetMonthSparks = await getAssetMonthSparks(
+  // Row sparklines for Aktivlərim: six months of daily closes per held
+  // ETF, and the unit price's six-month tail for the İRF row.
+  const assetRowSparks = await getAssetRowSparks(
     assetPositions.map((p) => p.symbol),
   );
-  const irfMonthSpark = priceHistory
+  const irfRowSpark = priceHistory
     .filter(
       (p) =>
-        new Date(p.recordedAt).getTime() >= Date.now() - 31 * 86_400_000,
+        new Date(p.recordedAt).getTime() >= Date.now() - 186 * 86_400_000,
     )
     .map((p) => p.price);
   // Fund view: every holder's ETF book for the Digər Aktivlər Sahibləri
@@ -372,7 +372,7 @@ export default async function DashboardPage({
   // non-cash holding.
   const fondSparks =
     fundView && holdings.length > 0
-      ? await getAssetMonthSparks(
+      ? await getAssetRowSparks(
           holdings
             .filter((h) => !h.isCash && isTickerSymbol(h.symbol))
             .map((h) => h.symbol),
@@ -605,11 +605,11 @@ export default async function DashboardPage({
                           dayChangePct: unitDayPct,
                           dayChangeAzn: dayChange,
                           totalPnlAzn: holdingPnl,
-                          spark: irfMonthSpark,
+                          spark: irfRowSpark,
                         }
                       : null
                   }
-                  sparks={assetMonthSparks}
+                  sparks={assetRowSparks}
                   showBuyHint={!isAdmin}
                 />
               </MotionSection>

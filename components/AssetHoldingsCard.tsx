@@ -30,7 +30,7 @@ export type IrfHoldingSummary = {
   /** The viewer's own ₼ day delta (their slice, not the fund's). */
   dayChangeAzn: number | null;
   totalPnlAzn: number | null;
-  /** Last-month unit prices, for the row sparkline. */
+  /** Six-month unit prices, for the row sparkline. */
   spark?: number[];
 };
 
@@ -53,7 +53,7 @@ type Row = {
   mayaAzn: number | null;
   /** Exact unit count — drill-down only. */
   units: number;
-  /** Last-month price series for the mid-row sparkline. */
+  /** Six-month price series for the row-backdrop sparkline. */
   spark?: number[];
   avgText: string | null;
   priceText: string | null;
@@ -193,7 +193,7 @@ export function AssetHoldingsCard({
   positions: AssetPosition[];
   /** The viewer's İRF pay position. */
   irf?: IrfHoldingSummary | null;
-  /** Last-month daily closes per ETF symbol, for the row sparklines. */
+  /** Six-month daily closes per ETF symbol, for the row sparklines. */
   sparks?: Record<string, number[]>;
   /** false for İsmayıl — the how-to-order note is not for the counterparty. */
   showBuyHint?: boolean;
@@ -341,7 +341,7 @@ export function AssetHoldingsCard({
           return (
             <li key={row.key} className="flex flex-col py-3">
               <div className="relative flex items-start gap-2 sm:gap-3">
-                {/* Last-month movement as the row's backdrop — the tile
+                {/* Six-month movement as the row's backdrop — the tile
                     treatment, so it costs no horizontal space. */}
                 {row.spark && row.spark.length > 1 ? (
                   <RowSpark values={row.spark} id={`rowspark-${row.key}`} />

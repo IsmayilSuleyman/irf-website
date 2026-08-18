@@ -253,7 +253,7 @@ export function AllocationList({
    * rows with an entry expand into the factor table on tap.
    */
   momentum?: Record<string, ScoredItem>;
-  /** Last-month daily closes keyed by upper-cased ticker — row sparklines. */
+  /** Six-month daily closes keyed by upper-cased ticker — row sparklines. */
   sparks?: Record<string, number[]>;
 }) {
   const [visible, setVisible] = useState<Record<ColumnKey, boolean>>({
@@ -456,7 +456,7 @@ export function AllocationList({
           return (
             <li key={item.name} className="flex flex-col py-3">
               <div className="relative flex items-start gap-2 sm:gap-3">
-              {/* Last-month movement as the row's backdrop — the tile
+              {/* Six-month movement as the row's backdrop — the tile
                   treatment, so it costs no horizontal space. */}
               {!item.isCash &&
               sparks?.[ticker] &&

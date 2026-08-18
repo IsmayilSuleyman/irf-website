@@ -232,11 +232,12 @@ const getCachedDailyCloses = unstable_cache(
 );
 
 /**
- * Last-month daily closes per symbol, for the Aktivlərim row sparklines.
- * Rides the same 1h closes cache as the chart overlay; a failed symbol is
- * just an empty series.
+ * Six months of daily closes per symbol, for the Aktivlərim and Fond
+ * Portfeli row sparklines. Rides the same 1h closes cache as the chart
+ * overlay (days is part of the cache key); a failed symbol is just an
+ * empty series.
  */
-export async function getAssetMonthSparks(
+export async function getAssetRowSparks(
   symbols: string[],
 ): Promise<Record<string, number[]>> {
   const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()))]
@@ -245,7 +246,7 @@ export async function getAssetMonthSparks(
   const entries = await Promise.all(
     unique.map(
       async (s) =>
-        [s, (await getCachedDailyCloses(s, 35)).map((c) => c.close)] as const,
+        [s, (await getCachedDailyCloses(s, 190)).map((c) => c.close)] as const,
     ),
   );
   return Object.fromEntries(entries);
