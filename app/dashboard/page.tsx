@@ -483,21 +483,8 @@ export default async function DashboardPage({
               </>
             }
           />
-          {fundView ? (
-            /* Ümumfond baxış skips the ticker card entirely — just the bare
-               status chips (the badge lives here because this view has no
-               chart card to dock it on). */
-            <div className="flex flex-wrap items-center gap-2">
-              <MarketCountdown history={regularHistory} />
-              {badgePortfolio && (
-                <ExtendedHoursBadge
-                  data={badgePortfolio}
-                  scope="fund"
-                  history={extendedHistory}
-                />
-              )}
-            </div>
-          ) : (
+          {fundView ? null : ( /* Ümumfond baxış skips the ticker card; its
+               status chips sit under the fund figure instead. */
             <MarketTickerStrip
               quotes={marketTicker}
               irf={{
@@ -526,7 +513,7 @@ export default async function DashboardPage({
             "Ümumfond dəyər tarixçəsi" chart comes later. */}
         {fundView ? (
           <MotionSection delay={0.05} className="-mt-11 grid grid-cols-1 items-end gap-x-12 gap-y-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
+            <div className="flex flex-col gap-5 lg:col-span-2">
               <HeroPrice
                 variant="fund"
                 showGreeting={false}
@@ -535,6 +522,18 @@ export default async function DashboardPage({
                 dayChange={fundDayChange}
                 totalChange={fundTotalChange}
               />
+              {/* Market status + extended-hours badge, below the figure —
+                  this view has no ticker card or chart card to carry them. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <MarketCountdown history={regularHistory} />
+                {badgePortfolio && (
+                  <ExtendedHoursBadge
+                    data={badgePortfolio}
+                    scope="fund"
+                    history={extendedHistory}
+                  />
+                )}
+              </div>
             </div>
             <div className="lg:col-span-1">
               <ShareholdersList holders={fund.holders} />
