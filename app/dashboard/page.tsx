@@ -518,9 +518,12 @@ export default async function DashboardPage({
             buy/sell quotes in a compact row under it. Fund view keeps the
             plain fund hero next to the shareholders list — its dedicated
             "Ümumfond dəyər tarixçəsi" chart comes later. */}
+        {/* Fund view, one desktop row: the fund figure in a narrow left
+            column (its font sized down to fit), the two holder cards side
+            by side on the right. Mobile stacks: figure, then the cards. */}
         {fundView ? (
-          <MotionSection delay={0.05} className="-mt-11 grid grid-cols-1 items-end gap-x-12 gap-y-6 lg:grid-cols-3">
-            <div className="flex flex-col gap-5 lg:col-span-2">
+          <MotionSection delay={0.05} className="-mt-11 grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-3 lg:items-start">
+            <div className="flex flex-col gap-5 lg:col-span-1">
               <HeroPrice
                 variant="fund"
                 showGreeting={false}
@@ -542,7 +545,7 @@ export default async function DashboardPage({
                 )}
               </div>
             </div>
-            <div className="flex flex-col gap-6 lg:col-span-1">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:col-span-2">
               <ShareholdersList holders={fund.holders} />
               <AssetHoldersList holders={assetHolders} />
             </div>
