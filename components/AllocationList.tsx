@@ -455,7 +455,14 @@ export function AllocationList({
 
           return (
             <li key={item.name} className="flex flex-col py-3">
-              <div className="flex items-start gap-2 sm:gap-3">
+              <div className="relative flex items-start gap-2 sm:gap-3">
+              {/* Last-month movement as the row's backdrop — the tile
+                  treatment, so it costs no horizontal space. */}
+              {!item.isCash &&
+              sparks?.[ticker] &&
+              sparks[ticker].length > 1 ? (
+                <RowSpark values={sparks[ticker]} id={`fpspark-${ticker}`} />
+              ) : null}
               {/* Identity: ticker over company name (+ percent of portfolio).
                   Rank + movement arrow + sector icon are vertically centered
                   against the two-line block. Rows with momentum data toggle
@@ -507,7 +514,7 @@ export function AllocationList({
                     {/* Phone widths get a smaller ticker (and truncate as a
                         last resort) so the value/price columns never collide
                         with it. */}
-                    <span className="num min-w-0 truncate text-base font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-lg">
+                    <span className="num min-w-0 truncate text-sm font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-base">
                       {primary}
                     </span>
                     {momoRow && (
@@ -540,13 +547,6 @@ export function AllocationList({
                 </div>
               </div>
 
-              {/* Last-month movement in the row's empty middle. */}
-              {!item.isCash &&
-              sparks?.[ticker] &&
-              sparks[ticker].length > 1 ? (
-                <RowSpark values={sparks[ticker]} id={`fpspark-${ticker}`} />
-              ) : null}
-
               {/* Numbers: value / price on row 1, total / day change badges on
                   row 2 (total = filled, day = outlined). The price/day column is
                   a fixed width so the value + total-change column lands on the
@@ -554,7 +554,7 @@ export function AllocationList({
               {/* 64px track fits the iconed session pill in % mode so column
                   toggling never overflows; AZN amount modes may extend into
                   the gap between the two number columns. */}
-              <div className="grid shrink-0 grid-cols-[auto_56px] items-center gap-x-2 gap-y-1 text-right sm:grid-cols-[auto_64px] sm:gap-x-4">
+              <div className="tile-figure grid shrink-0 grid-cols-[auto_56px] items-center gap-x-2 gap-y-1 text-right sm:grid-cols-[auto_64px] sm:gap-x-4">
                 <div className="num text-xs font-medium text-black/85 dark:text-white/90 sm:text-[13px]">
                   <AnimatePresence initial={false}>
                     {visible.value && (

@@ -1,8 +1,9 @@
 import type {} from "react";
 
-// The shared mid-row month sparkline used by Aktivlərim and Fond Portfeli:
-// a small gradient curve over the row's empty middle, tinted by the
-// month's direction. Pure SVG — no client machinery of its own.
+// The shared month sparkline used by Aktivlərim and Fond Portfeli rows —
+// drawn as a BACKDROP across the row (the ticker-tile treatment) so it
+// costs no horizontal space: a soft gradient wash and a quiet line behind
+// the content, tinted by the month's direction. Pure SVG.
 
 /** Normalize a series into an SVG path over a w×h box (padded vertically). */
 export function sparkPath(
@@ -35,7 +36,7 @@ export function RowSpark({ values, id }: { values: number[]; id: string }) {
       viewBox="0 0 100 30"
       preserveAspectRatio="none"
       aria-hidden
-      className={`h-7 w-14 shrink-0 self-center sm:h-8 sm:w-24 ${
+      className={`pointer-events-none absolute inset-x-0 bottom-0 h-3/4 w-full ${
         up
           ? "text-brand-green dark:text-emerald-400"
           : "text-brand-red dark:text-red-400"
@@ -43,7 +44,7 @@ export function RowSpark({ values, id }: { values: number[]; id: string }) {
     >
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="currentColor" stopOpacity="0.2" />
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.12" />
           <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
@@ -52,10 +53,10 @@ export function RowSpark({ values, id }: { values: number[]; id: string }) {
         d={line}
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.2"
+        strokeWidth="0.9"
         strokeLinecap="round"
         strokeLinejoin="round"
-        opacity="0.8"
+        opacity="0.4"
       />
     </svg>
   );

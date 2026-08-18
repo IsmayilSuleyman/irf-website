@@ -340,7 +340,12 @@ export function AssetHoldingsCard({
             setOpenRows((m) => ({ ...m, [row.key]: !m[row.key] }));
           return (
             <li key={row.key} className="flex flex-col py-3">
-              <div className="flex items-start gap-2 sm:gap-3">
+              <div className="relative flex items-start gap-2 sm:gap-3">
+                {/* Last-month movement as the row's backdrop — the tile
+                    treatment, so it costs no horizontal space. */}
+                {row.spark && row.spark.length > 1 ? (
+                  <RowSpark values={row.spark} id={`rowspark-${row.key}`} />
+                ) : null}
                 <div
                   className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-2 sm:gap-2.5"
                   role="button"
@@ -363,7 +368,7 @@ export function AssetHoldingsCard({
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col gap-0">
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="num min-w-0 truncate text-base font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-lg">
+                      <span className="num min-w-0 truncate text-sm font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-base">
                         {row.symbol}
                       </span>
                       <svg
@@ -387,12 +392,7 @@ export function AssetHoldingsCard({
                   </div>
                 </div>
 
-                {/* Last-month movement in the row's empty middle. */}
-                {row.spark && row.spark.length > 1 ? (
-                  <RowSpark values={row.spark} id={`rowspark-${row.key}`} />
-                ) : null}
-
-                <div className="grid shrink-0 grid-cols-[auto_56px] items-center gap-x-2 gap-y-1 text-right sm:grid-cols-[auto_64px] sm:gap-x-4">
+                <div className="tile-figure grid shrink-0 grid-cols-[auto_56px] items-center gap-x-2 gap-y-1 text-right sm:grid-cols-[auto_64px] sm:gap-x-4">
                   <div className="num text-xs font-medium text-black/85 dark:text-white/90 sm:text-[13px]">
                     <AnimatePresence initial={false}>
                       {visible.value && (
