@@ -19,11 +19,11 @@ export function AssetHoldersList({
   const total = rows.reduce((s, h) => s + h.valueAzn, 0);
 
   return (
-    <div className="glass flex flex-col gap-3 p-6">
+    <div className="glass flex flex-col gap-2.5 p-4">
       <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
         Digər Aktivlər Sahibləri
       </div>
-      <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1 text-sm">
+      <div className="flex max-h-72 flex-col gap-1.5 overflow-y-auto pr-1 text-[13px]">
         {rows.map((h, i) => (
           <div
             key={`${h.name}-${i}`}
@@ -36,7 +36,7 @@ export function AssetHoldersList({
               <span className="num font-medium text-black dark:text-white/90">
                 <Masked>{formatAzn(h.valueAzn)}</Masked>
               </span>
-              <span className="num w-14 text-right text-[11px] text-black/45 dark:text-white/50">
+              <span className="num w-12 text-right text-[10px] text-black/45 dark:text-white/50">
                 <Masked mask="••">
                   {formatPct(total > 0 ? h.valueAzn / total : 0)}
                 </Masked>

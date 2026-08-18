@@ -15,14 +15,14 @@ export function ShareholdersList({ holders }: { holders: Shareholder[] }) {
     .sort((a, b) => b.valueAzn - a.valueAzn);
 
   return (
-    <div className="glass flex flex-col gap-3 p-6">
+    <div className="glass flex flex-col gap-2.5 p-4">
       <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
         Pay sahibləri
       </div>
       {sorted.length === 0 ? (
-        <div className="text-sm text-black/45 dark:text-white/50">Sahib yoxdur.</div>
+        <div className="text-[13px] text-black/45 dark:text-white/50">Sahib yoxdur.</div>
       ) : (
-        <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1 text-sm">
+        <div className="flex max-h-72 flex-col gap-1.5 overflow-y-auto pr-1 text-[13px]">
           {sorted.map((h, i) => (
             <div
               key={`${h.name}-${i}`}
@@ -35,7 +35,7 @@ export function ShareholdersList({ holders }: { holders: Shareholder[] }) {
                 <span className="num font-medium text-black dark:text-white/90">
                   <Masked>{formatAzn(h.valueAzn)}</Masked>
                 </span>
-                <span className="num w-14 text-right text-[11px] text-black/45 dark:text-white/50">
+                <span className="num w-12 text-right text-[10px] text-black/45 dark:text-white/50">
                   <Masked mask="••">{formatPct(h.percent)}</Masked>
                 </span>
               </span>
