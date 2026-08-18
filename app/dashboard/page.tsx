@@ -12,6 +12,7 @@ import {
 } from "@/lib/sheets";
 import {
   buildAssetPositions,
+  getAssetMonthSparks,
   getAssetQuotes,
   getAssetValueOverlay,
   PURCHASABLE_ASSETS,
@@ -349,6 +350,17 @@ export default async function DashboardPage({
     ...assetTxs.map((t) => t.symbol),
   ]);
   const assetPositions = buildAssetPositions(holder.name, assetTxs, assetQuotes);
+  // Row sparklines for Aktivlərim: a month of daily closes per held ETF,
+  // and the unit price's last-month tail for the İRF row.
+  const assetMonthSparks = await getAssetMonthSparks(
+    assetPositions.map((p) => p.symbol),
+  );
+  const irfMonthSpark = priceHistory
+    .filter(
+      (p) =>
+        new Date(p.recordedAt).getTime() >= Date.now() - 31 * 86_400_000,
+    )
+    .map((p) => p.price);
   const positionBySymbol = Object.fromEntries(
     assetPositions.map((p) => [p.symbol, p]),
   );
@@ -569,9 +581,11 @@ export default async function DashboardPage({
                           dayChangePct: unitDayPct,
                           dayChangeAzn: dayChange,
                           totalPnlAzn: holdingPnl,
+                          spark: irfMonthSpark,
                         }
                       : null
                   }
+                  sparks={assetMonthSparks}
                   showBuyHint={!isAdmin}
                 />
               </MotionSection>

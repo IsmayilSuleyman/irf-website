@@ -184,6 +184,26 @@ const getCachedDailyCloses = unstable_cache(
   { revalidate: 3600 },
 );
 
+/**
+ * Last-month daily closes per symbol, for the Aktivlərim row sparklines.
+ * Rides the same 1h closes cache as the chart overlay; a failed symbol is
+ * just an empty series.
+ */
+export async function getAssetMonthSparks(
+  symbols: string[],
+): Promise<Record<string, number[]>> {
+  const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()))]
+    .filter(Boolean)
+    .sort();
+  const entries = await Promise.all(
+    unique.map(
+      async (s) =>
+        [s, (await getCachedDailyCloses(s, 35)).map((c) => c.close)] as const,
+    ),
+  );
+  return Object.fromEntries(entries);
+}
+
 export type AssetOverlayPoint = { valueAzn: number; investedAzn: number };
 
 /**
