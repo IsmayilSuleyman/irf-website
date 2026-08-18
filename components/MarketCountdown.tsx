@@ -21,6 +21,7 @@ const REGULAR_GREEN = "#16a34a";
 
 export function MarketCountdown({
   history,
+  compact = false,
 }: {
   /**
    * Regular-session (intraday day-change) snapshots for the hover chart;
@@ -28,6 +29,11 @@ export function MarketCountdown({
    * renders exactly as before, without a popover.
    */
   history?: SessionHistoryPoint[];
+  /**
+   * Always use the short wording (no "Bağlanmağa … qalıb"), for narrow
+   * columns where even desktop widths can't fit the full sentence.
+   */
+  compact?: boolean;
 }) {
   const [now, setNow] = useState<Date | null>(null);
   const [open, setOpen] = useState(false);
@@ -57,7 +63,7 @@ export function MarketCountdown({
 
   const chip = (
     <span
-      className="inline-flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-3 py-1.5 text-[11px] font-medium shadow-sm"
+      className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-3 py-1.5 text-[11px] font-medium shadow-sm"
       title="ABŞ fond bazarları (NYSE/NASDAQ) iş saatları"
     >
       <RefreshTimer />
@@ -66,13 +72,15 @@ export function MarketCountdown({
       </span>
       <span className="text-black/20 dark:text-white/30">·</span>
       <span className="text-black/45 dark:text-white/50">
-        <span className="hidden sm:inline">
-          {marketOpen ? "Bağlanmağa" : "Açılmağa"}{" "}
-        </span>
+        {!compact && (
+          <span className="hidden sm:inline">
+            {marketOpen ? "Bağlanmağa" : "Açılmağa"}{" "}
+          </span>
+        )}
         <span className="num tabular-nums text-black/70 dark:text-white/75">
           {formatRemaining(remaining)}
         </span>
-        <span className="hidden sm:inline"> qalıb</span>
+        {!compact && <span className="hidden sm:inline"> qalıb</span>}
       </span>
     </span>
   );

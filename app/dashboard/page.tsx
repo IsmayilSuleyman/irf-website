@@ -533,9 +533,11 @@ export default async function DashboardPage({
                 totalChange={fundTotalChange}
               />
               {/* Market status + extended-hours badge, below the figure —
-                  this view has no ticker card or chart card to carry them. */}
+                  this view has no ticker card or chart card to carry them.
+                  compact: the narrow column can't fit the full wording even
+                  on desktop. */}
               <div className="flex flex-wrap items-center gap-2">
-                <MarketCountdown history={regularHistory} />
+                <MarketCountdown history={regularHistory} compact />
                 {badgePortfolio && (
                   <ExtendedHoursBadge
                     data={badgePortfolio}
