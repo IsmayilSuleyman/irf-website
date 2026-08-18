@@ -18,7 +18,6 @@ import {
   getAssetValueOverlay,
   PURCHASABLE_ASSETS,
 } from "@/lib/personalAssets";
-import { AssetHoldersList } from "@/components/AssetHoldersList";
 import { AssetHoldingsCard } from "@/components/AssetHoldingsCard";
 import {
   getPriceHistory,
@@ -547,9 +546,11 @@ export default async function DashboardPage({
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:col-span-2">
-              <ShareholdersList holders={fund.holders} />
-              <AssetHoldersList holders={assetHolders} />
+            <div className="lg:col-span-2">
+              <ShareholdersList
+                holders={fund.holders}
+                assetHolders={assetHolders}
+              />
             </div>
           </MotionSection>
         ) : (
