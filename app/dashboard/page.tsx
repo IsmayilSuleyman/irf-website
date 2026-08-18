@@ -32,6 +32,7 @@ import { PerformanceChart } from "@/components/PerformanceChart";
 import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
 import { getMarketTicker } from "@/lib/marketTicker";
+import { isTickerSymbol } from "@/lib/yahoo";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
 import { MotionSection } from "@/components/MotionSection";
 import {
@@ -361,6 +362,16 @@ export default async function DashboardPage({
         new Date(p.recordedAt).getTime() >= Date.now() - 31 * 86_400_000,
     )
     .map((p) => p.price);
+  // Fond Portfeli row sparklines — fund view only, one cached series per
+  // non-cash holding.
+  const fondSparks =
+    fundView && holdings.length > 0
+      ? await getAssetMonthSparks(
+          holdings
+            .filter((h) => !h.isCash && isTickerSymbol(h.symbol))
+            .map((h) => h.symbol),
+        )
+      : {};
   const positionBySymbol = Object.fromEntries(
     assetPositions.map((p) => [p.symbol, p]),
   );
@@ -738,6 +749,7 @@ export default async function DashboardPage({
                           ? momentumBySymbol
                           : undefined
                       }
+                      sparks={fondSparks}
                     />
                   </div>
                   <div className="lg:col-span-1 flex flex-col gap-6">

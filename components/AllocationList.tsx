@@ -11,6 +11,7 @@ import {
   type Currency,
 } from "@/lib/portfolio";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
+import { RowSpark } from "@/components/RowSpark";
 import { SectorIcon } from "@/components/SectorIcon";
 import {
   MomentumFactorRows,
@@ -242,6 +243,7 @@ export function AllocationList({
   items,
   extended,
   momentum,
+  sparks,
 }: {
   items: Item[];
   /** Present only while a pre/after-market or overnight window is active. */
@@ -251,6 +253,8 @@ export function AllocationList({
    * rows with an entry expand into the factor table on tap.
    */
   momentum?: Record<string, ScoredItem>;
+  /** Last-month daily closes keyed by upper-cased ticker — row sparklines. */
+  sparks?: Record<string, number[]>;
 }) {
   const [visible, setVisible] = useState<Record<ColumnKey, boolean>>({
     value: true,
@@ -535,6 +539,13 @@ export function AllocationList({
                   </div>
                 </div>
               </div>
+
+              {/* Last-month movement in the row's empty middle. */}
+              {!item.isCash &&
+              sparks?.[ticker] &&
+              sparks[ticker].length > 1 ? (
+                <RowSpark values={sparks[ticker]} id={`fpspark-${ticker}`} />
+              ) : null}
 
               {/* Numbers: value / price on row 1, total / day change badges on
                   row 2 (total = filled, day = outlined). The price/day column is
