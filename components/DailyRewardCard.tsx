@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, m } from "framer-motion";
 import { claimDailyReward } from "@/app/bank/reward-actions";
 import { formatGrouped } from "@/lib/portfolio";
 import { DAILY_REWARD_AZN, type DailyRewardState } from "@/lib/dailyReward";
@@ -9,13 +11,70 @@ import { DAILY_REWARD_AZN, type DailyRewardState } from "@/lib/dailyReward";
 // Günlük mükafat card: sign in, tap, +0,10 ₼. One compact row in the bank
 // card language — gift icon, today's status, the last-7-days strip with the
 // running streak, and the claim button. The server action + RPC enforce
-// one-claim-per-Baku-day; this component only reports and celebrates.
+// one-claim-per-Baku-day; this component only reports and celebrates — a
+// successful claim raises a 7-second thank-you toast confirming the gift
+// landed in the İsmayılBank deposit.
+
+const TOAST_MS = 7_000;
+
+// Presentational toast body — exported for the visual harness.
+export function RewardToastBody({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      role="status"
+      className="pointer-events-auto flex max-w-md items-start gap-3 rounded-2xl border border-brand-green/30 dark:border-emerald-400/30 bg-white/95 dark:bg-[#101418]/95 p-4 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.3)] backdrop-blur"
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-green-mist dark:bg-brand-green/15 text-status-paid dark:text-emerald-400">
+        <svg width="15" height="15" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M2 6.2 4.8 9 10 3.4" />
+        </svg>
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
+          Təşəkkür edirik!
+        </p>
+        <p className="num mt-0.5 text-[12px] leading-5 tabular-nums text-black/55 dark:text-white/60">
+          Hədiyyə məbləğiniz — {formatGrouped(DAILY_REWARD_AZN, 2)} ₼ —
+          İsmayılBank depozit hesabınıza əlavə olundu.
+        </p>
+      </div>
+      <button
+        type="button"
+        aria-label="Bildirişi bağla"
+        onClick={onClose}
+        className="shrink-0 rounded-md p-1 text-black/40 transition hover:text-black/70 dark:text-white/45 dark:hover:text-white/80"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+          <path d="M2 2l8 8M10 2l-8 8" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 
 export function DailyRewardCard({ state }: { state: DailyRewardState }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [localClaimed, setLocalClaimed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Toast lifecycle: shown on a successful claim, auto-hidden after 7s.
+  // Portaled to <body> below because the MotionSection ancestors animate
+  // transforms, which would re-anchor a fixed element to themselves.
+  const [showToast, setShowToast] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    };
+  }, []);
+
+  const closeToast = () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setShowToast(false);
+  };
 
   const claimedToday = state.claimedToday || localClaimed;
   const bump = localClaimed && !state.claimedToday ? DAILY_REWARD_AZN : 0;
@@ -33,6 +92,11 @@ export function DailyRewardCard({ state }: { state: DailyRewardState }) {
         return;
       }
       setLocalClaimed(true);
+      if (res.claimed) {
+        setShowToast(true);
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        toastTimer.current = setTimeout(() => setShowToast(false), TOAST_MS);
+      }
       router.refresh();
     });
   };
@@ -118,6 +182,26 @@ export function DailyRewardCard({ state }: { state: DailyRewardState }) {
           {error}
         </p>
       ) : null}
+      {mounted
+        ? createPortal(
+            <AnimatePresence>
+              {showToast ? (
+                <m.div
+                  key="reward-toast"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  // bottom-24 clears the mobile tab bar; sm+ sits nearer the edge.
+                  className="pointer-events-none fixed inset-x-0 bottom-24 z-[100] flex justify-center px-4 sm:bottom-8"
+                >
+                  <RewardToastBody onClose={closeToast} />
+                </m.div>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }
