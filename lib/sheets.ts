@@ -116,30 +116,60 @@ async function fetchSheetSnapshot(): Promise<SheetSnapshot> {
   const sheetId = process.env.SHEET_ID;
   if (!sheetId) throw new Error("SHEET_ID env var is missing");
   const sheets = sheetsApi({ version: "v4", auth: getAuth() });
-  try {
-    const res = await sheets.spreadsheets.values.batchGet({
-      spreadsheetId: sheetId,
-      ranges: SHEET_RANGES as unknown as string[],
-    });
-    const vr = res.data.valueRanges ?? [];
-    return {
-      irf: (vr[0]?.values ?? []) as string[][],
-      sahiblik: (vr[1]?.values ?? []) as string[][],
-      transactions: (vr[2]?.values ?? []) as string[][],
-      watchlist: (vr[3]?.values ?? []) as string[][],
-      debts: (vr[4]?.values ?? []) as string[][],
-    };
-  } catch (err) {
-    console.error("Sheets batchGet failed:", err);
-    return EMPTY_SNAPSHOT;
+  // One quick retry rides over most transient failures (429s, network
+  // blips). The final failure THROWS instead of returning an empty
+  // snapshot: unstable_cache used to store that empty result for a full
+  // minute, and an empty holders list reads as "Sahiblik tapılmadı" on
+  // every dashboard — a Google API hiccup masquerading as an unlinked
+  // account. Errors are never cached, so the next request tries fresh.
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 400));
+    try {
+      const res = await sheets.spreadsheets.values.batchGet({
+        spreadsheetId: sheetId,
+        ranges: SHEET_RANGES as unknown as string[],
+      });
+      const vr = res.data.valueRanges ?? [];
+      return {
+        irf: (vr[0]?.values ?? []) as string[][],
+        sahiblik: (vr[1]?.values ?? []) as string[][],
+        transactions: (vr[2]?.values ?? []) as string[][],
+        watchlist: (vr[3]?.values ?? []) as string[][],
+        debts: (vr[4]?.values ?? []) as string[][],
+      };
+    } catch (err) {
+      lastErr = err;
+      console.error(`Sheets batchGet failed (attempt ${attempt + 1}):`, err);
+    }
   }
+  throw lastErr;
 }
 
-const getSheetSnapshot = unstable_cache(
+const getCachedSheetSnapshot = unstable_cache(
   async (): Promise<SheetSnapshot> => fetchSheetSnapshot(),
   ["irf-sheet-snapshot"],
   { revalidate: 60, tags: ["sheet"] },
 );
+
+// Last snapshot that actually came back with data, kept per server
+// instance. When the cache is cold AND the live fetch (with its retry)
+// still fails, slightly stale figures beat an empty fund; only a fresh
+// instance with no history ever degrades to the empty snapshot — and the
+// dashboard renders that case as "temporarily unavailable, retrying",
+// never as an unlinked account.
+let lastGoodSnapshot: SheetSnapshot | null = null;
+
+async function getSheetSnapshot(): Promise<SheetSnapshot> {
+  try {
+    const snap = await getCachedSheetSnapshot();
+    lastGoodSnapshot = snap;
+    return snap;
+  } catch (err) {
+    console.error("Sheets snapshot unavailable, serving fallback:", err);
+    return lastGoodSnapshot ?? EMPTY_SNAPSHOT;
+  }
+}
 
 function findRowByPrefix(rows: string[][], prefix: string): number {
   return rows.findIndex((r) =>
@@ -314,8 +344,11 @@ export type AssetTransaction = {
 // buys/sells here, one row per deal. Fetched OUTSIDE the batchGet on
 // purpose — batchGet fails wholesale on an unknown range, so a
 // not-yet-created tab must not take the whole dashboard's sheet data down
-// with it. Any failure just reads as an empty ledger.
-const getAssetSheetRows = unstable_cache(
+// with it. A genuinely missing tab (deterministic 400/404) still reads as
+// an empty ledger and is cacheable; TRANSIENT failures throw so they are
+// never cached as "no positions" — the wrapper below serves the last good
+// rows instead.
+const getCachedAssetSheetRows = unstable_cache(
   async (): Promise<string[][]> => {
     const sheetId = process.env.SHEET_ID;
     if (!sheetId) return [];
@@ -327,13 +360,30 @@ const getAssetSheetRows = unstable_cache(
       });
       return (res.data.values ?? []) as string[][];
     } catch (err) {
-      console.error("Aktivlər sheet fetch failed:", err);
-      return [];
+      const code = (err as { code?: number | string })?.code;
+      if (code === 400 || code === 404 || code === "400" || code === "404") {
+        console.error("Aktivlər tab missing (cacheable empty):", err);
+        return [];
+      }
+      throw err;
     }
   },
   ["irf-asset-transactions"],
   { revalidate: 60, tags: ["sheet"] },
 );
+
+let lastGoodAssetRows: string[][] | null = null;
+
+async function getAssetSheetRows(): Promise<string[][]> {
+  try {
+    const rows = await getCachedAssetSheetRows();
+    lastGoodAssetRows = rows;
+    return rows;
+  } catch (err) {
+    console.error("Aktivlər sheet fetch failed, serving fallback:", err);
+    return lastGoodAssetRows ?? [];
+  }
+}
 
 export async function getAssetTransactions(): Promise<AssetTransaction[]> {
   const rows = await getAssetSheetRows();
