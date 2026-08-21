@@ -9,6 +9,7 @@ import {
 import { requireUser } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
+import { formatGrouped } from "@/lib/portfolio";
 import { getBankProductTerms } from "@/lib/bankTerms";
 import {
   getBondFundingAzn,
@@ -25,6 +26,12 @@ import { BankWideView } from "@/components/BankWideView";
 import { BankTermsPanel } from "@/components/BankTermsPanel";
 import { BalanceHero } from "@/components/BalanceHero";
 import { CreditPanel } from "@/components/CreditPanel";
+import { DailyRewardCard } from "@/components/DailyRewardCard";
+import {
+  getDailyRewardState,
+  getDailyRewardTotals,
+  type DailyRewardHolderTotal,
+} from "@/lib/dailyReward";
 import { CreditOfferBanner } from "@/components/CreditOfferBanner";
 import { CreditOfferPanel } from "@/components/CreditOfferPanel";
 import {
@@ -37,6 +44,50 @@ import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 import { BroadcastPanel } from "@/components/BroadcastPanel";
 
 export const dynamic = "force-dynamic";
+
+// İsmayıl's settlement view for the daily rewards: what each holder has
+// accumulated in the claims ledger, to be paid out into their real money
+// whenever he settles.
+function DailyRewardTotalsCard({
+  totals,
+}: {
+  totals: DailyRewardHolderTotal[];
+}) {
+  const grandTotal = totals.reduce((s, t) => s + t.totalAzn, 0);
+  return (
+    <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 p-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
+          Günlük mükafatlar
+        </p>
+        <span className="num text-sm font-semibold tabular-nums text-ink dark:text-white/90">
+          {formatGrouped(grandTotal, 2)} ₼
+        </span>
+      </div>
+      <div className="mt-2 divide-y divide-black/5 dark:divide-white/10">
+        {totals.map((t) => (
+          <div key={t.name} className="flex items-center justify-between gap-3 py-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-ink dark:text-white/90">
+                {t.name}
+              </p>
+              <p className="mt-0.5 text-[11px] text-black/45 dark:text-white/50">
+                <span className="num">{t.claimCount}</span> gün
+                {t.lastClaim ? ` · son: ${t.lastClaim}` : ""}
+              </p>
+            </div>
+            <span className="num shrink-0 text-sm font-semibold tabular-nums text-status-paid dark:text-emerald-400">
+              {formatGrouped(t.totalAzn, 2)} ₼
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] leading-5 text-black/45 dark:text-white/50">
+        Yığılan mükafatlar hesablaşma zamanı holderlərə əl ilə ödənilir.
+      </p>
+    </div>
+  );
+}
 
 // Bank-app style quick actions: the bank's products/venues one tap away.
 // Positioned right under the welcome line so primary navigation no longer
@@ -244,6 +295,18 @@ export default async function BankPage({
   const isAdmin = supabase
     ? (await supabase.rpc("is_fund_admin")).data === true
     : false;
+  // Günlük mükafat: today's claim state for the card, and (admin only) the
+  // per-holder settlement totals. Both degrade to "no card" when the
+  // migration hasn't been applied yet.
+  const [rewardState, rewardTotals] = supabase
+    ? await Promise.all([
+        getDailyRewardState(supabase, user.id),
+        isAdmin
+          ? getDailyRewardTotals(supabase)
+          : Promise.resolve([] as DailyRewardHolderTotal[]),
+      ])
+    : [null, [] as DailyRewardHolderTotal[]];
+
   const adminAccounts = isAdmin ? await getBankAccounts() : [];
   const debtors = adminAccounts
     .filter((a) => a.outstandingLoanAzn > 0)
@@ -386,6 +449,16 @@ export default async function BankPage({
           />
         </MotionSection>
 
+        {/* Günlük mükafat — the daily-login habit card. Hidden entirely when
+            the claims table isn't reachable (migration pending, outage). */}
+        {rewardState?.available ? (
+          <MotionSection delay={0.035}>
+            <div className="mt-6">
+              <DailyRewardCard state={rewardState} />
+            </div>
+          </MotionSection>
+        ) : null}
+
         {/* ── Balance Section — Fund-hero style headline ──
             Total on top, deposit + bonds as its two legs underneath. Renders
             for every account, including one holding nothing: a plain 0,00 ₼ is
@@ -455,6 +528,9 @@ export default async function BankPage({
               <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <DebtNoticePanel debtors={debtors} />
                 <BroadcastPanel recipients={recipientNames} />
+                {rewardTotals.length > 0 ? (
+                  <DailyRewardTotalsCard totals={rewardTotals} />
+                ) : null}
               </div>
               <div className="mt-4">
                 <CreditOfferPanel
