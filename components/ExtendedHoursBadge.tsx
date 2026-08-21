@@ -4,7 +4,7 @@ import { useState } from "react";
 import { formatAzn, formatGroupedTrim } from "@/lib/portfolio";
 import { Masked } from "@/components/Masked";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
-import { SessionHistoryChart } from "@/components/SessionHistoryChart";
+import { SessionHistoryChart } from "@/components/SessionHistoryChartLazy";
 import type { SessionHistoryPoint } from "@/lib/sessionHistory";
 import type { ExtendedPortfolio } from "@/lib/extendedPortfolio";
 

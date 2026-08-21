@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import {
   formatAzn,
   formatMoney,
@@ -113,7 +113,7 @@ function AnimatedFigure({
   return (
     // No `layout` prop: these figures never legitimately move, and with it a
     // 1-2px document shift makes every number glide across the list.
-    <motion.span
+    <m.span
       key={keyName}
       initial={{ opacity: 0, y: -4, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -122,7 +122,7 @@ function AnimatedFigure({
       style={{ display: inline ? "inline-block" : "inline-flex" }}
     >
       {children}
-    </motion.span>
+    </m.span>
   );
 }
 
@@ -186,7 +186,7 @@ function ChangeBadge({
     >
       {icon}
       <AnimatePresence mode="wait" initial={false}>
-        <motion.span
+        <m.span
           key={showAmount ? `amount-${currency}` : "pct"}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
@@ -195,7 +195,7 @@ function ChangeBadge({
           className="inline-block whitespace-nowrap"
         >
           {label}
-        </motion.span>
+        </m.span>
       </AnimatePresence>
     </button>
   );
@@ -660,7 +660,7 @@ export function AllocationList({
               {momoRow && (
                 <AnimatePresence initial={false}>
                   {momoIsOpen && (
-                    <motion.div
+                    <m.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
@@ -694,7 +694,7 @@ export function AllocationList({
                         row={momoRow}
                         className="pb-1 pl-4 pr-2 pt-3 sm:pl-12"
                       />
-                    </motion.div>
+                    </m.div>
                   )}
                 </AnimatePresence>
               )}

@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { auth as googleAuth, sheets as sheetsApi } from "@googleapis/sheets";
 import { unstable_cache } from "next/cache";
 import { USD_TO_AZN } from "@/lib/portfolio";
 import type { NavPoint } from "@/lib/priceHistory";
@@ -71,7 +71,7 @@ function getAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON env var is missing");
   const credentials = JSON.parse(raw);
-  return new google.auth.GoogleAuth({
+  return new googleAuth.GoogleAuth({
     credentials,
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
   });
@@ -115,7 +115,7 @@ const SHEET_RANGES = [
 async function fetchSheetSnapshot(): Promise<SheetSnapshot> {
   const sheetId = process.env.SHEET_ID;
   if (!sheetId) throw new Error("SHEET_ID env var is missing");
-  const sheets = google.sheets({ version: "v4", auth: getAuth() });
+  const sheets = sheetsApi({ version: "v4", auth: getAuth() });
   try {
     const res = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetId,
@@ -320,7 +320,7 @@ const getAssetSheetRows = unstable_cache(
     const sheetId = process.env.SHEET_ID;
     if (!sheetId) return [];
     try {
-      const sheets = google.sheets({ version: "v4", auth: getAuth() });
+      const sheets = sheetsApi({ version: "v4", auth: getAuth() });
       const res = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
         range: "'Aktivlər'!A2:G200",

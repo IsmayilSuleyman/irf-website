@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { Masked } from "@/components/Masked";
 import {
   formatAzn,
@@ -74,7 +74,7 @@ function AnimatedFigure({
   children: ReactNode;
 }) {
   return (
-    <motion.span
+    <m.span
       key={keyName}
       initial={{ opacity: 0, y: -4, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -83,7 +83,7 @@ function AnimatedFigure({
       style={{ display: inline ? "inline-block" : "inline-flex" }}
     >
       {children}
-    </motion.span>
+    </m.span>
   );
 }
 
@@ -132,7 +132,7 @@ function ChangeBadge({
       className={`${base} cursor-pointer transition hover:brightness-95`}
     >
       <AnimatePresence mode="wait" initial={false}>
-        <motion.span
+        <m.span
           key={showAmount ? "amount" : "pct"}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
@@ -141,7 +141,7 @@ function ChangeBadge({
           className="inline-block whitespace-nowrap"
         >
           {label}
-        </motion.span>
+        </m.span>
       </AnimatePresence>
     </button>
   );
@@ -456,7 +456,7 @@ export function AssetHoldingsCard({
                   rounds or omits, in the AllocationList panel style. */}
               <AnimatePresence initial={false}>
                 {isOpen && (
-                  <motion.div
+                  <m.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -497,7 +497,7 @@ export function AssetHoldingsCard({
                         </span>
                       )}
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </li>

@@ -29,7 +29,11 @@ import { getMarketQuotes } from "@/lib/market";
 import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
-import { PerformanceChart } from "@/components/PerformanceChart";
+// Lazy client wrappers: the recharts-powered cards hydrate from their own
+// on-demand chunk instead of riding in the dashboard's first-load JS.
+import { PerformanceChart } from "@/components/PerformanceChartLazy";
+import { PortfolioPie } from "@/components/PortfolioPieLazy";
+import { DebtPanel } from "@/components/DebtPanelLazy";
 import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
 import { getMarketTicker } from "@/lib/marketTicker";
@@ -43,7 +47,6 @@ import {
   isOwnerEmail,
 } from "@/lib/fundSettings";
 import { AllocationList } from "@/components/AllocationList";
-import { PortfolioPie } from "@/components/PortfolioPie";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
 import { FundViewToggle } from "@/components/FundViewToggle";
@@ -51,7 +54,6 @@ import { ShareholdersList } from "@/components/ShareholdersList";
 import { PrivacyProvider } from "@/components/PrivacyProvider";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { MarketCountdown } from "@/components/MarketCountdown";
-import { DebtPanel } from "@/components/DebtPanel";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
 import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule";
 import { after } from "next/server";
@@ -153,20 +155,22 @@ export default async function DashboardPage({
 
   // Whole-portfolio revaluation at Yahoo extended-hours prices (pre-market,
   // after-market, or the overnight gap carrying the after-market close);
-  // null only during regular trading hours. Shared 60s quote cache.
-  const extendedPortfolio = await getExtendedPortfolio(holdings);
-
-  // Hover graph data + the 10-minute snapshot recording, in one parallel
-  // pass. Recording runs in-render (not after()) because the Supabase client
-  // may touch the request's cookies, which are off-limits post-response;
-  // the RPC buckets to 10 minutes and first-write-wins, so repeated renders
-  // cost one cheap no-op insert. Extended windows record the extended %,
-  // regular hours record the intraday day-change % for the countdown chart.
-  let extendedHistory: SessionHistoryPoint[] = [];
-  let regularHistory: SessionHistoryPoint[] = [];
-  // Past weeks of momentum scores, for the buy ticket's hysteresis replay.
-  let momentumWeeks: WeekScores[] = [];
-  {
+  // null only during regular trading hours. Shared 60s quote cache. The
+  // Supabase hover-graph reads and the 10-minute snapshot recording chain
+  // behind it inside one closure, so the whole strand runs concurrently with
+  // the ETF quote fetch kicked off just below — instead of the old serial
+  // await staircase. Recording runs in-render (not after()) because the
+  // Supabase client may touch the request's cookies, which are off-limits
+  // post-response; the RPC buckets to 10 minutes and first-write-wins, so
+  // repeated renders cost one cheap no-op insert. Extended windows record
+  // the extended %, regular hours record the intraday day-change % for the
+  // countdown chart.
+  const extendedAndHistory = (async () => {
+    const extendedPortfolio = await getExtendedPortfolio(holdings);
+    let extendedHistory: SessionHistoryPoint[] = [];
+    let regularHistory: SessionHistoryPoint[] = [];
+    // Past weeks of momentum scores, for the buy ticket's hysteresis replay.
+    let momentumWeeks: WeekScores[] = [];
     const histSupabase = await createSupabaseServerClient();
     if (histSupabase) {
       const regularPortfolio = extendedPortfolio
@@ -195,7 +199,20 @@ export default async function DashboardPage({
         recordWeek.catch(() => undefined),
       ]);
     }
-  }
+    return { extendedPortfolio, extendedHistory, regularHistory, momentumWeeks };
+  })();
+
+  // Personal ETF desk quotes (SPY/IBIT/GLDM/SIVR + ledger symbols) — started
+  // here so the Yahoo round-trip overlaps the extended-portfolio/history
+  // strand above; awaited further down where the positions are built.
+  // getAssetQuotes never rejects ({} on failure), so firing early is safe.
+  const assetQuotesPromise = getAssetQuotes([
+    ...PURCHASABLE_ASSETS.map((a) => a.symbol),
+    ...assetTxs.map((t) => t.symbol),
+  ]);
+
+  const { extendedPortfolio, extendedHistory, regularHistory, momentumWeeks } =
+    await extendedAndHistory;
 
   // This period's ticket. Sector data rides along for the advised set's
   // diversification cap (sectors are a property of the instrument, so the
@@ -346,17 +363,33 @@ export default async function DashboardPage({
   // Personal ETF desk: the viewer's positions from the Aktivlər ledger,
   // valued at live ETF quotes (SPY/IBIT/GLDM/SIVR — what holders actually
   // buy, unlike the tiles' headline indices), plus per-tile info for the
-  // strip's expandable panels.
-  const assetQuotes = await getAssetQuotes([
-    ...PURCHASABLE_ASSETS.map((a) => a.symbol),
-    ...assetTxs.map((t) => t.symbol),
-  ]);
+  // strip's expandable panels. The quote fetch has been in flight since
+  // before the history await above.
+  const assetQuotes = await assetQuotesPromise;
   const assetPositions = buildAssetPositions(holder.name, assetTxs, assetQuotes);
-  // Row sparklines for Aktivlərim: six months of daily closes per held
-  // ETF, and the unit price's six-month tail for the İRF row.
-  const assetRowSparks = await getAssetRowSparks(
-    assetPositions.map((p) => p.symbol),
-  );
+  // One parallel round for the remaining history series: the Aktivlərim row
+  // sparklines (six months of daily closes per held ETF), the fund view's
+  // per-holding Fond Portfeli sparklines, and the chart card's ETF value
+  // overlay — previously three serial awaits.
+  const [assetRowSparks, fondSparks, assetOverlay] = await Promise.all([
+    getAssetRowSparks(assetPositions.map((p) => p.symbol)),
+    // Fond Portfeli row sparklines — fund view only, one cached series per
+    // non-cash holding.
+    fundView && holdings.length > 0
+      ? getAssetRowSparks(
+          holdings
+            .filter((h) => !h.isCash && isTickerSymbol(h.symbol))
+            .map((h) => h.symbol),
+        )
+      : Promise.resolve({} as Record<string, number[]>),
+    assetPositions.length > 0
+      ? getAssetValueOverlay(
+          holder.name,
+          assetTxs,
+          chartData.map((p) => p.date.slice(0, 10)),
+        )
+      : Promise.resolve(null),
+  ]);
   const irfRowSpark = priceHistory
     .filter(
       (p) =>
@@ -368,16 +401,6 @@ export default async function DashboardPage({
   const assetHolders = fundView
     ? buildAssetHolderSummaries(assetTxs, assetQuotes)
     : [];
-  // Fond Portfeli row sparklines — fund view only, one cached series per
-  // non-cash holding.
-  const fondSparks =
-    fundView && holdings.length > 0
-      ? await getAssetRowSparks(
-          holdings
-            .filter((h) => !h.isCash && isTickerSymbol(h.symbol))
-            .map((h) => h.symbol),
-        )
-      : {};
   const positionBySymbol = Object.fromEntries(
     assetPositions.map((p) => [p.symbol, p]),
   );
@@ -415,14 +438,6 @@ export default async function DashboardPage({
     (s, p) => s + (p.totalPnlAzn ?? 0),
     0,
   );
-  const assetOverlay =
-    assetPositions.length > 0
-      ? await getAssetValueOverlay(
-          holder.name,
-          assetTxs,
-          chartData.map((p) => p.date.slice(0, 10)),
-        )
-      : null;
   const bookChartData = assetOverlay
     ? chartData.map((p) => {
         const o = assetOverlay[p.date.slice(0, 10)];

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 function safeNextPath(raw: string | null): string {
@@ -54,7 +54,7 @@ export function LoginForm() {
   };
 
   return (
-    <motion.form
+    <m.form
       onSubmit={onSubmit}
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
@@ -118,6 +118,6 @@ export function LoginForm() {
             ? "Daxil olunur..."
             : "Daxil ol"}
       </button>
-    </motion.form>
+    </m.form>
   );
 }

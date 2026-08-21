@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { formatAzn, formatGrouped, NBSP } from "@/lib/portfolio";
-import { DEFAULT_TERMS, type ProductTerm } from "@/lib/bankTerms";
+import { DEFAULT_TERMS, type ProductTerm } from "@/lib/bankTermsData";
 
 const MIN_AMOUNT = 50;
 const MAX_AMOUNT = 2000;

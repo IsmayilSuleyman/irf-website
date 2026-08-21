@@ -373,3 +373,37 @@ body {
     display: none;
   }
 }
+
+/* ============================================================
+   PageBackground orb drift — CSS keyframes mirroring the original
+   framer-motion x/y waypoint arrays (evenly spaced, ease-in-out),
+   so the orbs animate on the compositor with no JS running.
+   ============================================================ */
+@keyframes orb-drift-1 {
+  0%   { transform: translate(0, 0); }
+  33%  { transform: translate(60px, 40px); }
+  66%  { transform: translate(-20px, 20px); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes orb-drift-2 {
+  0%   { transform: translate(0, 0); }
+  33%  { transform: translate(-50px, -30px); }
+  66%  { transform: translate(30px, 40px); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes orb-drift-3 {
+  0%   { transform: translate(0, 0); }
+  33%  { transform: translate(40px, -50px); }
+  66%  { transform: translate(-30px, 10px); }
+  100% { transform: translate(0, 0); }
+}
+.orb-drift-1 { animation: orb-drift-1 22s ease-in-out infinite; }
+.orb-drift-2 { animation: orb-drift-2 28s ease-in-out infinite; }
+.orb-drift-3 { animation: orb-drift-3 25s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .orb-drift-1,
+  .orb-drift-2,
+  .orb-drift-3 {
+    animation: none;
+  }
+}

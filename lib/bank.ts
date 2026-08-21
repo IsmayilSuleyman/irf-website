@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { auth as googleAuth, sheets as sheetsApi } from "@googleapis/sheets";
 import { unstable_cache } from "next/cache";
 import { formatAzn } from "@/lib/portfolio";
 
@@ -30,7 +30,7 @@ function getAuth() {
 
   const credentials = JSON.parse(raw);
 
-  return new google.auth.GoogleAuth({
+  return new googleAuth.GoogleAuth({
     credentials,
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
   });
@@ -337,7 +337,7 @@ async function readTab(tabName: string, range: string): Promise<string[][]> {
   const sheetId = process.env.SHEET_ID;
   if (!sheetId) throw new Error("SHEET_ID env var is missing");
 
-  const sheets = google.sheets({ version: "v4", auth: getAuth() });
+  const sheets = sheetsApi({ version: "v4", auth: getAuth() });
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
     range: `'${tabName}'!${range}`,
