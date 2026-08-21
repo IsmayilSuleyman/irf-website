@@ -25,7 +25,6 @@ import { BankWideView } from "@/components/BankWideView";
 import { BankTermsPanel } from "@/components/BankTermsPanel";
 import { BalanceHero } from "@/components/BalanceHero";
 import { CreditPanel } from "@/components/CreditPanel";
-import { DailyRewardCard } from "@/components/DailyRewardCard";
 import { DailyRewardAdminCard } from "@/components/DailyRewardAdminCard";
 import {
   getDailyRewardState,
@@ -409,15 +408,6 @@ export default async function BankPage({
           />
         </MotionSection>
 
-        {/* Günlük mükafat — the daily-login habit card. Hidden entirely when
-            the claims table isn't reachable (migration pending, outage). */}
-        {rewardState?.available ? (
-          <MotionSection delay={0.035}>
-            <div className="mt-6">
-              <DailyRewardCard state={rewardState} />
-            </div>
-          </MotionSection>
-        ) : null}
 
         {/* ── Balance Section — Fund-hero style headline ──
             Total on top, deposit + bonds as its two legs underneath. Renders

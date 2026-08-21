@@ -39,6 +39,8 @@ import { MarketTickerStrip } from "@/components/MarketTickerStrip";
 import { getMarketTicker } from "@/lib/marketTicker";
 import { isTickerSymbol } from "@/lib/yahoo";
 import { StrategyStatementCard } from "@/components/StrategyStatementCard";
+import { DailyRewardCard } from "@/components/DailyRewardCard";
+import { getDailyRewardState } from "@/lib/dailyReward";
 import { MotionSection } from "@/components/MotionSection";
 import {
   getPurchaseCadence,
@@ -212,8 +214,19 @@ export default async function DashboardPage({
     ...assetTxs.map((t) => t.symbol),
   ]);
 
+  // Günlük mükafat state for the card under the strategy statement — its own
+  // Supabase client so it rides the same concurrency window as the strands
+  // above. null (no card) when Supabase or the claims table is unavailable.
+  const rewardStatePromise = (async () => {
+    const sb = await createSupabaseServerClient();
+    if (!sb) return null;
+    const state = await getDailyRewardState(sb, user.id);
+    return state.available ? state : null;
+  })();
+
   const { extendedPortfolio, extendedHistory, regularHistory, momentumWeeks } =
     await extendedAndHistory;
+  const rewardState = await rewardStatePromise;
 
   // This period's ticket. Sector data rides along for the advised set's
   // diversification cap (sectors are a property of the instrument, so the
@@ -654,15 +667,31 @@ export default async function DashboardPage({
           </>
         )}
 
-        {/* Strategy statement — personal view only */}
-        {!fundView && (canEditStrategy || strategyStatement.trim().length > 0) && (
+        {/* Strategy statement — personal view only. The günlük mükafat card
+            docks to its bottom (İsmayıl's placement call); with no statement
+            to show, the reward card stands alone in the same slot. */}
+        {!fundView &&
+        (canEditStrategy || strategyStatement.trim().length > 0 || rewardState) ? (
           <MotionSection delay={0.12} className="-mt-10">
-            <StrategyStatementCard
-              initialValue={strategyStatement}
-              canEdit={canEditStrategy}
-            />
+            {canEditStrategy || strategyStatement.trim().length > 0 ? (
+              <StrategyStatementCard
+                initialValue={strategyStatement}
+                canEdit={canEditStrategy}
+              />
+            ) : null}
+            {rewardState ? (
+              <div
+                className={
+                  canEditStrategy || strategyStatement.trim().length > 0
+                    ? "mt-4"
+                    : undefined
+                }
+              >
+                <DailyRewardCard state={rewardState} />
+              </div>
+            ) : null}
           </MotionSection>
-        )}
+        ) : null}
 
         {/* Debt panel — admin only, personal view only */}
         {!fundView && isAdmin && debts.length > 0 && (

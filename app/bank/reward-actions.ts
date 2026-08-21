@@ -34,6 +34,9 @@ export async function claimDailyReward(): Promise<ClaimResult> {
     return { ok: false, error: "Mükafat götürülmədi — bir azdan yenidən yoxlayın." };
   }
 
+  // The claim card lives on /dashboard; the claimed amount shows inside the
+  // /bank deposit figure — both need fresh data.
+  revalidatePath("/dashboard");
   revalidatePath("/bank");
   const row = data as {
     claimed?: boolean;
