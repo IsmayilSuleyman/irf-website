@@ -4,14 +4,11 @@ import {
   getBankAccountByName,
   getBankAccounts,
   monthlyDepositInterestAzn,
-  simplifyText,
   type BankAccount,
-  type BankPaymentScheduleItem,
 } from "@/lib/bank";
 import { requireUser } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
-import { formatGrouped } from "@/lib/portfolio";
 import { getBankProductTerms } from "@/lib/bankTerms";
 import {
   getBondFundingAzn,
@@ -27,6 +24,7 @@ import { BankViewToggle } from "@/components/BankViewToggle";
 import { BankWideView } from "@/components/BankWideView";
 import { BankTermsPanel } from "@/components/BankTermsPanel";
 import { BalanceHero } from "@/components/BalanceHero";
+import { CreditPanel } from "@/components/CreditPanel";
 import { CreditOfferBanner } from "@/components/CreditOfferBanner";
 import { CreditOfferPanel } from "@/components/CreditOfferPanel";
 import {
@@ -39,41 +37,6 @@ import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 import { BroadcastPanel } from "@/components/BroadcastPanel";
 
 export const dynamic = "force-dynamic";
-
-function formatDisplayDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.valueOf()) ? value : formatBakuDate(parsed);
-}
-
-function formatAmount(value: number): string {
-  const hasFraction = Math.abs(value % 1) > 0.001;
-  return formatGrouped(value, hasFraction ? 2 : 0);
-}
-
-function normalizeStatus(status: string | null | undefined): string {
-  return simplifyText(String(status ?? "")).toLocaleLowerCase("en-US");
-}
-
-function isPaid(status: string | null | undefined): boolean {
-  const n = normalizeStatus(status);
-  return n.includes("oden") || n.includes("paid");
-}
-
-function statusStyles(status: string | null | undefined): string {
-  const n = normalizeStatus(status);
-
-  if (n.includes("oden") || n.includes("paid")) {
-    return "bg-brand-green-mist dark:bg-brand-green/15 text-status-paid dark:text-emerald-400";
-  }
-
-  if (n.includes("gec") || n.includes("late")) {
-    return "bg-status-late-soft dark:bg-status-late/20 text-status-late dark:text-rose-400";
-  }
-
-  return "bg-bank-blue-soft dark:bg-bank-blue/20 text-bank-blue dark:text-blue-400";
-}
 
 // Bank-app style quick actions: the bank's products/venues one tap away.
 // Positioned right under the welcome line so primary navigation no longer
@@ -179,81 +142,6 @@ function QuickActions({
         </Link>
       ))}
     </div>
-  );
-}
-
-function StatTile({
-  label,
-  value,
-  children,
-  tone = "default",
-}: {
-  label: string;
-  value?: string;
-  children?: React.ReactNode;
-  tone?: "default" | "positive" | "negative";
-}) {
-  const valueTone =
-    tone === "positive"
-      ? "text-status-paid dark:text-emerald-400"
-      : tone === "negative"
-        ? "text-status-late dark:text-rose-400"
-        : "text-ink dark:text-white/90";
-
-  return (
-    <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-5 py-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
-        {label}
-      </p>
-      {children ?? (
-        <p className={`mt-2 text-[1.35rem] font-semibold tracking-[-0.03em] ${valueTone}`}>
-          {value}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function ScheduleRow({ item }: { item: BankPaymentScheduleItem }) {
-  const amountLabel = item.amountAzn != null ? `${formatAmount(item.amountAzn)} ₼` : "—";
-  const statusLabel = item.status || "Planlaşdırılır";
-  const dateLabel = formatDisplayDate(item.date) ?? item.date;
-
-  return (
-    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-3.5">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-ink dark:text-white/90">{dateLabel}</p>
-        {item.label ? (
-          <p className="mt-0.5 truncate text-xs text-black/45 dark:text-white/50">{item.label}</p>
-        ) : null}
-      </div>
-      <span
-        className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${statusStyles(statusLabel)}`}
-      >
-        {statusLabel}
-      </span>
-      <p className="text-sm font-semibold tabular-nums text-ink dark:text-white/90">{amountLabel}</p>
-    </div>
-  );
-}
-
-function PaymentSchedule({ schedule }: { schedule: BankPaymentScheduleItem[] }) {
-  return (
-    <section className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10">
-      <header className="flex items-baseline justify-between px-5 py-4">
-        <h2 className="text-[15px] font-semibold tracking-[-0.02em] text-ink dark:text-white/90">
-          Ödəniş cədvəli
-        </h2>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
-          {schedule.length} ödəniş
-        </span>
-      </header>
-      <div className="divide-y divide-black/5 border-t border-black/10 dark:border-white/10">
-        {schedule.map((item, index) => (
-          <ScheduleRow key={`${item.date}-${index}`} item={item} />
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -451,11 +339,6 @@ export default async function BankPage({
     bonds.totalUnits <= 0 &&
     account.paymentSchedule.length === 0;
 
-  const remainingPayments =
-    account.paymentSchedule.length > 0
-      ? account.paymentSchedule.filter((p) => !isPaid(p.status)).length
-      : null;
-
   return (
     <main className="min-h-screen bg-bank-section">
       <BankHeader dateLabel={dateLabel} />
@@ -538,50 +421,18 @@ export default async function BankPage({
           </MotionSection>
         ) : null}
 
-        {/* ── Credits Section ── */}
-        {account.outstandingLoanAzn > 0 ? (
+        {/* ── Credits Section — one card telling the whole story: remaining
+            debt hero, highlighted next payment with countdown, per-payment
+            progress segments and the schedule as a status-dot timeline. ── */}
+        {account.outstandingLoanAzn > 0 ||
+        account.paymentSchedule.length > 0 ? (
           <MotionSection delay={0.08}>
-            <h2
-              id="kreditlerim"
-              className="mt-10 scroll-mt-6 text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90"
-            >
-              İsmayılBank ilə olan kreditlərim:
-            </h2>
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              <StatTile
-                label="Qalan kredit məbləği"
-                value={`${formatAmount(account.outstandingLoanAzn)}₼`}
-                tone="negative"
+            <div id="kreditlerim" className="mt-10 scroll-mt-6">
+              <CreditPanel
+                outstandingAzn={account.outstandingLoanAzn}
+                monthlyPaymentAzn={account.monthlyPaymentAzn}
+                schedule={account.paymentSchedule}
               />
-              <StatTile
-                label="Qalan ödəniş sayı (ay)"
-                value={
-                  remainingPayments != null
-                    ? `${remainingPayments} (ay)`
-                    : "—"
-                }
-              />
-              <StatTile
-                label="Aylıq ödəniləcək məbləğ"
-                value={
-                  account.monthlyPaymentAzn != null
-                    ? `${formatAmount(account.monthlyPaymentAzn)}₼`
-                    : "—"
-                }
-              />
-            </div>
-          </MotionSection>
-        ) : null}
-
-        {account.paymentSchedule.length > 0 ? (
-          <MotionSection delay={0.12}>
-            {/* When the loan is fully paid the credits heading above doesn't
-                render, so the schedule card carries the anchor instead. */}
-            <div
-              id={account.outstandingLoanAzn > 0 ? undefined : "kreditlerim"}
-              className="mt-6 scroll-mt-6"
-            >
-              <PaymentSchedule schedule={account.paymentSchedule} />
             </div>
           </MotionSection>
         ) : null}
