@@ -124,20 +124,26 @@ function QuickActions({
   ];
 
   // Flex-wrap instead of a fixed grid so 3, 4 or 5 cards all fill the row.
+  // Compact rows (tinted icon square + label/desc beside it) instead of the
+  // old tall icon-on-top tiles — half the height, two per row on phones.
   return (
-    <div className="mt-6 flex flex-wrap gap-3">
+    <div className="mt-6 flex flex-wrap gap-2.5">
       {actions.map((a) => (
         <Link
           key={a.href}
           href={a.href}
-          className="group flex min-w-[8.5rem] flex-1 basis-[calc(33%-0.75rem)] flex-col gap-2 rounded-2xl border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-4 py-4 transition hover:-translate-y-0.5 hover:border-bank-blue/30 hover:shadow-sm sm:basis-0 sm:px-5"
+          className="group flex min-w-[9rem] flex-1 basis-[calc(50%-0.625rem)] items-center gap-3 rounded-card border border-black/10 dark:border-white/10 bg-white/90 dark:bg-white/10 px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-bank-blue/30 hover:shadow-sm sm:basis-0"
         >
-          <span className="text-bank-blue dark:text-blue-400">{a.icon}</span>
-          <span className="text-sm font-semibold tracking-[-0.02em] text-ink dark:text-white/90">
-            {a.label}
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-bank-blue-soft dark:bg-bank-blue/15 text-bank-blue dark:text-blue-400">
+            {a.icon}
           </span>
-          <span className="hidden text-[11px] leading-4 text-black/45 dark:text-white/50 sm:block">
-            {a.desc}
+          <span className="min-w-0">
+            <span className="block truncate text-[13px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
+              {a.label}
+            </span>
+            <span className="hidden truncate text-[11px] text-black/45 dark:text-white/50 lg:block">
+              {a.desc}
+            </span>
           </span>
         </Link>
       ))}
