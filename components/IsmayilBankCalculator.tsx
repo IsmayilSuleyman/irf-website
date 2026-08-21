@@ -60,9 +60,9 @@ function SliderField({
   const progress = `${max > min ? ((value - min) / (max - min)) * 100 : 0}%`;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <div className="flex items-end justify-between gap-4">
-        <p className="text-[1.1rem] tracking-[-0.03em] text-black/55 dark:text-white/60">{label}</p>
+        <p className="text-sm font-medium text-black/55 dark:text-white/60">{label}</p>
         {editable ? (
           <div className="flex items-center gap-0.5">
             <input
@@ -82,12 +82,12 @@ function SliderField({
                 onChange(n);
                 setInputValue(String(n));
               }}
-              className="num w-[5ch] bg-transparent text-right text-[2rem] font-semibold tracking-[-0.06em] text-ink dark:text-white/90 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-b-2 focus:border-blue-500 dark:border-blue-400"
+              className="num w-[5ch] bg-transparent text-right text-[1.6rem] font-semibold tracking-[-0.04em] text-ink dark:text-white/90 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-b-2 focus:border-bank-blue dark:border-blue-400"
             />
-            <span className="num text-[2rem] font-semibold tracking-[-0.06em] text-ink dark:text-white/90">₼</span>
+            <span className="num text-[1.6rem] font-semibold tracking-[-0.04em] text-ink dark:text-white/90">₼</span>
           </div>
         ) : (
-          <p className="num text-[2rem] font-semibold tracking-[-0.06em] text-ink dark:text-white/90">
+          <p className="num text-[1.6rem] font-semibold tracking-[-0.04em] text-ink dark:text-white/90">
             {valueLabel}
           </p>
         )}
@@ -105,7 +105,7 @@ function SliderField({
         aria-label={label}
       />
 
-      <div className="flex items-center justify-between text-[1.05rem] tracking-[-0.03em] text-black/45 dark:text-white/50">
+      <div className="flex items-center justify-between text-xs text-black/45 dark:text-white/50">
         <span>{minLabel}</span>
         <span>{maxLabel}</span>
       </div>
@@ -122,8 +122,8 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-sm font-medium tracking-[-0.01em] text-black/70 dark:text-white/75">{label}</span>
-      <span className="num text-base font-semibold tracking-[-0.03em] text-black dark:text-white/90">
+      <span className="text-sm text-white/70">{label}</span>
+      <span className="num text-[15px] font-semibold tabular-nums text-white">
         {value}
       </span>
     </div>
@@ -175,56 +175,93 @@ export function IsmayilBankCalculator({
     };
   }, [amount, annualRate, period]);
 
+  // Principal's share of the total repayment, for the split bar.
+  const principalPct =
+    totalRepayment > 0 ? (amount / totalRepayment) * 100 : 100;
+
   return (
-    <div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.82fr)] lg:gap-8">
-        <div className="rounded-hero border border-white/70 dark:border-white/10 bg-white/70 dark:bg-white/10 p-6 shadow-[0_24px_60px_rgba(98,126,187,0.08)] backdrop-blur-xl sm:p-8">
-          <div className="space-y-8">
-            <SliderField
-              editable
-              label="Məbləğ"
-              min={MIN_AMOUNT}
-              max={MAX_AMOUNT}
-              value={amount}
-              onChange={setAmount}
-              minLabel={formatAmount(MIN_AMOUNT)}
-              maxLabel={formatAmount(MAX_AMOUNT)}
-              valueLabel={formatAmount(amount)}
-            />
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)] lg:items-start lg:gap-8">
+      {/* Controls sit directly on the section card — the page provides the
+          chrome, the component provides the inputs. */}
+      <div className="space-y-7 lg:pt-1">
+        <SliderField
+          editable
+          label="Məbləğ"
+          min={MIN_AMOUNT}
+          max={MAX_AMOUNT}
+          value={amount}
+          onChange={setAmount}
+          minLabel={formatAmount(MIN_AMOUNT)}
+          maxLabel={formatAmount(MAX_AMOUNT)}
+          valueLabel={formatAmount(amount)}
+        />
 
-            <SliderField
-              label="Müddət"
-              min={0}
-              max={tiers.length - 1}
-              value={Math.min(tierIndex, tiers.length - 1)}
-              onChange={setTierIndex}
-              minLabel={`${tiers[0].termMonths} ay`}
-              maxLabel={`${tiers[tiers.length - 1].termMonths} ay`}
-              valueLabel={`${period} ay`}
-            />
-          </div>
+        {/* Quick presets — one tap to the common asks, and they keep the
+            control column visually balanced against the result panel. */}
+        <div className="flex flex-wrap gap-2">
+          {[100, 250, 500, 1000, 2000].map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => setAmount(preset)}
+              aria-pressed={amount === preset}
+              className={`num rounded-full border px-3.5 py-1.5 text-[13px] font-semibold tabular-nums transition ${
+                amount === preset
+                  ? "border-bank-blue bg-bank-blue text-white shadow-sm"
+                  : "border-black/10 dark:border-white/15 bg-white/70 dark:bg-white/5 text-black/60 dark:text-white/65 hover:border-bank-blue/45 hover:text-bank-blue dark:hover:text-blue-400"
+              }`}
+            >
+              {formatAmount(preset)}
+            </button>
+          ))}
         </div>
 
-        <div className="rounded-hero bg-[linear-gradient(160deg,#2f61d8_0%,#2854be_100%)] p-8 text-white shadow-[0_30px_70px_rgba(47,97,216,0.28)] sm:p-10">
-          <p className="text-center text-[1.15rem] font-medium tracking-[-0.03em] text-white/90">
-            Aylıq kredit ödənişi
-          </p>
-          <p className="num mt-5 text-center text-[clamp(3rem,6vw,4.6rem)] font-black tracking-[-0.08em]">
-            {formatMoney(monthlyPayment)}
-          </p>
+        <SliderField
+          label="Müddət"
+          min={0}
+          max={tiers.length - 1}
+          value={Math.min(tierIndex, tiers.length - 1)}
+          onChange={setTierIndex}
+          minLabel={`${tiers[0].termMonths} ay`}
+          maxLabel={`${tiers[tiers.length - 1].termMonths} ay`}
+          valueLabel={`${period} ay`}
+        />
+      </div>
 
-          <div className="mt-8 rounded-3xl bg-white dark:bg-white/10 px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_18px_38px_rgba(23,59,149,0.16)] sm:px-6">
-            <div className="space-y-4">
-              <SummaryRow label="Ümumi ödəniş" value={formatMoney(totalRepayment)} />
-              <SummaryRow label="Ümumi faiz" value={formatMoney(totalInterest)} />
-              <SummaryRow label="İllik faiz" value={formatRate(annualRate)} />
-            </div>
-          </div>
+      {/* Result panel: the product's blue identity, calm typography, and a
+          principal-vs-interest split bar so the cost of the loan is a
+          picture, not just a row. */}
+      <div className="rounded-card bg-[linear-gradient(160deg,#2f61d8_0%,#2854be_100%)] p-6 text-white sm:p-7">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
+          Aylıq ödəniş
+        </p>
+        <p className="num mt-2 text-[2.4rem] font-semibold leading-none tracking-[-0.04em] sm:text-[2.8rem]">
+          {formatMoney(monthlyPayment)}
+        </p>
+        <p className="mt-2 text-xs text-white/65">
+          {period} ay ərzində, illik {formatRate(annualRate)}
+        </p>
 
-          <p className="mt-6 text-center text-sm leading-6 tracking-[-0.01em] text-white/75">
-            İlkin hesablama. Yekun şərtlər müraciət zamanı təsdiqlənir.
-          </p>
+        <div className="mt-6 flex h-1.5 w-full overflow-hidden rounded-full bg-white/25" aria-hidden>
+          <span
+            className="h-full rounded-full bg-white/95"
+            style={{ width: `${principalPct}%` }}
+          />
         </div>
+        <div className="mt-2 flex items-center justify-between text-[11px] text-white/70">
+          <span className="tabular-nums">Əsas: {formatMoney(amount)}</span>
+          <span className="tabular-nums">Faiz: {formatMoney(totalInterest)}</span>
+        </div>
+
+        <div className="mt-6 space-y-3 border-t border-white/15 pt-5">
+          <SummaryRow label="Ümumi ödəniş" value={formatMoney(totalRepayment)} />
+          <SummaryRow label="Ümumi faiz" value={formatMoney(totalInterest)} />
+          <SummaryRow label="İllik faiz" value={formatRate(annualRate)} />
+        </div>
+
+        <p className="mt-5 text-[11px] leading-5 text-white/60">
+          İlkin hesablama. Yekun şərtlər müraciət zamanı təsdiqlənir.
+        </p>
       </div>
     </div>
   );
