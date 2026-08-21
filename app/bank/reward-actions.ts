@@ -47,3 +47,36 @@ export async function claimDailyReward(): Promise<ClaimResult> {
     totalAzn: Number(row?.total_azn ?? 0),
   };
 }
+
+export type SettleResult =
+  | { ok: true; settledCount: number; settledAzn: number }
+  | { ok: false; error: string };
+
+/**
+ * Admin: mark one holder's unsettled reward claims settled — called AFTER
+ * İsmayıl has moved the amount into the holder's Sheet deposit, so the
+ * displayed deposit (sheet + unsettled rewards) never double-counts. The
+ * RPC is is_fund_admin-gated server-side.
+ */
+export async function settleDailyRewards(
+  holderName: string,
+): Promise<SettleResult> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) {
+    return { ok: false, error: "Supabase konfiqurasiya olunmayıb." };
+  }
+  const { data, error } = await supabase.rpc("admin_settle_daily_rewards", {
+    p_holder_name: holderName,
+  });
+  if (error) {
+    console.error("[daily-reward] settle failed:", error);
+    return { ok: false, error: "Hesablaşma alınmadı." };
+  }
+  revalidatePath("/bank");
+  const row = data as { settled_count?: number; settled_azn?: number } | null;
+  return {
+    ok: true,
+    settledCount: Number(row?.settled_count ?? 0),
+    settledAzn: Number(row?.settled_azn ?? 0),
+  };
+}

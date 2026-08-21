@@ -15,6 +15,9 @@ export type DailyRewardState = {
   claimedToday: boolean;
   totalAzn: number;
   monthAzn: number;
+  /** Claims İsmayıl hasn't yet settled into the Sheet deposit — the part
+   *  that counts into the displayed İsmayılBank deposit balance. */
+  unsettledAzn: number;
   /** Consecutive claimed Baku days ending today (or yesterday while today
    *  is still unclaimed, so the streak reads as "alive" until it breaks). */
   streak: number;
@@ -27,6 +30,7 @@ const UNAVAILABLE: DailyRewardState = {
   claimedToday: false,
   totalAzn: 0,
   monthAzn: 0,
+  unsettledAzn: 0,
   streak: 0,
   recentDays: [],
 };
@@ -51,7 +55,7 @@ export async function getDailyRewardState(
   // policy sees EVERYONE's rows (settlement), and his own card must not.
   const { data, error } = await supabase
     .from("daily_reward_claims")
-    .select("claim_date, amount_azn")
+    .select("claim_date, amount_azn, settled_at")
     .eq("user_id", userId)
     .order("claim_date", { ascending: false })
     .limit(400);
@@ -64,6 +68,7 @@ export async function getDailyRewardState(
   const claimed = new Set<string>();
   let totalAzn = 0;
   let monthAzn = 0;
+  let unsettledAzn = 0;
   const monthPrefix = today.slice(0, 7);
   for (const row of data ?? []) {
     const date = String(row.claim_date);
@@ -72,6 +77,7 @@ export async function getDailyRewardState(
     claimed.add(date);
     totalAzn += amount;
     if (date.startsWith(monthPrefix)) monthAzn += amount;
+    if (row.settled_at == null) unsettledAzn += amount;
   }
 
   const claimedToday = claimed.has(today);
@@ -89,12 +95,22 @@ export async function getDailyRewardState(
     day = prevDayIso(day);
   }
 
-  return { available: true, claimedToday, totalAzn, monthAzn, streak, recentDays };
+  return {
+    available: true,
+    claimedToday,
+    totalAzn,
+    monthAzn,
+    unsettledAzn,
+    streak,
+    recentDays,
+  };
 }
 
 export type DailyRewardHolderTotal = {
   name: string;
   totalAzn: number;
+  /** Not yet settled into the Sheet deposit — what İsmayıl still owes. */
+  unsettledAzn: number;
   claimCount: number;
   lastClaim: string | null;
 };
@@ -109,7 +125,7 @@ export async function getDailyRewardTotals(
 ): Promise<DailyRewardHolderTotal[]> {
   const { data, error } = await supabase
     .from("daily_reward_claims")
-    .select("holder_name, amount_azn, claim_date")
+    .select("holder_name, amount_azn, claim_date, settled_at")
     .order("claim_date", { ascending: false })
     .limit(5000);
   if (error) {
@@ -123,12 +139,19 @@ export async function getDailyRewardTotals(
     if (!Number.isFinite(amount)) continue;
     const entry =
       byName.get(name) ??
-      ({ name, totalAzn: 0, claimCount: 0, lastClaim: null } as DailyRewardHolderTotal);
+      ({
+        name,
+        totalAzn: 0,
+        unsettledAzn: 0,
+        claimCount: 0,
+        lastClaim: null,
+      } as DailyRewardHolderTotal);
     entry.totalAzn += amount;
+    if (row.settled_at == null) entry.unsettledAzn += amount;
     entry.claimCount += 1;
     const date = String(row.claim_date);
     if (entry.lastClaim == null || date > entry.lastClaim) entry.lastClaim = date;
     byName.set(name, entry);
   }
-  return [...byName.values()].sort((a, b) => b.totalAzn - a.totalAzn);
+  return [...byName.values()].sort((a, b) => b.unsettledAzn - a.unsettledAzn);
 }
