@@ -14,6 +14,7 @@ import { BondBook } from "@/components/bonds/BondBook";
 import { MyBondOrders } from "@/components/bonds/MyBondOrders";
 import { MyBondMatches } from "@/components/bonds/MyBondMatches";
 import { BondAdminPanel } from "@/components/bonds/BondAdminPanel";
+import { BondCardCarousel } from "@/components/bonds/BondCardCarousel";
 import { BondHoldingNote } from "@/components/bonds/BondHoldingNote";
 
 export const dynamic = "force-dynamic";
@@ -177,6 +178,9 @@ export default async function BondsPage({
     data.series[0] ??
     null;
 
+  // The wallet carousel shows only series the viewer actually holds.
+  const ownedSeries = data.series.filter((s) => s.my_units > 0);
+
   // For İsmayıl `payments` holds every holder's rows; his personal card
   // should only show his own.
   const myPayments = data.isAdmin
@@ -196,7 +200,7 @@ export default async function BondsPage({
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
                 İsmayılBank · İstiqrazlar
               </p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-ink dark:text-white/90">
+              <h1 className="mt-2 text-[1.9rem] font-semibold leading-tight tracking-[-0.03em] text-ink dark:text-white/90 sm:text-[2.2rem]">
                 İstiqraz bazarı
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-black/55 dark:text-white/60">
@@ -214,6 +218,17 @@ export default async function BondsPage({
             </Link>
           </div>
         </MotionSection>
+
+        {/* The viewer's wallet: one certificate card per owned series,
+            swipeable left/right. Sits first — your own bonds are the page's
+            headline for anyone who holds some. */}
+        {ownedSeries.length > 0 ? (
+          <MotionSection delay={0.04}>
+            <div className="mt-10">
+              <BondCardCarousel series={ownedSeries} nowMs={Date.now()} />
+            </div>
+          </MotionSection>
+        ) : null}
 
         {data.isAdmin ? (
           <MotionSection delay={0.05}>
@@ -239,9 +254,14 @@ export default async function BondsPage({
         ) : (
           <>
             <MotionSection delay={0.08}>
-              <h2 className="mt-10 text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
-                Buraxılışlar
-              </h2>
+              <div className="mt-10">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
+                  Katalog
+                </p>
+                <h2 className="mt-1 text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
+                  Buraxılışlar
+                </h2>
+              </div>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {data.series.map((s) => (
                   <SeriesCard key={s.id} series={s} selected={selected?.id === s.id} />
@@ -252,9 +272,14 @@ export default async function BondsPage({
             {selected ? (
               <MotionSection delay={0.12}>
                 <div className="mt-10 flex items-baseline justify-between gap-3">
-                  <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
-                    {selected.name} — ticarət
-                  </h2>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
+                      Ticarət
+                    </p>
+                    <h2 className="mt-1 text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
+                      {selected.name}
+                    </h2>
+                  </div>
                   {selected.next_coupon_date ? (
                     <span className="text-[11px] text-black/45 dark:text-white/50">
                       Növbəti kupon: {formatDisplayDate(selected.next_coupon_date)}
