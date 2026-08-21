@@ -363,13 +363,11 @@ async function parseBankAccounts(): Promise<BankAccount[]> {
   const tabName = process.env.BANK_SHEET_TAB ?? "BankAccounts";
   const range = process.env.BANK_SHEET_RANGE ?? "A1:Z1000";
 
-  let rows: string[][];
-  try {
-    rows = await readTab(tabName, range);
-  } catch (err) {
-    console.error("[bank] Google Sheets fetch failed:", err);
-    return [];
-  }
+  // A failed read THROWS (propagating through the cache wrapper below)
+  // instead of returning [] — unstable_cache used to store that empty
+  // list for a minute, making every holder's bank account "disappear"
+  // after one transient Google API failure.
+  const rows = await readTab(tabName, range);
 
   if (rows.length === 0) {
     return [];
@@ -433,11 +431,27 @@ async function parseBankAccounts(): Promise<BankAccount[]> {
   return out;
 }
 
-export const getBankAccounts = unstable_cache(
+const getCachedBankAccounts = unstable_cache(
   async (): Promise<BankAccount[]> => parseBankAccounts(),
   ["ismayilbank-accounts"],
   { revalidate: 60, tags: ["bank-sheet"] },
 );
+
+// Same recipe as lib/sheets' snapshot fallback: errors are never cached,
+// and a failed fetch serves the instance's last good account list rather
+// than an empty bank.
+let lastGoodAccounts: BankAccount[] | null = null;
+
+export async function getBankAccounts(): Promise<BankAccount[]> {
+  try {
+    const accounts = await getCachedBankAccounts();
+    lastGoodAccounts = accounts;
+    return accounts;
+  } catch (err) {
+    console.error("[bank] Google Sheets fetch failed, serving fallback:", err);
+    return lastGoodAccounts ?? [];
+  }
+}
 
 export async function getBankAccountByName(
   name: string | undefined | null,

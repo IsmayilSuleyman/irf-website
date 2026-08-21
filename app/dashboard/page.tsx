@@ -54,6 +54,7 @@ import { ShareholdersList } from "@/components/ShareholdersList";
 import { PrivacyProvider } from "@/components/PrivacyProvider";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { MarketCountdown } from "@/components/MarketCountdown";
+import { AutoRetry } from "@/components/AutoRetry";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
 import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule";
 import { after } from "next/server";
@@ -265,16 +266,37 @@ export default async function DashboardPage({
   const dateLabel = formatBakuDate(new Date());
 
   if (!holder) {
+    // Zero holders can only mean the Sheet fetch itself came back empty
+    // (a transient Google API failure on a cold cache) — the fund always
+    // has holders. Show a self-healing "loading" state for that case;
+    // "Sahiblik tapılmadı" is reserved for a genuinely unlinked account,
+    // judged against real sheet data.
+    const sheetUnavailable = fund.holders.length === 0;
     return (
       <main className="px-6">
         <Header dateLabel={dateLabel} />
         <div className="mx-auto max-w-5xl py-16 text-center">
-          <h2 className="mb-2 text-lg font-semibold text-black dark:text-white/90">
-            Sahiblik tapılmadı
-          </h2>
-          <p className="text-sm text-black/55 dark:text-white/60">
-            Hesabınız ({user.email}) hələ heç bir sahibə bağlanmayıb.
-          </p>
+          {sheetUnavailable ? (
+            <>
+              <h2 className="mb-2 text-lg font-semibold text-black dark:text-white/90">
+                Məlumatlar yüklənir…
+              </h2>
+              <p className="text-sm text-black/55 dark:text-white/60">
+                Fond məlumatlarına müvəqqəti çatmaq mümkün olmadı. Səhifə bir
+                neçə saniyəyə özü yenilənəcək.
+              </p>
+              <AutoRetry />
+            </>
+          ) : (
+            <>
+              <h2 className="mb-2 text-lg font-semibold text-black dark:text-white/90">
+                Sahiblik tapılmadı
+              </h2>
+              <p className="text-sm text-black/55 dark:text-white/60">
+                Hesabınız ({user.email}) hələ heç bir sahibə bağlanmayıb.
+              </p>
+            </>
+          )}
         </div>
       </main>
     );
