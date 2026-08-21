@@ -25,6 +25,12 @@ import { BankWideView } from "@/components/BankWideView";
 import { BankTermsPanel } from "@/components/BankTermsPanel";
 import { BalanceHero } from "@/components/BalanceHero";
 import { CreditPanel } from "@/components/CreditPanel";
+import { DailyRewardAdminCard } from "@/components/DailyRewardAdminCard";
+import {
+  getDailyRewardState,
+  getDailyRewardTotals,
+  type DailyRewardHolderTotal,
+} from "@/lib/dailyReward";
 import { CreditOfferBanner } from "@/components/CreditOfferBanner";
 import { CreditOfferPanel } from "@/components/CreditOfferPanel";
 import {
@@ -244,6 +250,18 @@ export default async function BankPage({
   const isAdmin = supabase
     ? (await supabase.rpc("is_fund_admin")).data === true
     : false;
+  // Günlük mükafat: today's claim state for the card, and (admin only) the
+  // per-holder settlement totals. Both degrade to "no card" when the
+  // migration hasn't been applied yet.
+  const [rewardState, rewardTotals] = supabase
+    ? await Promise.all([
+        getDailyRewardState(supabase, user.id),
+        isAdmin
+          ? getDailyRewardTotals(supabase)
+          : Promise.resolve([] as DailyRewardHolderTotal[]),
+      ])
+    : [null, [] as DailyRewardHolderTotal[]];
+
   const adminAccounts = isAdmin ? await getBankAccounts() : [];
   const debtors = adminAccounts
     .filter((a) => a.outstandingLoanAzn > 0)
@@ -339,8 +357,12 @@ export default async function BankPage({
     );
   }
 
+  // Unsettled daily rewards are money too — an account holding only rewards
+  // is not "empty".
+  const rewardAzn = rewardState?.available ? rewardState.unsettledAzn : 0;
   const hasNoProducts =
     account.depositedAzn <= 0 &&
+    rewardAzn <= 0 &&
     account.outstandingLoanAzn <= 0 &&
     bonds.totalUnits <= 0 &&
     account.paymentSchedule.length === 0;
@@ -386,6 +408,7 @@ export default async function BankPage({
           />
         </MotionSection>
 
+
         {/* ── Balance Section — Fund-hero style headline ──
             Total on top, deposit + bonds as its two legs underneath. Renders
             for every account, including one holding nothing: a plain 0,00 ₼ is
@@ -394,6 +417,7 @@ export default async function BankPage({
           <div id="depozitlerim" className="mt-8 scroll-mt-6">
             <BalanceHero
               depositedAzn={account.depositedAzn}
+              rewardAzn={rewardAzn}
               termMonths={account.termMonths}
               annualRatePct={account.annualRatePct}
               maturityBonusAzn={account.maturityBonusAzn}
@@ -455,6 +479,9 @@ export default async function BankPage({
               <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <DebtNoticePanel debtors={debtors} />
                 <BroadcastPanel recipients={recipientNames} />
+                {rewardTotals.length > 0 ? (
+                  <DailyRewardAdminCard totals={rewardTotals} />
+                ) : null}
               </div>
               <div className="mt-4">
                 <CreditOfferPanel

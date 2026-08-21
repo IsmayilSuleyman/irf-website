@@ -100,6 +100,7 @@ function Leg({
 
 export function BalanceHero({
   depositedAzn,
+  rewardAzn = 0,
   termMonths,
   annualRatePct,
   maturityBonusAzn,
@@ -111,6 +112,10 @@ export function BalanceHero({
   bondMonthlyAzn,
 }: {
   depositedAzn: number;
+  /** Unsettled günlük mükafat claims — shown as part of the deposit until
+   *  İsmayıl settles them into the Sheet (then they arrive as sheet deposit
+   *  and leave this figure, so the total never double-counts). */
+  rewardAzn?: number;
   termMonths: number | null;
   annualRatePct: number | null;
   maturityBonusAzn: number | null;
@@ -124,12 +129,14 @@ export function BalanceHero({
   /** Average coupon income per month across the held series. */
   bondMonthlyAzn: number;
 }) {
+  // Sheet deposit + unsettled daily rewards = the deposit the holder sees.
+  const depositTotalAzn = depositedAzn + Math.max(0, rewardAzn);
   const hasBonds = bondUnits > 0;
-  const hasDeposit = depositedAzn > 0;
-  const totalAzn = depositedAzn + bondValueAzn;
+  const hasDeposit = depositTotalAzn > 0;
+  const totalAzn = depositTotalAzn + bondValueAzn;
   const monthlyTotalAzn =
     Math.max(0, depositMonthlyAzn) + Math.max(0, bondMonthlyAzn);
-  const depositPct = totalAzn > 0 ? (depositedAzn / totalAzn) * 100 : 0;
+  const depositPct = totalAzn > 0 ? (depositTotalAzn / totalAzn) * 100 : 0;
   const maturityEndAmount =
     maturityBonusAzn != null ? depositedAzn + maturityBonusAzn : null;
   const maturityDateLabel = formatDisplayDate(maturityDate);
@@ -141,6 +148,12 @@ export function BalanceHero({
       çıxarılan depozitlərə faiz gəliri verilmir.
     </>
   );
+
+  const hasTierMeta =
+    (termMonths != null && termMonths > 0) ||
+    (annualRatePct != null && annualRatePct > 0) ||
+    (maturityEndAmount != null && maturityEndAmount !== depositedAzn) ||
+    maturityDateLabel != null;
 
   // Degenerate tiers read as noise, not facts — a 0-month term or a 0% rate
   // simply drops out of the meta line.
@@ -173,6 +186,16 @@ export function BalanceHero({
             ? "-dək"
             : ""}
           )
+        </>
+      ) : null}
+      {rewardAzn > 0 ? (
+        <>
+          {hasTierMeta ? " · " : null}
+          günlük mükafatlar{" "}
+          <span className="num font-semibold text-status-paid dark:text-emerald-400">
+            {formatAmount(rewardAzn)} ₼
+          </span>{" "}
+          daxil
         </>
       ) : null}
     </>
@@ -215,7 +238,7 @@ export function BalanceHero({
             <Leg
               dotClass="bg-bank-blue dark:bg-blue-500"
               label="Depozit"
-              amountAzn={depositedAzn}
+              amountAzn={depositTotalAzn}
               meta={depositMeta}
               monthlyAzn={depositMonthlyAzn}
               note={depositNote}
