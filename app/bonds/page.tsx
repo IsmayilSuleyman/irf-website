@@ -270,7 +270,10 @@ export default async function BondsPage({
             </MotionSection>
 
             {selected ? (
-              <MotionSection delay={0.12}>
+              // The wallet's "Bu seriya ilə ticarət" link targets this anchor:
+              // selecting a series the page had already selected changes no
+              // pixels up top, so the scroll IS the visible response.
+              <MotionSection id="ticaret" delay={0.12} className="scroll-mt-6">
                 <div className="mt-10 flex items-baseline justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
