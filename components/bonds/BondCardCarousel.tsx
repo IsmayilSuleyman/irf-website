@@ -310,8 +310,10 @@ export function BondCardCarousel({
         </div>
         {active ? (
           <Link
-            href={`/bonds?s=${active.id}`}
-            scroll={false}
+            // Hash target so the click always lands on the trading section —
+            // without it, picking the already-selected series changed nothing
+            // visible and the link read as dead.
+            href={`/bonds?s=${active.id}#ticaret`}
             className="text-[11px] font-semibold text-bank-blue transition hover:text-bank-blue-deep dark:text-blue-400 dark:hover:text-blue-300"
           >
             Bu seriya ilə ticarət →
