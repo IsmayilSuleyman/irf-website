@@ -55,12 +55,12 @@ export function DailyRewardCard({ state }: { state: DailyRewardState }) {
             strip+button cluster wrap to its own row. */}
         <div className="min-w-[11rem] flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
-            Günlük mükafat
+            Gündəlik Üzvlük Mükafatı
           </p>
           <p className="mt-1 text-sm font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
             {claimedToday
               ? "Bu gün götürülüb — sabah yenidən gəl"
-              : `Bu günün ${formatGrouped(DAILY_REWARD_AZN, 2)} ₼ mükafatı hazırdır`}
+              : "Mükafatı almaq üçün düyməyə sıx."}
           </p>
           <p className="num mt-0.5 text-[11px] tabular-nums text-black/45 dark:text-white/50">
             Cəmi {formatGrouped(totalAzn, 2)} ₼ · bu ay {formatGrouped(monthAzn, 2)} ₼
