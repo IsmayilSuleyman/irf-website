@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 
 const riseIn = (delay: number, y = 24) => ({
   initial: { opacity: 0, y },
@@ -23,7 +23,7 @@ export function WelcomeAnimations({
   return (
     <div className="relative z-10 flex min-h-[calc(100vh-0.75rem)] flex-col px-6 py-8 sm:px-10 sm:py-12 lg:px-20 lg:py-16">
       {showSetupNotice ? (
-        <motion.div
+        <m.div
           {...riseIn(0.03, 12)}
           className="mt-6 max-w-3xl rounded-3xl border border-bank-blue-ring dark:border-bank-blue/40 bg-white/80 dark:bg-white/10 px-5 py-4 shadow-[0_18px_44px_rgba(66,96,175,0.12)] backdrop-blur-md sm:px-6"
         >
@@ -36,10 +36,10 @@ export function WelcomeAnimations({
             `NEXT_PUBLIC_SUPABASE_ANON_KEY` deyerlerini Vercel project settings-e
             elave etdikden sonra portal yeniden ishleyecek.
           </p>
-        </motion.div>
+        </m.div>
       ) : null}
 
-      <motion.div
+      <m.div
         {...riseIn(0.06)}
         className="mt-6 max-w-[60rem] rounded-hero bg-[linear-gradient(135deg,rgba(255,255,255,0.62),rgba(255,255,255,0.34))] px-5 py-5 shadow-[0_18px_60px_rgba(106,149,121,0.06)] backdrop-blur-[10px] dark:bg-none dark:bg-white/5 sm:px-8 sm:py-7 lg:px-10"
       >
@@ -55,22 +55,22 @@ export function WelcomeAnimations({
             Bir girişlə həm IRF portfeliniz, həm də IsmayılBank hesabınız açılır.
           </p>
         </div>
-      </motion.div>
+      </m.div>
 
-      <motion.div
+      <m.div
         {...riseIn(0.14)}
         className="mt-8 grid max-w-[52rem] gap-6 lg:grid-cols-2"
       >
         {irfCard}
         {bankCard}
-      </motion.div>
+      </m.div>
 
-      <motion.p
+      <m.p
         {...riseIn(0.22, 16)}
         className="mt-auto pt-10 text-center text-sm tracking-[-0.02em] text-black/30 dark:text-white/35"
       >
         © {new Date().getFullYear()} Ismayıl Süleyman. Bütün hüquqlar qorunur
-      </motion.p>
+      </m.p>
     </div>
   );
 }

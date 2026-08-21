@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import { healthLabel } from "@/lib/momentum";
 import { fmtPct } from "@/components/MomentumFactorTable";
 
@@ -204,7 +204,7 @@ export function PortfolioCarousel({
     <div className="flex flex-col gap-2">
       <div className="relative">
         <AnimatePresence initial={false} mode="wait" custom={dir}>
-          <motion.div
+          <m.div
             key={active.key}
             custom={dir}
             variants={SLIDE_VARIANTS}
@@ -214,7 +214,7 @@ export function PortfolioCarousel({
             transition={{ duration: 0.22, ease: "easeOut" }}
           >
             {active.content}
-          </motion.div>
+          </m.div>
         </AnimatePresence>
         <Arrow side="left" onClick={() => go(-1)} label="Əvvəlki görünüş" />
         <Arrow side="right" onClick={() => go(1)} label="Növbəti görünüş" />

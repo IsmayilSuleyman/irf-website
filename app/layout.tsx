@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { PageBackground } from "@/components/PageBackground";
+import { MotionProvider } from "@/components/MotionProvider";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileTabBar } from "@/components/MobileTabBar";
@@ -50,11 +51,13 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="relative isolate font-sans">
-        <PageBackground />
-        <div className="relative z-10 min-h-screen">{children}</div>
-        <MobileTabBar />
-        <ThemeToggle />
-        <ServiceWorkerRegister />
+        <MotionProvider>
+          <PageBackground />
+          <div className="relative z-10 min-h-screen">{children}</div>
+          <MobileTabBar />
+          <ThemeToggle />
+          <ServiceWorkerRegister />
+        </MotionProvider>
       </body>
     </html>
   );

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { formatUnits } from "@/lib/portfolio";
 import type { BondSeries } from "@/lib/bonds";
 
@@ -152,7 +152,7 @@ export function BondTicket({ series }: { series: BondSeries }) {
         {error && <div className="text-xs text-brand-red dark:text-red-400">{error}</div>}
         {success && <div className="text-xs text-brand-green dark:text-emerald-400">{success}</div>}
 
-        <motion.button
+        <m.button
           type="submit"
           disabled={loading || outOfBounds}
           whileTap={{ scale: 0.98 }}
@@ -161,7 +161,7 @@ export function BondTicket({ series }: { series: BondSeries }) {
           }`}
         >
           {loading ? "Göndərilir..." : side === "sell" ? "Satış sifarişi ver" : "Alış sifarişi ver"}
-        </motion.button>
+        </m.button>
       </form>
     </div>
   );

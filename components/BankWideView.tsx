@@ -2,7 +2,7 @@ import { formatAzn, formatGroupedTrim } from "@/lib/portfolio";
 import { formatBakuDate } from "@/lib/user";
 import { azTitleCase, type BankWideAggregate } from "@/lib/bank";
 import type { LiquidityProjectionPoint } from "@/lib/liquidityProjection";
-import { LiquidityProjectionChart } from "@/components/LiquidityProjectionChart";
+import { LiquidityProjectionChart } from "@/components/LiquidityProjectionChartLazy";
 import { Odometer } from "@/components/Odometer";
 
 // === Tiny presentational helpers (component-local on purpose) ===

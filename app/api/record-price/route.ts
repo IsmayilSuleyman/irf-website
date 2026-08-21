@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { google } from "googleapis";
+import { auth as googleAuth, sheets as sheetsApi } from "@googleapis/sheets";
 import {
   runMomentumWeekSnapshot,
   type SnapshotRunResult,
@@ -11,14 +11,14 @@ export const runtime = "nodejs";
 function getSheetAuth() {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON missing");
-  return new google.auth.GoogleAuth({
+  return new googleAuth.GoogleAuth({
     credentials: JSON.parse(raw),
     scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
   });
 }
 
 async function getCurrentUnitPrice(): Promise<number> {
-  const sheets = google.sheets({ version: "v4", auth: getSheetAuth() });
+  const sheets = sheetsApi({ version: "v4", auth: getSheetAuth() });
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.SHEET_ID!,
     range: "IRF!D14",

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { nextUsMarketTransition } from "@/lib/marketHours";
 import { RefreshTimer } from "@/components/RefreshTimer";
-import { SessionHistoryChart } from "@/components/SessionHistoryChart";
+import { SessionHistoryChart } from "@/components/SessionHistoryChartLazy";
 import { latestSessionTail, type SessionHistoryPoint } from "@/lib/sessionHistory";
 
 function formatRemaining(ms: number): string {

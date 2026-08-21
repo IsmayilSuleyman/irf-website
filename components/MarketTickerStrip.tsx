@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
 import {
   formatAzn,
   formatGrouped,
@@ -260,7 +260,7 @@ export function MarketTickerStrip({
           the old panel before the next one slides open. */}
       <AnimatePresence initial={false} mode="wait">
       {open && (
-        <motion.div
+        <m.div
           key={openKey}
           initial={{ height: 0, opacity: 0, y: -6 }}
           animate={{ height: "auto", opacity: 1, y: 0 }}
@@ -375,7 +375,7 @@ export function MarketTickerStrip({
             </div>
           )}
         </div>
-        </motion.div>
+        </m.div>
       )}
       </AnimatePresence>
       {statusRow}

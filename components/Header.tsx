@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { m } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
@@ -25,7 +25,7 @@ export function Header({ dateLabel }: { dateLabel: string }) {
   };
 
   return (
-    <motion.header
+    <m.header
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -65,6 +65,6 @@ export function Header({ dateLabel }: { dateLabel: string }) {
           </button>
         </div>
       </div>
-    </motion.header>
+    </m.header>
   );
 }

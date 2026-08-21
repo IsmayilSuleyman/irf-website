@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { BankProductTerms, ProductTerm } from "@/lib/bankTerms";
+import type { BankProductTerms, ProductTerm } from "@/lib/bankTermsData";
 
 // Owner-only panel: edit the advertised deposit/credit rate tiers that feed
 // the public calculators. Per-account terms still come from the Sheet.

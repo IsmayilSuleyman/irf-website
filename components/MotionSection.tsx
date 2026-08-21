@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, type HTMLMotionProps } from "framer-motion";
+import { m, type HTMLMotionProps } from "framer-motion";
 
 type MotionSectionProps = HTMLMotionProps<"section"> & {
   delay?: number;
@@ -16,7 +16,7 @@ export function MotionSection({
   ...rest
 }: MotionSectionProps) {
   return (
-    <motion.section
+    <m.section
       initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
@@ -24,6 +24,6 @@ export function MotionSection({
       {...rest}
     >
       {children}
-    </motion.section>
+    </m.section>
   );
 }

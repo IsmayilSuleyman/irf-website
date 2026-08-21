@@ -1,4 +1,4 @@
-import { google, type sheets_v4 } from "googleapis";
+import { auth as googleAuth, sheets as sheetsApi, type sheets_v4 } from "@googleapis/sheets";
 import { getExtendedQuotes, isTickerSymbol, toYahooSymbol } from "@/lib/yahoo";
 
 // Writes Yahoo pre/after-market data into the Watchlist tab, columns L–Q
@@ -30,11 +30,11 @@ function getWriteClient(): { sheets: sheets_v4.Sheets; sheetId: string } | null 
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   const sheetId = process.env.SHEET_ID;
   if (!raw || !sheetId) return null;
-  const auth = new google.auth.GoogleAuth({
+  const auth = new googleAuth.GoogleAuth({
     credentials: JSON.parse(raw),
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
-  return { sheets: google.sheets({ version: "v4", auth }), sheetId };
+  return { sheets: sheetsApi({ version: "v4", auth }), sheetId };
 }
 
 // Baku-readable timestamp for the "Yeniləndi" column.
