@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { AnimatePresence, m } from "framer-motion";
 import { Masked } from "@/components/Masked";
 import { formatAzn, formatGroupedTrim } from "@/lib/portfolio";
 import type { AssetPosition } from "@/lib/personalAssets";
@@ -97,6 +98,15 @@ function assetGlyph(iconKey: string | null, size: "stage" | "side"): ReactNode {
   }
 }
 
+// Turntable motion: the incoming exhibit slides in from the direction of
+// travel while the outgoing one leaves the other way, slightly shrunk — the
+// stage rotating, not a hard swap.
+const stageVariants = {
+  enter: (d: number) => ({ opacity: 0, x: d * 48, scale: 0.72 }),
+  center: { opacity: 1, x: 0, scale: 1 },
+  exit: (d: number) => ({ opacity: 0, x: d * -48, scale: 0.72 }),
+};
+
 function Arrow({ dir }: { dir: "left" | "right" }) {
   return (
     <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden>
@@ -159,9 +169,21 @@ export function BankAssetsVault({
     })),
   ];
   const [idx, setIdx] = useState(0);
+  // Direction of the last turn (+1 next, −1 prev) — drives which side the
+  // incoming exhibit enters from.
+  const [dir, setDir] = useState(1);
   const n = items.length;
-  if (n === 0) return null;
   const at = (i: number) => items[((i % n) + n) % n];
+  const norm = (i: number) => ((i % n) + n) % n;
+  const go = (d: number) => {
+    setDir(d);
+    setIdx((i) => i + d);
+  };
+  const goTo = (i: number) => {
+    setDir(i >= norm(idx) ? 1 : -1);
+    setIdx(i);
+  };
+  if (n === 0) return null;
   const active = at(idx);
   const prev = at(idx - 1);
   const next = at(idx + 1);
@@ -185,7 +207,7 @@ export function BankAssetsVault({
           <button
             type="button"
             aria-label="Əvvəlki aktiv"
-            onClick={() => setIdx((i) => i - 1)}
+            onClick={() => go(-1)}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/10 text-black/50 transition hover:border-bank-blue/40 hover:text-bank-blue dark:border-white/15 dark:text-white/55 dark:hover:text-blue-300"
           >
             <Arrow dir="left" />
@@ -196,10 +218,20 @@ export function BankAssetsVault({
           <button
             type="button"
             aria-label={prev.label}
-            onClick={() => setIdx((i) => i - 1)}
+            onClick={() => go(-1)}
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-black/[0.05] opacity-70 transition hover:opacity-100 dark:bg-white/[0.07]"
           >
-            {assetGlyph(prev.iconKey, "side")}
+            <AnimatePresence mode="wait" initial={false}>
+              <m.span
+                key={prev.key}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                {assetGlyph(prev.iconKey, "side")}
+              </m.span>
+            </AnimatePresence>
           </button>
         ) : null}
 
@@ -207,19 +239,31 @@ export function BankAssetsVault({
           {/* Invitations get a dashed ring and a dimmed mark — clearly an
               empty pedestal waiting for its exhibit. */}
           <div
-            className={`flex h-40 w-40 items-center justify-center rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_18px_40px_rgba(0,0,0,0.12)] sm:h-44 sm:w-44 ${
+            className={`flex h-40 w-40 items-center justify-center overflow-hidden rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_18px_40px_rgba(0,0,0,0.12)] transition-colors duration-300 sm:h-44 sm:w-44 ${
               active.owned
                 ? "bg-black/[0.06] dark:bg-white/[0.08]"
                 : "border-2 border-dashed border-black/15 bg-black/[0.03] dark:border-white/20 dark:bg-white/[0.04]"
             }`}
           >
-            <div
-              className={`vault-spin [transform-style:preserve-3d] ${
-                active.owned ? "" : "opacity-50"
-              }`}
-            >
-              {assetGlyph(active.iconKey, "stage")}
-            </div>
+            <AnimatePresence mode="wait" initial={false} custom={dir}>
+              <m.div
+                key={active.key}
+                custom={dir}
+                variants={stageVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div
+                  className={`vault-spin [transform-style:preserve-3d] ${
+                    active.owned ? "" : "opacity-50"
+                  }`}
+                >
+                  {assetGlyph(active.iconKey, "stage")}
+                </div>
+              </m.div>
+            </AnimatePresence>
           </div>
           {/* The podium base: a squashed shadow grounding the disc. */}
           <div
@@ -232,10 +276,20 @@ export function BankAssetsVault({
           <button
             type="button"
             aria-label={next.label}
-            onClick={() => setIdx((i) => i + 1)}
+            onClick={() => go(1)}
             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-black/[0.05] opacity-70 transition hover:opacity-100 dark:bg-white/[0.07]"
           >
-            {assetGlyph(next.iconKey, "side")}
+            <AnimatePresence mode="wait" initial={false}>
+              <m.span
+                key={next.key}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                {assetGlyph(next.iconKey, "side")}
+              </m.span>
+            </AnimatePresence>
           </button>
         ) : null}
 
@@ -243,7 +297,7 @@ export function BankAssetsVault({
           <button
             type="button"
             aria-label="Növbəti aktiv"
-            onClick={() => setIdx((i) => i + 1)}
+            onClick={() => go(1)}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/10 text-black/50 transition hover:border-bank-blue/40 hover:text-bank-blue dark:border-white/15 dark:text-white/55 dark:hover:text-blue-300"
           >
             <Arrow dir="right" />
@@ -251,8 +305,17 @@ export function BankAssetsVault({
         ) : null}
       </div>
 
-      {/* The star's plaque. */}
+      {/* The star's plaque — fades through with the exhibit; the dots stay
+          put outside the animated region. */}
       <div className="mt-4 text-center">
+        <AnimatePresence mode="wait" initial={false}>
+        <m.div
+          key={active.key}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+        >
         {!active.owned ? (
           <p className="mb-1.5">
             <span className="rounded-full border border-brand-green/30 bg-brand-green/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-green dark:text-emerald-400">
@@ -320,6 +383,8 @@ export function BankAssetsVault({
             üçün İsmayıl ilə əlaqə saxla, seyfə buradan düşəcək.
           </p>
         ) : null}
+        </m.div>
+        </AnimatePresence>
 
         {n > 1 ? (
           <div className="mt-3 flex items-center justify-center gap-1.5">
@@ -328,7 +393,7 @@ export function BankAssetsVault({
                 key={it.key}
                 type="button"
                 aria-label={it.label}
-                onClick={() => setIdx(i)}
+                onClick={() => goTo(i)}
                 className={`h-1.5 rounded-full transition-all ${
                   i === ((idx % n) + n) % n
                     ? "w-5 bg-bank-blue dark:bg-blue-400"
