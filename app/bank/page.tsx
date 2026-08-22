@@ -20,11 +20,12 @@ import {
 import { computeLiquidityProjection } from "@/lib/liquidityProjection";
 import { getAssetTransactions } from "@/lib/sheets";
 import {
+  PURCHASABLE_ASSETS,
   buildAssetPositions,
   computeAssetReserveAzn,
   getAssetQuotes,
 } from "@/lib/personalAssets";
-import { BankAssetsVault } from "@/components/BankAssetsVault";
+import { BankAssetsVault, type VaultInvite } from "@/components/BankAssetsVault";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 import { BankViewToggle } from "@/components/BankViewToggle";
@@ -273,11 +274,29 @@ export default async function BankPage({
         ),
       ]
     : [];
-  const assetQuotes =
-    myAssetSymbols.length > 0 ? await getAssetQuotes(myAssetSymbols) : {};
+  // Quotes cover the WHOLE purchasable set, not just held symbols: unowned
+  // assets appear on the podium as invitations with their live prices.
+  const assetQuotes = await getAssetQuotes([
+    ...new Set([...PURCHASABLE_ASSETS.map((a) => a.symbol), ...myAssetSymbols]),
+  ]);
   const assetPositions = name
     ? buildAssetPositions(name, allAssetTxs, assetQuotes)
     : [];
+  const ownedSymbols = new Set(assetPositions.map((p) => p.symbol));
+  const unownedAssets: VaultInvite[] = PURCHASABLE_ASSETS.filter(
+    (a) => !ownedSymbols.has(a.symbol),
+  ).map((a) => {
+    const q = assetQuotes[a.symbol];
+    return {
+      symbol: a.symbol,
+      label: a.label,
+      iconKey: a.key,
+      dayChangePct:
+        q?.priceUsd != null && q?.prevCloseUsd != null && q.prevCloseUsd > 0
+          ? q.priceUsd / q.prevCloseUsd - 1
+          : null,
+    };
+  });
 
   // Bonds are bought on /bonds without any bank-sheet row, so a bondholder can
   // legitimately have no row at all. Fall back to a zero-deposit account for
@@ -462,7 +481,7 @@ export default async function BankPage({
             hasDeposit={account.depositedAzn > 0}
             hasBonds={bonds.totalUnits > 0}
             hasCredit={account.outstandingLoanAzn > 0 || account.paymentSchedule.length > 0}
-            hasAssets={assetPositions.length > 0 || irfValueAzn > 0}
+            hasAssets
           />
         </MotionSection>
 
@@ -491,16 +510,17 @@ export default async function BankPage({
 
         {/* ── The vault: other assets, stored at the bank but OUTSIDE the
             balance above — the card itself says so. ── */}
-        {assetPositions.length > 0 || irfValueAzn > 0 ? (
-          <MotionSection delay={0.05}>
-            <div id="aktivlerim" className="mt-8 scroll-mt-6">
-              <BankAssetsVault
-                positions={assetPositions}
-                irfValueAzn={irfValueAzn}
-              />
-            </div>
-          </MotionSection>
-        ) : null}
+        {/* Always renders: unowned assets show as podium invitations, so
+            even an empty vault advertises what can be bought. */}
+        <MotionSection delay={0.05}>
+          <div id="aktivlerim" className="mt-8 scroll-mt-6">
+            <BankAssetsVault
+              positions={assetPositions}
+              unowned={unownedAssets}
+              irfValueAzn={irfValueAzn}
+            />
+          </div>
+        </MotionSection>
 
         {/* ── Empty state — sits under the 0,00 ₼ hero and explains it ── */}
         {hasNoProducts ? (
