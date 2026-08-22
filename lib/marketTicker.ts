@@ -9,6 +9,9 @@ import {
 // benchmarks shown next to the fund's own unit price. Brent is the oil
 // quote — Azeri Light prices against it.
 
+/** One dated close of the panel history: ISO day + closing price. */
+export type HistoryPoint = { t: string; c: number };
+
 export type TickerQuote = {
   key: string;
   label: string;
@@ -21,23 +24,36 @@ export type TickerQuote = {
   changePct: number | null;
   /** The latest session's intraday closes, for the tile sparkline. */
   spark: number[];
-  /** Five years of daily closes, downsampled — the tile panel's history chart. */
-  history5y: number[];
+  /**
+   * Five years of DATED daily closes, downsampled — the panel slices this
+   * client-side for its 6 AY / 1 İL / 5 İL ranges.
+   */
+  history5y: HistoryPoint[];
 };
 
 // Daily closes move once a day; cache the 5-year series long (6h) and let
-// the 60s ticker cache read it cheaply. Downsampled to ≤120 points — plenty
-// for a panel-height curve — always keeping the true last close.
+// the 60s ticker cache read it cheaply. Two-tier downsample: the last year
+// keeps ~130 points so the 6 AY slice stays smooth, older history thins to
+// ~110 — always keeping the true last close.
 const getCached5y = unstable_cache(
-  async (symbol: string): Promise<number[]> => {
+  async (symbol: string): Promise<HistoryPoint[]> => {
     try {
       const closes = await getDailyCloses(symbol, 5 * 365 + 30);
-      const values = closes.map((c) => c.close);
-      if (values.length < 2) return [];
-      const stride = Math.max(1, Math.ceil(values.length / 120));
-      const out = values.filter((_, i) => i % stride === 0);
-      if (out[out.length - 1] !== values[values.length - 1]) {
-        out.push(values[values.length - 1]);
+      if (closes.length < 2) return [];
+      const last = closes[closes.length - 1];
+      const cutoffMs =
+        new Date(`${last.t}T00:00:00Z`).getTime() - 365 * 86_400_000;
+      const cutoff = new Date(cutoffMs).toISOString().slice(0, 10);
+      const older = closes.filter((c) => c.t < cutoff);
+      const recent = closes.filter((c) => c.t >= cutoff);
+      const strideOld = Math.max(1, Math.ceil(older.length / 110));
+      const strideNew = Math.max(1, Math.ceil(recent.length / 130));
+      const out: HistoryPoint[] = [
+        ...older.filter((_, i) => i % strideOld === 0),
+        ...recent.filter((_, i) => i % strideNew === 0),
+      ].map((c) => ({ t: c.t, c: c.close }));
+      if (out[out.length - 1]?.t !== last.t) {
+        out.push({ t: last.t, c: last.close });
       }
       return out;
     } catch (err) {
@@ -45,7 +61,9 @@ const getCached5y = unstable_cache(
       return [];
     }
   },
-  ["market-ticker-5y"],
+  // Shape changed (number[] → dated points): fresh cache key so stale
+  // entries can't deserialize into the new type.
+  ["market-ticker-5y-dated"],
   { revalidate: 21600 },
 );
 
@@ -85,7 +103,8 @@ const getCachedTicker = unstable_cache(
     });
     return out;
   },
-  ["market-ticker-quotes"],
+  // v2: history5y carries dated points now.
+  ["market-ticker-quotes-v2"],
   { revalidate: 60 },
 );
 
