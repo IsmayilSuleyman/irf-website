@@ -360,37 +360,110 @@ export function MarketTickerStrip({
                     ) : null}
                   </span>
                 </div>
-                <svg
-                  viewBox="0 0 100 30"
-                  preserveAspectRatio="none"
-                  aria-hidden
-                  className={`mt-1 h-16 w-full sm:h-20 ${toneOf(pctRange)}`}
-                >
-                  <defs>
-                    <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="0%"
-                        stopColor="currentColor"
-                        stopOpacity="0.22"
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="currentColor"
-                        stopOpacity="0"
-                      />
-                    </linearGradient>
-                  </defs>
-                  <path d={`${line} L100 30 L0 30 Z`} fill={`url(#${gid})`} />
-                  <path
-                    d={line}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity="0.85"
-                  />
-                </svg>
+                {(() => {
+                  // Start / low / high figures pinned to their points. The
+                  // SVG stretches (preserveAspectRatio="none"), so text
+                  // inside it would distort — labels and dots are HTML,
+                  // positioned by percentage over the same normalization
+                  // sparkPath uses.
+                  const n = values.length;
+                  const vMin = Math.min(...values);
+                  const vMax = Math.max(...values);
+                  const span = vMax - vMin || 1;
+                  const minIdx = values.indexOf(vMin);
+                  const maxIdx = values.indexOf(vMax);
+                  const PAD = 2 / 30;
+                  const xPct = (i: number) => (i / (n - 1)) * 100;
+                  const yPct = (v: number) =>
+                    (PAD + (1 - (v - vMin) / span) * (1 - 2 * PAD)) * 100;
+                  const fmtPrice = (v: number) =>
+                    `${formatGrouped(v, v >= 1000 ? 0 : 2)}$`;
+                  const marker = (
+                    i: number,
+                    v: number,
+                    pos: "above" | "below",
+                    key: string,
+                  ) => {
+                    const x = xPct(i);
+                    const y = yPct(v);
+                    const tx = x < 10 ? "0%" : x > 90 ? "-100%" : "-50%";
+                    const ty = pos === "above" ? "calc(-100% - 4px)" : "4px";
+                    return (
+                      <span key={key} className="pointer-events-none">
+                        <span
+                          className="absolute h-1.5 w-1.5 rounded-full bg-current"
+                          style={{
+                            left: `${x}%`,
+                            top: `${y}%`,
+                            transform: "translate(-50%, -50%)",
+                          }}
+                        />
+                        <span
+                          className="num absolute whitespace-nowrap rounded bg-white/80 px-1 text-[9px] font-semibold leading-4 text-black/65 dark:bg-black/50 dark:text-white/80"
+                          style={{
+                            left: `${x}%`,
+                            top: `${y}%`,
+                            transform: `translate(${tx}, ${ty})`,
+                          }}
+                        >
+                          {fmtPrice(v)}
+                        </span>
+                      </span>
+                    );
+                  };
+                  const flat = minIdx === maxIdx;
+                  return (
+                    <div className={`relative mt-1 ${toneOf(pctRange)}`}>
+                      <svg
+                        viewBox="0 0 100 30"
+                        preserveAspectRatio="none"
+                        aria-hidden
+                        className="h-16 w-full sm:h-20"
+                      >
+                        <defs>
+                          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                            <stop
+                              offset="0%"
+                              stopColor="currentColor"
+                              stopOpacity="0.22"
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor="currentColor"
+                              stopOpacity="0"
+                            />
+                          </linearGradient>
+                        </defs>
+                        <path d={`${line} L100 30 L0 30 Z`} fill={`url(#${gid})`} />
+                        <path
+                          d={line}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          opacity="0.85"
+                        />
+                      </svg>
+                      {marker(
+                        0,
+                        values[0],
+                        yPct(values[0]) < 50 ? "below" : "above",
+                        "start",
+                      )}
+      {/* Both extremes label BELOW their point: the high sits at the
+                          plot's top edge, so an above-label would collide
+                          with the range buttons; the low's label falls into
+                          the natural gap under the chart. */}
+                      {!flat && maxIdx !== 0
+                        ? marker(maxIdx, vMax, "below", "max")
+                        : null}
+                      {!flat && minIdx !== 0
+                        ? marker(minIdx, vMin, "below", "min")
+                        : null}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
