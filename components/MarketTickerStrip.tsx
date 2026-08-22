@@ -36,10 +36,18 @@ const fmtPct = (changePct: number) =>
 const DESCRIPTIONS: Record<string, string> = {
   sp500:
     "ABŞ-ın 500 ən böyük şirkətini əhatə edən fond indeksi — dünya bazarının əsas barometri. SPY bu indeksi izləyən ETF-dir.",
+  nasdaq:
+    "ABŞ-ın 100 ən böyük qeyri-maliyyə şirkətini — texnologiya nəhənglərini — əhatə edən indeks, böyümə səhmlərinin barometri.",
   btc: "Bitcoin — ən böyük kriptovalyuta. IBIT (iShares Bitcoin Trust) onun qiymətini birbaşa izləyən ETF-dir.",
   gold: "Qızıl — klassik qoruyucu aktiv, inflyasiyaya qarşı sığorta. GLDM fiziki qızılı izləyən ETF-dir.",
   silver:
     "Gümüş — həm qiymətli metal, həm sənaye xammalı. SIVR fiziki gümüşü izləyən ETF-dir.",
+};
+
+// Tiles that expand into the info panel WITHOUT a purchasable ETF behind
+// them — description + range chart only, no position or buy-hint sections.
+const INFO_TILES: Record<string, { symbol: string }> = {
+  nasdaq: { symbol: "NDX" },
 };
 
 const toneOf = (changePct: number | null) =>
@@ -243,7 +251,14 @@ export function MarketTickerStrip({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [histRange, setHistRange] = useState<HistRangeKey>("5y");
   const open = openKey != null ? assets?.[openKey] : undefined;
-  const openLabel = quotes.find((q) => q.key === openKey)?.label ?? "";
+  const openInfo = openKey != null ? INFO_TILES[openKey] : undefined;
+  const openQuote = quotes.find((q) => q.key === openKey);
+  const openLabel = openQuote?.label ?? "";
+  // Info tiles fall back to the tile quote itself for the panel header.
+  const panelSymbol = open?.symbol ?? openInfo?.symbol ?? "";
+  const panelPriceUsd = open?.priceUsd ?? openQuote?.price ?? null;
+  const panelDayPct = open?.dayChangePct ?? openQuote?.changePct ?? null;
+  const showPanel = open != null || openInfo != null;
 
   return (
     // relative z-20: the card's backdrop-filter creates a stacking context,
@@ -263,7 +278,7 @@ export function MarketTickerStrip({
             icon={ASSET_ICONS[q.key]}
             spark={q.spark}
             sparkId={q.key}
-            expandable={assets?.[q.key] != null}
+            expandable={assets?.[q.key] != null || INFO_TILES[q.key] != null}
             selected={openKey === q.key}
             onClick={() =>
               setOpenKey((k) => (k === q.key ? null : q.key))
@@ -282,7 +297,7 @@ export function MarketTickerStrip({
       {/* Unfold animation; mode="wait" + key means switching tiles collapses
           the old panel before the next one slides open. */}
       <AnimatePresence initial={false} mode="wait">
-      {open && (
+      {showPanel && (
         <m.div
           key={openKey}
           initial={{ height: 0, opacity: 0, y: -6 }}
@@ -296,16 +311,16 @@ export function MarketTickerStrip({
             <span className="font-semibold text-black/85 dark:text-white/90">
               {openLabel} ·{" "}
               <span className="num text-black/55 dark:text-white/60">
-                {open.symbol}
+                {panelSymbol}
               </span>
             </span>
             <span className="num font-semibold text-black/85 dark:text-white/90">
-              {open.priceUsd != null
-                ? `${formatGrouped(open.priceUsd, 2)}$`
+              {panelPriceUsd != null
+                ? `${formatGrouped(panelPriceUsd, 2)}$`
                 : "—"}
-              {open.dayChangePct != null ? (
-                <span className={`ml-1.5 ${toneOf(open.dayChangePct)}`}>
-                  {fmtPct(open.dayChangePct)}
+              {panelDayPct != null ? (
+                <span className={`ml-1.5 ${toneOf(panelDayPct)}`}>
+                  {fmtPct(panelDayPct)}
                 </span>
               ) : null}
             </span>
@@ -468,25 +483,28 @@ export function MarketTickerStrip({
             );
           })()}
 
-          {/* 3. Your position. Positions read as money, not fractional unit
-              counts — İsmayıl's call for the whole personal-assets surface. */}
-          <div className="mt-2.5 text-black/55 dark:text-white/60">
-            {open.units > 0 ? (
-              <>
-                Sizin mövqeyiniz:{" "}
-                {open.valueAzn != null ? (
-                  <span className="num font-medium text-black/70 dark:text-white/75">
-                    <Masked mask="••••">{formatAzn(open.valueAzn)}</Masked>
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </>
-            ) : (
-              "Bu aktivdə hələ mövqeyiniz yoxdur."
-            )}
-          </div>
-          {showBuyHint && (
+          {/* 3. Your position — purchasable tiles only. Positions read as
+              money, not fractional unit counts — İsmayıl's call for the
+              whole personal-assets surface. */}
+          {open ? (
+            <div className="mt-2.5 text-black/55 dark:text-white/60">
+              {open.units > 0 ? (
+                <>
+                  Sizin mövqeyiniz:{" "}
+                  {open.valueAzn != null ? (
+                    <span className="num font-medium text-black/70 dark:text-white/75">
+                      <Masked mask="••••">{formatAzn(open.valueAzn)}</Masked>
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </>
+              ) : (
+                "Bu aktivdə hələ mövqeyiniz yoxdur."
+              )}
+            </div>
+          ) : null}
+          {showBuyHint && open && (
             <div className="mt-1 text-[11px] leading-relaxed text-black/45 dark:text-white/50">
               {open.symbol} almaq və ya satmaq üçün İsmayıl ilə əlaqə saxlayın
               — sifarişlər şifahi qəbul olunur, aktivlər İRF paylarından ayrı

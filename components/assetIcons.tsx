@@ -20,6 +20,22 @@ export const ASSET_ICONS: Record<string, ReactNode> = {
       <path d="M15 8h5v5" />
     </svg>
   ),
+  // A microchip — the tech-heavy index, distinct from sp500's trend arrow.
+  nasdaq: (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3 w-3 shrink-0 text-black/45 dark:text-white/55"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="7" y="7" width="10" height="10" rx="1.5" />
+      <path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4" />
+    </svg>
+  ),
   btc: (
     <span
       aria-hidden

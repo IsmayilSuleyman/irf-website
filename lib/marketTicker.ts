@@ -70,6 +70,7 @@ const getCached5y = unstable_cache(
 
 const INSTRUMENTS = [
   { key: "sp500", label: "S&P 500", symbol: "^GSPC" },
+  { key: "nasdaq", label: "Nasdaq 100", symbol: "^NDX" },
   { key: "btc", label: "Bitcoin", symbol: "BTC-USD" },
   { key: "gold", label: "Qızıl", symbol: "GC=F" },
   { key: "silver", label: "Gümüş", symbol: "SI=F" },
