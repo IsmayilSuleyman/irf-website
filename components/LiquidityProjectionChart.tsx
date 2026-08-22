@@ -25,10 +25,17 @@ const AZ_MONTHS_SHORT = [
 function shortDate(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!m) return iso;
-  return `${Number(m[3])} ${AZ_MONTHS_SHORT[Number(m[2]) - 1] ?? m[2]}`;
+  return `${Number(m[3])} ${AZ_MONTHS_SHORT[Number(m[2]) - 1] ?? m[2]} ${m[1]}`;
 }
 
-type ChartPoint = LiquidityProjectionPoint & { label: string };
+// Axis tick for an epoch-ms position: "14 okt 26". The projection can span
+// more than a year, so the 2-digit year keeps two "1 yan" ticks apart.
+function tickTs(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getUTCDate()} ${AZ_MONTHS_SHORT[d.getUTCMonth()]} ${String(d.getUTCFullYear() % 100).padStart(2, "0")}`;
+}
+
+type ChartPoint = LiquidityProjectionPoint & { ts: number };
 
 function EventTooltip({
   active,
@@ -91,7 +98,13 @@ export function LiquidityProjectionChart({
 }) {
   if (points.length < 2) return null;
 
-  const data: ChartPoint[] = points.map((p) => ({ ...p, label: shortDate(p.date) }));
+  // True time positions: the x-axis runs over the CALENDAR, so a quiet
+  // three-month stretch is three months wide — event dates no longer get
+  // one equal slot each.
+  const data: ChartPoint[] = points
+    .map((p) => ({ ...p, ts: new Date(`${p.date}T00:00:00Z`).getTime() }))
+    .filter((p) => Number.isFinite(p.ts));
+  if (data.length < 2) return null;
   const last = data[data.length - 1];
   const min = Math.min(...data.map((p) => p.valueAzn));
   const dipsNegative = min < 0;
@@ -108,12 +121,16 @@ export function LiquidityProjectionChart({
           </defs>
           <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
           <XAxis
-            dataKey="label"
+            dataKey="ts"
+            type="number"
+            scale="time"
+            domain={["dataMin", "dataMax"]}
             stroke="rgba(0,0,0,0.45)"
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            minTickGap={28}
+            minTickGap={32}
+            tickFormatter={tickTs}
           />
           <YAxis
             domain={[dipsNegative ? "auto" : 0, "auto"]}
@@ -138,7 +155,7 @@ export function LiquidityProjectionChart({
             activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }}
           />
           <ReferenceDot
-            x={last.label}
+            x={last.ts}
             y={last.valueAzn}
             r={4}
             fill={BANK_BLUE}

@@ -15,7 +15,14 @@ import {
 import { formatAzn, formatGrouped } from "@/lib/portfolio";
 import { usePrivacy } from "@/components/PrivacyProvider";
 
-type Point = { label: string; value: number; invested?: number; date?: string };
+type Point = {
+  label: string;
+  value: number;
+  invested?: number;
+  date?: string;
+  /** The ETF book's slice of `value` at this date (Digər aktivlər line). */
+  other?: number;
+};
 
 /** A holder's own İRF transaction, for the ▲/▼ markers on the value line. */
 export type ChartEvent = { date: string; units: number };
@@ -64,6 +71,9 @@ type ModeKey = (typeof MODES)[number]["key"];
 const GREEN = "#16a34a";
 const RED = "#dc2626";
 const NEUTRAL = "#94a3b8";
+// Digər aktivlər (the ETF book) — bank-blue, used only as the tooltip
+// decomposition row's swatch; the plot itself stays one total line.
+const BLUE = "#2f61d8";
 
 type TimedPoint = Point & {
   ts: number;
@@ -153,6 +163,10 @@ export function PerformanceChart({
 
   const showInvested =
     mode === "value" && filtered.some((p) => p.invested != null);
+  // One TOTAL line on the plot (İsmayıl's call) — the ETF book shows only
+  // as the tooltip's İRF / Digər aktivlər decomposition, gated here.
+  const showOther =
+    mode === "value" && filtered.some((p) => (p.other ?? 0) > 0);
 
   // Numeric (epoch-ms) x-axis: points sit at their true time distance, so
   // sparse early history doesn't get compressed into equal category slots.
@@ -323,6 +337,23 @@ export function PerformanceChart({
             </span>
             <span className="num font-semibold text-black dark:text-white/90">{fmt(p.value)}</span>
           </p>
+          {showOther && p.other != null && p.other > 0 ? (
+            <p className="flex items-center justify-between gap-6 pl-3.5 text-[11px]">
+              <span className="text-black/50 dark:text-white/55">İRF</span>
+              <span className="num text-black/70 dark:text-white/75">
+                {fmt(p.value - p.other)}
+              </span>
+            </p>
+          ) : null}
+          {showOther && p.other != null && p.other > 0 ? (
+            <p className="flex items-center justify-between gap-6 pl-3.5 text-[11px]">
+              <span className="flex items-center gap-1.5 text-black/50 dark:text-white/55">
+                <span className="inline-block h-0.5 w-3 rounded" style={{ background: BLUE }} />
+                Digər aktivlər
+              </span>
+              <span className="num text-black/70 dark:text-white/75">{fmt(p.other)}</span>
+            </p>
+          ) : null}
           {inv != null ? (
             <p className="flex items-center justify-between gap-6">
               <span className="flex items-center gap-1.5 text-black/60 dark:text-white/65">
