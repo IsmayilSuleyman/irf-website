@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { m } from "framer-motion";
 import { Logo } from "@/components/Logo";
 import { IsmayilBankLogo, IsmayilBankMark } from "@/components/IsmayilBankLogo";
@@ -223,13 +225,29 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
   );
 }
 
-export function WelcomeView({
-  showSetupNotice,
-  year,
-}: {
-  showSetupNotice: boolean;
-  year: number;
-}) {
+/** The ?setup=supabase notice, read client-side so the page stays static. */
+function SetupNotice() {
+  const params = useSearchParams();
+  if (params.get("setup") !== "supabase") return null;
+  return (
+    <m.div
+      {...riseIn(0.05, 12)}
+      className="mt-6 rounded-2xl border border-bank-blue-ring bg-white/80 px-5 py-4 backdrop-blur-md dark:border-bank-blue/40 dark:bg-white/10"
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
+        Qurasdirma xetasi
+      </p>
+      <p className="mt-2 text-sm leading-6 text-black/55 dark:text-white/60">
+        Supabase ayarlari Vercel-de tam qurasdirilmayib. Buna gore giris
+        hissesi mueqqeti olaraq deaktivdir. `NEXT_PUBLIC_SUPABASE_URL` ve
+        `NEXT_PUBLIC_SUPABASE_ANON_KEY` deyerlerini Vercel project settings-e
+        elave etdikden sonra portal yeniden ishleyecek.
+      </p>
+    </m.div>
+  );
+}
+
+export function WelcomeView({ year }: { year: number }) {
   return (
     <div className="relative z-10 mx-auto flex min-h-[calc(100vh-0.75rem)] max-w-6xl flex-col px-5 py-6 sm:px-8 sm:py-8 lg:px-10">
       {/* Brand header: both houses on the left, the door on the right. */}
@@ -256,22 +274,9 @@ export function WelcomeView({
         </Link>
       </m.header>
 
-      {showSetupNotice ? (
-        <m.div
-          {...riseIn(0.05, 12)}
-          className="mt-6 rounded-2xl border border-bank-blue-ring bg-white/80 px-5 py-4 backdrop-blur-md dark:border-bank-blue/40 dark:bg-white/10"
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
-            Qurasdirma xetasi
-          </p>
-          <p className="mt-2 text-sm leading-6 text-black/55 dark:text-white/60">
-            Supabase ayarlari Vercel-de tam qurasdirilmayib. Buna gore giris
-            hissesi mueqqeti olaraq deaktivdir. `NEXT_PUBLIC_SUPABASE_URL` ve
-            `NEXT_PUBLIC_SUPABASE_ANON_KEY` deyerlerini Vercel project
-            settings-e elave etdikden sonra portal yeniden ishleyecek.
-          </p>
-        </m.div>
-      ) : null}
+      <Suspense fallback={null}>
+        <SetupNotice />
+      </Suspense>
 
       {/* Hero: promise on the left, the product itself on the right. */}
       <div className="mt-10 grid items-center gap-10 sm:mt-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">

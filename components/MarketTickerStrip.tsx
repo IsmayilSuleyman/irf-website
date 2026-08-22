@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, m } from "framer-motion";
 import {
   formatAzn,
@@ -250,6 +250,28 @@ export function MarketTickerStrip({
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [histRange, setHistRange] = useState<HistRangeKey>("5y");
+  // 5-year histories arrive on demand (they'd be ~80KB of page payload for
+  // all six tiles) and stick around for the session once fetched.
+  const [histories, setHistories] = useState<Record<string, HistoryPoint[]>>(
+    {},
+  );
+  useEffect(() => {
+    if (openKey == null || histories[openKey] != null) return;
+    let cancelled = false;
+    fetch(`/api/ticker-history?key=${encodeURIComponent(openKey)}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((h: HistoryPoint[]) => {
+        if (!cancelled) {
+          setHistories((prev) => ({ ...prev, [openKey]: h ?? [] }));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setHistories((prev) => ({ ...prev, [openKey]: [] }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [openKey, histories]);
   const open = openKey != null ? assets?.[openKey] : undefined;
   const openInfo = openKey != null ? INFO_TILES[openKey] : undefined;
   const openQuote = quotes.find((q) => q.key === openKey);
@@ -333,9 +355,17 @@ export function MarketTickerStrip({
             </p>
           ) : null}
 
-          {/* 2. Price history with 6 AY / 1 İL / 5 İL ranges. */}
+          {/* 2. Price history with 6 AY / 1 İL / 5 İL ranges — fetched on
+              first expand. */}
           {(() => {
-            const full = quotes.find((x) => x.key === openKey)?.history5y ?? [];
+            const full = openKey != null ? histories[openKey] : undefined;
+            if (full == null) {
+              return (
+                <div className="mt-3 flex h-16 items-center justify-center text-[11px] text-black/40 dark:text-white/45 sm:h-20">
+                  Tarixçə yüklənir...
+                </div>
+              );
+            }
             const rangeDef =
               HIST_RANGES.find((r) => r.key === histRange) ?? HIST_RANGES[2];
             const sliced = sliceHistory(full, rangeDef.days);
