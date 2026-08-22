@@ -6,7 +6,7 @@ import {
   type BondSeries,
 } from "@/lib/bonds";
 import { formatBakuDate } from "@/lib/user";
-import { formatGrouped, formatGroupedTrim, formatUnits } from "@/lib/portfolio";
+import { formatGrouped, formatUnits } from "@/lib/portfolio";
 import { BankHeader } from "@/components/BankHeader";
 import { MotionSection } from "@/components/MotionSection";
 import { BondTicket } from "@/components/bonds/BondTicket";
@@ -15,7 +15,6 @@ import { MyBondOrders } from "@/components/bonds/MyBondOrders";
 import { MyBondMatches } from "@/components/bonds/MyBondMatches";
 import { BondAdminPanel } from "@/components/bonds/BondAdminPanel";
 import { BondCardCarousel } from "@/components/bonds/BondCardCarousel";
-import { BondHoldingNote } from "@/components/bonds/BondHoldingNote";
 
 export const dynamic = "force-dynamic";
 
@@ -42,78 +41,6 @@ const STATUS_META: Record<BondSeries["status"], { label: string; cls: string }> 
     cls: "bg-black/5 dark:bg-white/10 text-black/45 dark:text-white/50",
   },
 };
-
-function SeriesCard({ series, selected }: { series: BondSeries; selected: boolean }) {
-  const soldPct =
-    series.total_units > 0 ? (series.primary_sold / series.total_units) * 100 : 0;
-  const status = STATUS_META[series.status];
-
-  return (
-    <Link
-      href={`/bonds?s=${series.id}`}
-      scroll={false}
-      aria-current={selected ? "true" : undefined}
-      className={`flex flex-col gap-3 rounded-2xl border bg-white/90 px-5 py-4 transition hover:-translate-y-0.5 hover:shadow-sm dark:bg-white/10 ${
-        selected
-          ? "border-bank-blue dark:border-blue-400/60 shadow-sm"
-          : "border-black/10 dark:border-white/10"
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[15px] font-semibold tracking-[-0.02em] text-ink dark:text-white/90">
-          {series.name}
-        </span>
-        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.cls}`}>
-          {status.label}
-        </span>
-      </div>
-
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[11px] text-black/45 dark:text-white/50">
-        <span>
-          Kupon{" "}
-          <span className="num font-semibold text-ink dark:text-white/90">
-            {formatGroupedTrim(series.coupon_rate_pct, 2)}%
-          </span>{" "}
-          illik · hər {series.coupon_period_months} ay
-        </span>
-        <span>
-          Nominal{" "}
-          <span className="num font-semibold text-ink dark:text-white/90">
-            {formatGrouped(series.face_value_azn, 2)} ₼
-          </span>
-        </span>
-        <span>
-          Ödəmə{" "}
-          <span className="font-semibold text-ink dark:text-white/90">
-            {formatDisplayDate(series.maturity_date)}
-          </span>
-        </span>
-      </div>
-
-      <div className="space-y-1">
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
-          <div
-            className="h-full rounded-full bg-bank-blue/70"
-            style={{ width: `${Math.min(soldPct, 100)}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-[11px] text-black/45 dark:text-white/50">
-          <span>
-            Buraxılış: <span className="num">{formatUnits(series.primary_sold)}</span> /{" "}
-            <span className="num">{formatUnits(series.total_units)}</span>
-          </span>
-          {series.my_units > 0 ? (
-            <span className="font-semibold text-bank-blue dark:text-blue-400">
-              Mənim: <span className="num">{formatUnits(series.my_units)}</span>
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <BondHoldingNote series={series} />
-    </Link>
-  );
-}
 
 function MyPayments({ payments }: { payments: BondPaymentRow[] }) {
   return (
@@ -258,22 +185,9 @@ export default async function BondsPage({
           </MotionSection>
         ) : (
           <>
-            <MotionSection delay={0.08}>
-              <div className="mt-10">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
-                  Katalog
-                </p>
-                <h2 className="mt-1 text-[15px] font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
-                  Buraxılışlar
-                </h2>
-              </div>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {data.series.map((s) => (
-                  <SeriesCard key={s.id} series={s} selected={selected?.id === s.id} />
-                ))}
-              </div>
-            </MotionSection>
-
+            {/* No separate Katalog grid: the certificate wallet above IS the
+                catalog — owned and unowned cards carry the same facts, and
+                its trade link drives the ?s= selection. */}
             {selected ? (
               // The wallet's "Bu seriya ilə ticarət" link targets this anchor:
               // selecting a series the page had already selected changes no
