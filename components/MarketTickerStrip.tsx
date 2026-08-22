@@ -9,7 +9,7 @@ import {
 } from "@/lib/portfolio";
 import { Masked } from "@/components/Masked";
 import { ASSET_ICONS } from "@/components/assetIcons";
-import type { TickerQuote } from "@/lib/marketTicker";
+import type { HistoryPoint, TickerQuote } from "@/lib/marketTicker";
 
 // The Yahoo-Finance-style ticker card under the dashboard greeting: the
 // "Əsas indekslər və aktivlər" tiles with the market-status chips below.
@@ -48,6 +48,28 @@ const toneOf = (changePct: number | null) =>
     : changePct >= 0
       ? "text-brand-green dark:text-emerald-400"
       : "text-brand-red dark:text-red-400";
+
+// Panel history ranges. Slices anchor to the series' own last date (not the
+// wall clock), so server and client render identically.
+const HIST_RANGES = [
+  { key: "6m", label: "6 AY", title: "Son 6 ay", days: 182 },
+  { key: "1y", label: "1 İL", title: "Son 1 il", days: 365 },
+  { key: "5y", label: "5 İL", title: "Son 5 il", days: null },
+] as const;
+type HistRangeKey = (typeof HIST_RANGES)[number]["key"];
+
+function sliceHistory(
+  hist: HistoryPoint[],
+  days: number | null,
+): HistoryPoint[] {
+  if (days == null || hist.length === 0) return hist;
+  const lastMs = new Date(`${hist[hist.length - 1].t}T00:00:00Z`).getTime();
+  if (!Number.isFinite(lastMs)) return hist;
+  const cutoff = lastMs - days * 86_400_000;
+  return hist.filter(
+    (p) => new Date(`${p.t}T00:00:00Z`).getTime() >= cutoff,
+  );
+}
 
 /** Normalize a series into an SVG path over a w×h box (padded vertically). */
 function sparkPath(values: number[], w: number, h: number, pad: number): string {
@@ -219,6 +241,7 @@ export function MarketTickerStrip({
   showBuyHint?: boolean;
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [histRange, setHistRange] = useState<HistRangeKey>("5y");
   const open = openKey != null ? assets?.[openKey] : undefined;
   const openLabel = quotes.find((q) => q.key === openKey)?.label ?? "";
 
@@ -295,56 +318,152 @@ export function MarketTickerStrip({
             </p>
           ) : null}
 
-          {/* 2. Five years of price history. */}
+          {/* 2. Price history with 6 AY / 1 İL / 5 İL ranges. */}
           {(() => {
-            const hist = quotes.find((x) => x.key === openKey)?.history5y ?? [];
+            const full = quotes.find((x) => x.key === openKey)?.history5y ?? [];
+            const rangeDef =
+              HIST_RANGES.find((r) => r.key === histRange) ?? HIST_RANGES[2];
+            const sliced = sliceHistory(full, rangeDef.days);
+            const hist = sliced.length >= 2 ? sliced : full;
             if (hist.length < 2) return null;
-            const pct5y = hist[0] > 0 ? hist[hist.length - 1] / hist[0] - 1 : null;
-            const line = sparkPath(hist, 100, 30, 2);
+            const values = hist.map((p) => p.c);
+            const pctRange =
+              values[0] > 0 ? values[values.length - 1] / values[0] - 1 : null;
+            const line = sparkPath(values, 100, 30, 2);
             const gid = `hist-${openKey}`;
             return (
               <div className="mt-2.5">
-                <div className="flex items-baseline justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
                   <span className="text-[10px] uppercase tracking-[0.14em] text-black/45 dark:text-white/50">
-                    Son 5 il
+                    {rangeDef.title}
                   </span>
-                  {pct5y != null ? (
-                    <span className={`num text-[11px] font-semibold ${toneOf(pct5y)}`}>
-                      {fmtPct(pct5y)}
-                    </span>
-                  ) : null}
+                  <span className="flex items-center gap-1.5">
+                    {HIST_RANGES.map((r) => (
+                      <button
+                        key={r.key}
+                        type="button"
+                        aria-pressed={histRange === r.key}
+                        onClick={() => setHistRange(r.key)}
+                        className={`rounded-md border px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.08em] transition ${
+                          histRange === r.key
+                            ? "border-brand-green/50 bg-brand-green/15 text-brand-green dark:border-emerald-400/50 dark:text-emerald-400"
+                            : "border-black/10 text-black/45 hover:border-brand-green/40 dark:border-white/15 dark:text-white/50 dark:hover:border-emerald-400/40"
+                        }`}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                    {pctRange != null ? (
+                      <span className={`num ml-1 text-[11px] font-semibold ${toneOf(pctRange)}`}>
+                        {fmtPct(pctRange)}
+                      </span>
+                    ) : null}
+                  </span>
                 </div>
-                <svg
-                  viewBox="0 0 100 30"
-                  preserveAspectRatio="none"
-                  aria-hidden
-                  className={`mt-1 h-16 w-full sm:h-20 ${toneOf(pct5y)}`}
-                >
-                  <defs>
-                    <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="0%"
-                        stopColor="currentColor"
-                        stopOpacity="0.22"
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="currentColor"
-                        stopOpacity="0"
-                      />
-                    </linearGradient>
-                  </defs>
-                  <path d={`${line} L100 30 L0 30 Z`} fill={`url(#${gid})`} />
-                  <path
-                    d={line}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity="0.85"
-                  />
-                </svg>
+                {(() => {
+                  // Start / low / high figures pinned to their points. The
+                  // SVG stretches (preserveAspectRatio="none"), so text
+                  // inside it would distort — labels and dots are HTML,
+                  // positioned by percentage over the same normalization
+                  // sparkPath uses.
+                  const n = values.length;
+                  const vMin = Math.min(...values);
+                  const vMax = Math.max(...values);
+                  const span = vMax - vMin || 1;
+                  const minIdx = values.indexOf(vMin);
+                  const maxIdx = values.indexOf(vMax);
+                  const PAD = 2 / 30;
+                  const xPct = (i: number) => (i / (n - 1)) * 100;
+                  const yPct = (v: number) =>
+                    (PAD + (1 - (v - vMin) / span) * (1 - 2 * PAD)) * 100;
+                  const fmtPrice = (v: number) =>
+                    `${formatGrouped(v, v >= 1000 ? 0 : 2)}$`;
+                  const marker = (
+                    i: number,
+                    v: number,
+                    pos: "above" | "below",
+                    key: string,
+                  ) => {
+                    const x = xPct(i);
+                    const y = yPct(v);
+                    const tx = x < 10 ? "0%" : x > 90 ? "-100%" : "-50%";
+                    const ty = pos === "above" ? "calc(-100% - 4px)" : "4px";
+                    return (
+                      <span key={key} className="pointer-events-none">
+                        <span
+                          className="absolute h-1.5 w-1.5 rounded-full bg-current"
+                          style={{
+                            left: `${x}%`,
+                            top: `${y}%`,
+                            transform: "translate(-50%, -50%)",
+                          }}
+                        />
+                        <span
+                          className="num absolute whitespace-nowrap rounded bg-white/80 px-1 text-[9px] font-semibold leading-4 text-black/65 dark:bg-black/50 dark:text-white/80"
+                          style={{
+                            left: `${x}%`,
+                            top: `${y}%`,
+                            transform: `translate(${tx}, ${ty})`,
+                          }}
+                        >
+                          {fmtPrice(v)}
+                        </span>
+                      </span>
+                    );
+                  };
+                  const flat = minIdx === maxIdx;
+                  return (
+                    <div className={`relative mt-1 ${toneOf(pctRange)}`}>
+                      <svg
+                        viewBox="0 0 100 30"
+                        preserveAspectRatio="none"
+                        aria-hidden
+                        className="h-16 w-full sm:h-20"
+                      >
+                        <defs>
+                          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                            <stop
+                              offset="0%"
+                              stopColor="currentColor"
+                              stopOpacity="0.22"
+                            />
+                            <stop
+                              offset="100%"
+                              stopColor="currentColor"
+                              stopOpacity="0"
+                            />
+                          </linearGradient>
+                        </defs>
+                        <path d={`${line} L100 30 L0 30 Z`} fill={`url(#${gid})`} />
+                        <path
+                          d={line}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          opacity="0.85"
+                        />
+                      </svg>
+                      {marker(
+                        0,
+                        values[0],
+                        yPct(values[0]) < 50 ? "below" : "above",
+                        "start",
+                      )}
+      {/* Both extremes label BELOW their point: the high sits at the
+                          plot's top edge, so an above-label would collide
+                          with the range buttons; the low's label falls into
+                          the natural gap under the chart. */}
+                      {!flat && maxIdx !== 0
+                        ? marker(maxIdx, vMax, "below", "max")
+                        : null}
+                      {!flat && minIdx !== 0
+                        ? marker(minIdx, vMin, "below", "min")
+                        : null}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
