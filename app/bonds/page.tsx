@@ -178,8 +178,13 @@ export default async function BondsPage({
     data.series[0] ??
     null;
 
-  // The wallet carousel shows only series the viewer actually holds.
-  const ownedSeries = data.series.filter((s) => s.my_units > 0);
+  // The wallet carousel: owned series first, then unowned ACTIVE series as
+  // browsable cards (stamped "Sizdə yoxdur"). Settled series you never held
+  // are noise and stay out.
+  const ownedSeries = [
+    ...data.series.filter((s) => s.my_units > 0),
+    ...data.series.filter((s) => s.my_units <= 0 && s.status === "active"),
+  ];
 
   // For İsmayıl `payments` holds every holder's rows; his personal card
   // should only show his own.

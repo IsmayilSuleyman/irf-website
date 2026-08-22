@@ -25,28 +25,21 @@ type Theme = {
   accent: string;
 };
 
-const THEMES: Theme[] = [
-  {
-    face: "bg-[linear-gradient(135deg,#2b55c4_0%,#1d3d92_55%,#142a68_100%)]",
-    glow: "bg-sky-400/30",
-    accent: "text-sky-200",
-  },
-  {
-    face: "bg-[linear-gradient(135deg,#12855c_0%,#0d6647_55%,#094a34_100%)]",
-    glow: "bg-emerald-300/25",
-    accent: "text-emerald-200",
-  },
-  {
-    face: "bg-[linear-gradient(135deg,#6d3fc4_0%,#53309c_55%,#3b2270_100%)]",
-    glow: "bg-fuchsia-300/25",
-    accent: "text-fuchsia-200",
-  },
-  {
-    face: "bg-[linear-gradient(135deg,#b06a10_0%,#8f540b_55%,#6b3e08_100%)]",
-    glow: "bg-amber-300/25",
-    accent: "text-amber-200",
-  },
-];
+// Color IS the ownership code: vivid bank-blue means the viewer holds this
+// series, a washed-out slate means they don't (the "SİZDƏ YOXDUR" stamp
+// spells it out), and dark graphite means the series is settled. No more
+// per-series edition hues — one glance sorts the wallet.
+const OWNED_THEME: Theme = {
+  face: "bg-[linear-gradient(135deg,#2b55c4_0%,#1d3d92_55%,#142a68_100%)]",
+  glow: "bg-sky-400/30",
+  accent: "text-sky-200",
+};
+
+const UNOWNED_THEME: Theme = {
+  face: "bg-[linear-gradient(135deg,#64748b_0%,#4d5a70_55%,#3a465b_100%)]",
+  glow: "bg-white/20",
+  accent: "text-white/75",
+};
 
 // Matured/cancelled series keep their slot in the wallet but lose the live
 // colors — a settled certificate reads as archived, not active.
@@ -55,6 +48,11 @@ const SETTLED_THEME: Theme = {
   glow: "bg-white/15",
   accent: "text-white/70",
 };
+
+function themeFor(series: BondSeries): Theme {
+  if (series.status !== "active") return SETTLED_THEME;
+  return series.my_units > 0 ? OWNED_THEME : UNOWNED_THEME;
+}
 
 // Hydration-safe Azerbaijani date labels — no Intl in a client component
 // (the repo's hydration rule; same recipe as PerformanceChart). Series dates
@@ -80,11 +78,18 @@ function CertificateCard({
   theme: Theme;
   nowMs: number;
 }) {
+  const owned = series.my_units > 0;
   const holdingAzn = series.my_units * series.face_value_azn;
   const monthlyAzn =
     (holdingAzn * series.coupon_rate_pct) / 100 / 12;
   const couponPerPeriodAzn =
     (holdingAzn * series.coupon_rate_pct / 100) *
+    (series.coupon_period_months / 12);
+  // Unowned cards sell the terms instead of a holding: what ONE unit pays.
+  const perUnitMonthlyAzn =
+    (series.face_value_azn * series.coupon_rate_pct) / 100 / 12;
+  const perUnitCouponAzn =
+    ((series.face_value_azn * series.coupon_rate_pct) / 100) *
     (series.coupon_period_months / 12);
 
   const issueMs = new Date(series.issue_date).getTime();
@@ -127,6 +132,18 @@ function CertificateCard({
         ₼
       </div>
       <div aria-hidden className="pointer-events-none absolute inset-2 rounded-xl border border-white/15" />
+      {/* Ownership stamp: unowned series carry a rubber-stamp mark across
+          the face so a browsable card can never be mistaken for a holding. */}
+      {!owned ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+        >
+          <span className="-rotate-12 rounded-lg border-2 border-white/35 px-4 py-1.5 text-[13px] font-black uppercase tracking-[0.3em] text-white/40">
+            Sizdə yoxdur
+          </span>
+        </div>
+      ) : null}
 
       <div className="relative flex h-full flex-col">
         <div className="flex items-center justify-between gap-3">
@@ -148,13 +165,23 @@ function CertificateCard({
               {series.name}
             </p>
             <p className="mt-0.5 text-[11px] text-white/60">
-              <span className="num">{formatUnits(series.my_units)}</span> ədəd ×{" "}
-              <span className="num">{formatGrouped(series.face_value_azn, 2)}</span> ₼ nominal
+              {owned ? (
+                <>
+                  <span className="num">{formatUnits(series.my_units)}</span> ədəd ×{" "}
+                  <span className="num">{formatGrouped(series.face_value_azn, 2)}</span> ₼ nominal
+                </>
+              ) : (
+                <>
+                  1 ədədin nominalı ·{" "}
+                  <span className="num">{formatUnits(series.primary_available)}</span> ədəd
+                  buraxılışda
+                </>
+              )}
             </p>
           </div>
           <div className="shrink-0 text-right">
             <p className="num text-[1.7rem] font-semibold leading-none tracking-[-0.03em] tabular-nums sm:text-[2rem]">
-              {formatGrouped(holdingAzn, 2)}
+              {formatGrouped(owned ? holdingAzn : series.face_value_azn, 2)}
               <span className="ml-0.5 text-[1rem] font-medium text-white/60">₼</span>
             </p>
           </div>
@@ -167,9 +194,14 @@ function CertificateCard({
           <span className="num rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-white/80">
             hər {series.coupon_period_months} ay kupon
           </span>
-          {active && monthlyAzn > 0 ? (
+          {active && owned && monthlyAzn > 0 ? (
             <span className="num rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-emerald-200">
               ayda +{formatGrouped(monthlyAzn, 2)} ₼
+            </span>
+          ) : null}
+          {active && !owned && perUnitMonthlyAzn > 0 ? (
+            <span className="num rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-emerald-200">
+              1 ədəd → ayda +{formatGrouped(perUnitMonthlyAzn, 2)} ₼
             </span>
           ) : null}
         </div>
@@ -194,8 +226,13 @@ function CertificateCard({
               {active && series.next_coupon_date ? (
                 <>
                   Növbəti kupon {formatDate(series.next_coupon_date)}
-                  {couponPerPeriodAzn > 0 ? (
+                  {owned && couponPerPeriodAzn > 0 ? (
                     <span className="num"> · +{formatGrouped(couponPerPeriodAzn, 2)} ₼</span>
+                  ) : null}
+                  {!owned && perUnitCouponAzn > 0 ? (
+                    <span className="num">
+                      {" "}· +{formatGrouped(perUnitCouponAzn, 2)} ₼ / ədəd
+                    </span>
                   ) : null}
                 </>
               ) : (
@@ -254,7 +291,8 @@ export function BondCardCarousel({
   series,
   nowMs,
 }: {
-  /** The viewer's owned series (my_units > 0), page order preserved. */
+  /** Owned series first, then unowned active ones as browsable cards —
+   *  the page decides the ordering. */
   series: BondSeries[];
   /** Server render time — passed down so SSR and hydration agree on day math. */
   nowMs: number;
@@ -267,6 +305,8 @@ export function BondCardCarousel({
 
   const clamped = Math.min(index, series.length - 1);
   const active = series[clamped];
+  // Wallet totals count only what the viewer actually holds.
+  const ownedCount = series.filter((x) => x.my_units > 0).length;
   const totalNominalAzn = series.reduce(
     (s, x) => s + x.my_units * x.face_value_azn,
     0,
@@ -290,23 +330,30 @@ export function BondCardCarousel({
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-bank-blue dark:text-blue-400">
-            Mənim istiqrazlarım
+            {ownedCount > 0 ? "Mənim istiqrazlarım" : "İstiqraz seriyaları"}
           </p>
-          <p className="mt-1 text-[13px] text-black/55 dark:text-white/60">
-            <span className="num font-semibold text-ink dark:text-white/90">
-              {formatGrouped(totalNominalAzn, 2)} ₼
-            </span>{" "}
-            nominal · {series.length} seriya
-            {totalMonthlyAzn > 0 ? (
-              <>
-                {" "}
-                ·{" "}
-                <span className="num font-semibold text-status-paid dark:text-emerald-400">
-                  ayda +{formatGrouped(totalMonthlyAzn, 2)} ₼
-                </span>
-              </>
-            ) : null}
-          </p>
+          {ownedCount > 0 ? (
+            <p className="mt-1 text-[13px] text-black/55 dark:text-white/60">
+              <span className="num font-semibold text-ink dark:text-white/90">
+                {formatGrouped(totalNominalAzn, 2)} ₼
+              </span>{" "}
+              nominal · {ownedCount} seriya sizdə
+              {totalMonthlyAzn > 0 ? (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span className="num font-semibold text-status-paid dark:text-emerald-400">
+                    ayda +{formatGrouped(totalMonthlyAzn, 2)} ₼
+                  </span>
+                </>
+              ) : null}
+            </p>
+          ) : (
+            <p className="mt-1 text-[13px] text-black/55 dark:text-white/60">
+              Hələ istiqrazınız yoxdur — kartlara baxın, bəyəndiyiniz seriya ilə
+              ticarətə keçin.
+            </p>
+          )}
         </div>
         {active ? (
           <Link
@@ -351,11 +398,7 @@ export function BondCardCarousel({
             >
               <CertificateCard
                 series={active}
-                theme={
-                  active.status === "active"
-                    ? THEMES[clamped % THEMES.length]
-                    : SETTLED_THEME
-                }
+                theme={themeFor(active)}
                 nowMs={nowMs}
               />
             </m.div>
