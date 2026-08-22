@@ -23,6 +23,9 @@ type Point = {
   date?: string;
   /** The ETF book's slice of `value` at this date (tooltip decomposition). */
   other?: number;
+  /** The ETF book's slice of `invested` at this date, so the tooltip can
+   *  split Maya dəyəri the same way it splits Dəyər. */
+  otherInvested?: number;
 };
 
 /** A holder's own İRF transaction, for the ▲/▼ markers on the value line. */
@@ -412,6 +415,27 @@ export function PerformanceChart({
               </span>
               <span className="num font-semibold text-black dark:text-white/90">{fmt(inv)}</span>
             </p>
+          ) : null}
+          {/* Cost basis splits the same way the value does, so the İRF and
+              ETF slices can each be read against their own maya dəyəri. */}
+          {inv != null && showOther && p.other != null && p.other > 0 && p.otherInvested != null ? (
+            <>
+              <p className="flex items-center justify-between gap-6 pl-3.5 text-[11px]">
+                <span className="text-black/50 dark:text-white/55">İRF</span>
+                <span className="num text-black/70 dark:text-white/75">
+                  {fmt(Math.max(0, inv - p.otherInvested))}
+                </span>
+              </p>
+              <p className="flex items-center justify-between gap-6 pl-3.5 text-[11px]">
+                <span className="flex items-center gap-1.5 text-black/50 dark:text-white/55">
+                  <IsmayilBankMark size={12} />
+                  Digər aktivlər
+                </span>
+                <span className="num text-black/70 dark:text-white/75">
+                  {fmt(p.otherInvested)}
+                </span>
+              </p>
+            </>
           ) : null}
           {pnl != null ? (
             <p className="flex items-center justify-between gap-6 border-t border-black/10 dark:border-white/15 pt-1">

@@ -534,11 +534,13 @@ export default async function DashboardPage({
               ...p,
               value: p.value + o.valueAzn,
               invested: Math.max(0, p.invested + o.investedAzn),
-              // The ETF book's own slice at this date — decomposed in the
-              // chart tooltip's İRF / Digər aktivlər rows.
+              // The ETF book's own slices at this date — the chart tooltip
+              // decomposes both Dəyər and Maya dəyəri into İRF / Digər
+              // aktivlər rows from these.
               other: o.valueAzn,
+              otherInvested: Math.max(0, o.investedAzn),
             }
-          : { ...p, other: 0 };
+          : { ...p, other: 0, otherInvested: 0 };
       })
     : chartGrid;
   // Zero-value edges say nothing: leading zeros are days before the book
