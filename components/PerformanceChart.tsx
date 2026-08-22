@@ -435,8 +435,10 @@ export function PerformanceChart({
       </div>
       {mode === "price" ? priceHero : hero}
       <div className="relative h-72">
+        {/* Phones: the pill rides top-LEFT — the mirrored value labels own
+            the right edge now. */}
         {timed.length > 0 && (
-          <div className="pointer-events-none absolute right-1 top-0 z-10 sm:hidden">
+          <div className="pointer-events-none absolute left-1 top-0 z-10 sm:hidden">
             {changePill("")}
           </div>
         )}
@@ -473,10 +475,15 @@ export function PerformanceChart({
                 minTickGap={24}
                 tickFormatter={tickDate}
               />
+              {/* Value labels float inside the RIGHT edge (mirror) so the
+                  plot's left edge sits flush with the card's text — the
+                  finance-app composition İsmayıl asked for. */}
               <YAxis
                 hide={masked}
+                orientation="right"
+                mirror
                 domain={["auto", "auto"]}
-                width={52}
+                width={1}
                 tick={{ fontSize: 10, fill: "rgba(0,0,0,0.4)" }}
                 tickLine={false}
                 axisLine={false}
