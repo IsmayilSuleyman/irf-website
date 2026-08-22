@@ -44,44 +44,54 @@ export function RowSpark({ values, id }: { values: number[]; id: string }) {
     // (auto + 56px cols on phones, auto + 64px from sm up), so the curve
     // never runs beneath the value/price figures; the fixed width keeps
     // every row's chart the same size, aligned like a column.
-    <svg
-      viewBox="0 0 100 30"
-      preserveAspectRatio="none"
+    <span
       aria-hidden
-      className={`pointer-events-none absolute bottom-1 right-36 h-3/4 w-24 overflow-visible sm:right-44 sm:w-40 ${
+      className={`pointer-events-none absolute bottom-1 right-36 h-3/4 w-24 sm:right-44 sm:w-40 ${
         up
           ? "text-brand-green dark:text-emerald-400"
           : "text-brand-red dark:text-red-400"
       }`}
     >
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="currentColor" stopOpacity="0.12" />
-          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-        </linearGradient>
-        {/* Left-only fade: the final stop carries to the right edge, so the
-            newest stretch of the line renders at full strength. */}
-        <linearGradient id={`${id}-fade`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#fff" stopOpacity="0" />
-          <stop offset="14%" stopColor="#fff" />
-        </linearGradient>
-        <mask id={`${id}-mask`} maskUnits="userSpaceOnUse">
-          <rect x="0" y="0" width="100" height="30" fill={`url(#${id}-fade)`} />
-        </mask>
-      </defs>
-      <g mask={`url(#${id}-mask)`}>
-        <path d={`${line} L100 30 L0 30 Z`} fill={`url(#${id})`} />
-        <path
-          d={line}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="0.9"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.4"
-        />
-      </g>
-      <circle cx="100" cy={lastY} r="1.4" fill="currentColor" opacity="0.9" />
-    </svg>
+      <svg
+        viewBox="0 0 100 30"
+        preserveAspectRatio="none"
+        className="h-full w-full"
+      >
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+          </linearGradient>
+          {/* Left-only fade: the final stop carries to the right edge, so the
+              newest stretch of the line renders at full strength. */}
+          <linearGradient id={`${id}-fade`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#fff" stopOpacity="0" />
+            <stop offset="14%" stopColor="#fff" />
+          </linearGradient>
+          <mask id={`${id}-mask`} maskUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="100" height="30" fill={`url(#${id}-fade)`} />
+          </mask>
+        </defs>
+        <g mask={`url(#${id}-mask)`}>
+          <path d={`${line} L100 30 L0 30 Z`} fill={`url(#${id})`} />
+          <path
+            d={line}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="0.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.4"
+          />
+        </g>
+      </svg>
+      {/* The latest-value dot lives OUTSIDE the stretched svg
+          (preserveAspectRatio=none turned a circle into an ellipse) —
+          a fixed-size HTML dot stays perfectly round. */}
+      <span
+        className="absolute right-0 h-[5px] w-[5px] -translate-y-1/2 translate-x-1/2 rounded-full bg-current opacity-90"
+        style={{ top: `${(lastY / 30) * 100}%` }}
+      />
+    </span>
   );
 }
