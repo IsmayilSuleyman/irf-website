@@ -32,9 +32,11 @@ export type TickerQuote = {
 };
 
 // Daily closes move once a day; cache the 5-year series long (6h) and let
-// the 60s ticker cache read it cheaply. Two-tier downsample: the last year
-// keeps ~130 points so the 6 AY slice stays smooth, older history thins to
-// ~110 — always keeping the true last close.
+// the 60s ticker cache read it cheaply. The last year keeps EVERY daily
+// close (up to 380 — BTC trades all 365 days) so the 6 AY and 1 İL slices
+// show real day-to-day texture; older history thins to ~200 points. Closes
+// round to 2dp — the series rides the page payload, and long floats double
+// its JSON weight for nothing.
 const getCached5y = unstable_cache(
   async (symbol: string): Promise<HistoryPoint[]> => {
     try {
@@ -46,14 +48,14 @@ const getCached5y = unstable_cache(
       const cutoff = new Date(cutoffMs).toISOString().slice(0, 10);
       const older = closes.filter((c) => c.t < cutoff);
       const recent = closes.filter((c) => c.t >= cutoff);
-      const strideOld = Math.max(1, Math.ceil(older.length / 110));
-      const strideNew = Math.max(1, Math.ceil(recent.length / 130));
+      const strideOld = Math.max(1, Math.ceil(older.length / 200));
+      const strideNew = Math.max(1, Math.ceil(recent.length / 380));
       const out: HistoryPoint[] = [
         ...older.filter((_, i) => i % strideOld === 0),
         ...recent.filter((_, i) => i % strideNew === 0),
-      ].map((c) => ({ t: c.t, c: c.close }));
+      ].map((c) => ({ t: c.t, c: Math.round(c.close * 100) / 100 }));
       if (out[out.length - 1]?.t !== last.t) {
-        out.push({ t: last.t, c: last.close });
+        out.push({ t: last.t, c: Math.round(last.close * 100) / 100 });
       }
       return out;
     } catch (err) {
@@ -61,9 +63,8 @@ const getCached5y = unstable_cache(
       return [];
     }
   },
-  // Shape changed (number[] → dated points): fresh cache key so stale
-  // entries can't deserialize into the new type.
-  ["market-ticker-5y-dated"],
+  // Fresh key per shape/density change so stale entries never mix in.
+  ["market-ticker-5y-daily"],
   { revalidate: 21600 },
 );
 
@@ -103,8 +104,8 @@ const getCachedTicker = unstable_cache(
     });
     return out;
   },
-  // v2: history5y carries dated points now.
-  ["market-ticker-quotes-v2"],
+  // v3: history5y carries full-density dated points now.
+  ["market-ticker-quotes-v3"],
   { revalidate: 60 },
 );
 
