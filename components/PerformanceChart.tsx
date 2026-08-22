@@ -17,6 +17,9 @@ import { usePrivacy } from "@/components/PrivacyProvider";
 
 type Point = { label: string; value: number; invested?: number; date?: string };
 
+/** A holder's own İRF transaction, for the ▲/▼ markers on the value line. */
+export type ChartEvent = { date: string; units: number };
+
 // Hydration-safe Azerbaijani date labels (no Intl in a client component).
 const AZ_MONTHS_SHORT = [
   "yan", "fev", "mar", "apr", "may", "iyn",
@@ -54,14 +57,70 @@ const MODES = [
 
 type ModeKey = (typeof MODES)[number]["key"];
 
+// Polarity colors: profit band/green line, loss band, neutral cost basis.
+// Green↔red is a weak pair under deutan CVD, so polarity is never color-alone
+// here — the bands sit on opposite SIDES of the dashed cost line, buy/sell
+// markers differ in SHAPE (▲/▼) and every tooltip value carries its sign.
+const GREEN = "#16a34a";
+const RED = "#dc2626";
+const NEUTRAL = "#94a3b8";
+
+type TimedPoint = Point & {
+  ts: number;
+  gainBand: [number, number] | null;
+  lossBand: [number, number] | null;
+};
+
+type Marker = {
+  ts: number;
+  value: number;
+  buyUnits: number;
+  sellUnits: number;
+};
+
+function TriangleDot({
+  cx,
+  cy,
+  dir,
+}: {
+  cx?: number;
+  cy?: number;
+  dir: 1 | -1;
+}) {
+  if (cx == null || cy == null) return null;
+  const h = 4.5 * dir;
+  return (
+    <path
+      d={`M ${cx} ${cy - h} L ${cx + 4.5} ${cy + h} L ${cx - 4.5} ${cy + h} Z`}
+      fill={dir === 1 ? GREEN : RED}
+      stroke="#fff"
+      strokeWidth={1.4}
+    />
+  );
+}
+
+function AthDot({ cx, cy }: { cx?: number; cy?: number }) {
+  if (cx == null || cy == null) return null;
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={6} fill="none" stroke={GREEN} strokeWidth={1.6} opacity={0.85} />
+      <circle cx={cx} cy={cy} r={2.4} fill={GREEN} stroke="#fff" strokeWidth={1.2} />
+    </g>
+  );
+}
+
 export function PerformanceChart({
   data,
   priceData,
+  events,
   hero,
   priceHero,
 }: {
   data: Point[];
   priceData?: Point[];
+  /** The holder's own buys/sells — rendered as ▲/▼ markers in value mode so
+   *  contribution jumps never masquerade as market moves. */
+  events?: ChartEvent[];
   /**
    * Optional summary block (headline figure + change lines) rendered inside
    * the card between the header and the plot — the Yahoo-app "portfolio
@@ -92,19 +151,92 @@ export function PerformanceChart({
     });
   }, [source, range]);
 
+  const showInvested =
+    mode === "value" && filtered.some((p) => p.invested != null);
+
   // Numeric (epoch-ms) x-axis: points sit at their true time distance, so
   // sparse early history doesn't get compressed into equal category slots.
-  // Points without a parseable date (none in practice) are dropped.
-  const timed = useMemo(
-    () =>
-      filtered
-        .map((p) => ({ ...p, ts: p.date ? new Date(p.date).getTime() : NaN }))
-        .filter((p) => Number.isFinite(p.ts))
-        .sort((a, b) => a.ts - b.ts),
-    [filtered],
-  );
+  // In value mode each point also carries its profit/loss band — the strip
+  // between the value and the cost basis, split by sign — with an
+  // interpolated point inserted at every crossing so the two fills meet at
+  // the line instead of leaving a notch.
+  const timed = useMemo<TimedPoint[]>(() => {
+    const base = filtered
+      .map((p) => ({ ...p, ts: p.date ? new Date(p.date).getTime() : NaN }))
+      .filter((p) => Number.isFinite(p.ts))
+      .sort((a, b) => a.ts - b.ts);
+
+    const withCrossings: (Point & { ts: number })[] = [];
+    for (let i = 0; i < base.length; i++) {
+      const a = base[i];
+      withCrossings.push(a);
+      const b = base[i + 1];
+      if (!showInvested || !b || a.invested == null || b.invested == null) continue;
+      const da = a.value - a.invested;
+      const db = b.value - b.invested;
+      if (da * db < 0) {
+        const t = da / (da - db);
+        const ts = a.ts + t * (b.ts - a.ts);
+        const v = a.value + t * (b.value - a.value);
+        withCrossings.push({ label: "", date: undefined, ts, value: v, invested: v });
+      }
+    }
+
+    return withCrossings.map((p) => {
+      const inv = showInvested ? (p.invested ?? null) : null;
+      // Bands as [low, high] range areas, continuous (zero-height on the
+      // inactive side) so the fills never break; the crossing points
+      // inserted above pinch each band to nothing exactly at the line.
+      return {
+        ...p,
+        gainBand: inv != null ? [inv, Math.max(inv, p.value)] : null,
+        lossBand: inv != null ? [Math.min(inv, p.value), inv] : null,
+      } as TimedPoint;
+    });
+  }, [filtered, showInvested]);
 
   const last = timed.length > 0 ? timed[timed.length - 1] : null;
+
+  // The window's peak — ringed on the plot ("Zirvə" in the key). When the
+  // peak IS the newest point, the ring replaces the plain last-point dot.
+  const ath = useMemo(() => {
+    let best: TimedPoint | null = null;
+    for (const p of timed) if (best == null || p.value > best.value) best = p;
+    return best;
+  }, [timed]);
+
+  // ▲/▼ markers: each of the holder's transactions snaps to the nearest
+  // plotted point; several on one point aggregate. Value mode only.
+  const markers = useMemo<Marker[]>(() => {
+    if (mode !== "value" || !events || events.length === 0 || timed.length === 0)
+      return [];
+    const plotted = timed.filter((p) => p.date != null);
+    const byTs = new Map<number, Marker>();
+    for (const e of events) {
+      const ms = new Date(e.date).getTime();
+      if (!Number.isFinite(ms) || e.units === 0) continue;
+      let nearest = plotted[0];
+      for (const p of plotted) {
+        if (Math.abs(p.ts - ms) < Math.abs(nearest.ts - ms)) nearest = p;
+      }
+      if (Math.abs(nearest.ts - ms) > 40 * 86_400_000) continue;
+      const m = byTs.get(nearest.ts) ?? {
+        ts: nearest.ts,
+        value: nearest.value,
+        buyUnits: 0,
+        sellUnits: 0,
+      };
+      if (e.units > 0) m.buyUnits += e.units;
+      else m.sellUnits += -e.units;
+      byTs.set(nearest.ts, m);
+    }
+    return [...byTs.values()];
+  }, [mode, events, timed]);
+
+  const markerByTs = useMemo(
+    () => new Map(markers.map((m) => [m.ts, m])),
+    [markers],
+  );
 
   // Change across the visible window: first plotted point to last. Follows
   // both switches, so it answers "what did the selected series do over the
@@ -131,6 +263,7 @@ export function PerformanceChart({
   // Your holding value is personal — masked in hide-amounts mode. The unit
   // price is the same for every holder (public), so it never gets masked.
   const masked = hidden && mode === "value";
+  const fmt = (v: number) => (masked ? "••••" : formatAzn(v));
 
   /**
    * The period-change readout, rendered in two places with one definition so
@@ -154,11 +287,88 @@ export function PerformanceChart({
       </span>
     );
 
-  // Net-invested (Maya dəyəri) reference line — value mode only. Stepped, not
-  // flat: the invested amount changes on every buy/sell, so comparing against
-  // today's total would falsely show early months as under water.
-  const showInvested =
-    mode === "value" && timed.some((p) => p.invested != null);
+  // One tooltip for everything under the cursor: the series values, the net
+  // profit against the cost basis, and the day's own buys/sells.
+  function ChartTip({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: Array<{ payload: TimedPoint }>;
+  }) {
+    const p = active && payload && payload.length > 0 ? payload[0].payload : null;
+    if (!p || p.date == null) return null;
+    const inv = showInvested ? (p.invested ?? null) : null;
+    const pnl = inv != null ? p.value - inv : null;
+    const pnlPct = inv != null && inv > 0 ? (p.value / inv - 1) * 100 : null;
+    const marker = markerByTs.get(p.ts);
+    return (
+      <div
+        className="rounded-xl px-3.5 py-3 text-[12px]"
+        // Inline (not utility classes): the recharts portal renders outside
+        // the themed tree, and the panel stays light in both modes like the
+        // previous tooltip did.
+        style={{
+          background: "rgba(255,255,255,0.96)",
+          border: "1px solid rgba(0,0,0,0.08)",
+          boxShadow: "0 8px 30px -12px rgba(0,0,0,0.3)",
+        }}
+      >
+        <p className="text-[11px] text-black/50 dark:text-white/50">{tooltipDate(p.ts)}</p>
+        <div className="mt-1.5 space-y-1">
+          <p className="flex items-center justify-between gap-6">
+            <span className="flex items-center gap-1.5 text-black/60 dark:text-white/65">
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: GREEN }} />
+              {mode === "price" ? "1 payın qiyməti" : "Dəyər"}
+            </span>
+            <span className="num font-semibold text-black dark:text-white/90">{fmt(p.value)}</span>
+          </p>
+          {inv != null ? (
+            <p className="flex items-center justify-between gap-6">
+              <span className="flex items-center gap-1.5 text-black/60 dark:text-white/65">
+                <span className="inline-block h-0.5 w-3 rounded" style={{ background: NEUTRAL }} />
+                Maya dəyəri
+              </span>
+              <span className="num font-semibold text-black dark:text-white/90">{fmt(inv)}</span>
+            </p>
+          ) : null}
+          {pnl != null ? (
+            <p className="flex items-center justify-between gap-6 border-t border-black/10 dark:border-white/15 pt-1">
+              <span className="text-black/60 dark:text-white/65">Mənfəət</span>
+              <span
+                className="num font-semibold"
+                style={{ color: pnl >= 0 ? GREEN : RED }}
+              >
+                {pnl >= 0 ? "+" : "−"}
+                {fmt(Math.abs(pnl))}
+                {pnlPct != null ? (
+                  <span className="ml-1 text-[10px] opacity-80">
+                    ({pnl >= 0 ? "+" : "−"}
+                    {formatGrouped(Math.abs(pnlPct), 1)}%)
+                  </span>
+                ) : null}
+              </span>
+            </p>
+          ) : null}
+          {marker ? (
+            <p className="border-t border-black/10 dark:border-white/15 pt-1 text-[11px]">
+              {marker.buyUnits > 0 ? (
+                <span style={{ color: GREEN }}>
+                  ▲ Alış{masked ? "" : `: +${formatGrouped(marker.buyUnits, 0)} pay`}
+                </span>
+              ) : null}
+              {marker.buyUnits > 0 && marker.sellUnits > 0 ? " · " : null}
+              {marker.sellUnits > 0 ? (
+                <span style={{ color: RED }}>
+                  ▼ Satış{masked ? "" : `: −${formatGrouped(marker.sellUnits, 0)} pay`}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="glass w-full p-6">
@@ -166,19 +376,11 @@ export function PerformanceChart({
           it already name the series), mode switch right; the range buttons
           moved below the plot (Yahoo-app composition, see bottom). */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        {/* Phone sizes are trimmed so the title and both mode buttons share
-            ONE line on ≥360px screens; ml-auto keeps the cluster right-
-            aligned if an ultra-narrow screen still wraps it. */}
         <span className="whitespace-nowrap text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           Tarixçə
         </span>
         <div className="ml-auto flex items-center gap-2">
-          {/* On phones the pill rides in the chart's top-right corner instead
-              (see below), where there is empty plot area and the control row
-              is already tight. */}
           {changePill("hidden sm:inline-block")}
-          {/* Series switch — same button language as the range buttons so it
-              reads as a control, not a label. */}
           {hasValue && hasPrice && (
             <div className="flex items-center gap-1">
               {MODES.map((m) => (
@@ -202,8 +404,6 @@ export function PerformanceChart({
       </div>
       {mode === "price" ? priceHero : hero}
       <div className="relative h-72">
-        {/* Phone placement: inside the plot, top right. pointer-events-none so
-            it never swallows a tap meant for the chart's tooltip. */}
         {timed.length > 0 && (
           <div className="pointer-events-none absolute right-1 top-0 z-10 sm:hidden">
             {changePill("")}
@@ -220,9 +420,13 @@ export function PerformanceChart({
               margin={{ top: 10, right: 14, left: 0, bottom: 0 }}
             >
               <defs>
-                <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#16a34a" stopOpacity={0.22} />
-                  <stop offset="100%" stopColor="#16a34a" stopOpacity={0} />
+                <linearGradient id="pcGain" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={GREEN} stopOpacity={0.28} />
+                  <stop offset="100%" stopColor={GREEN} stopOpacity={0.08} />
+                </linearGradient>
+                <linearGradient id="pcPrice" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={GREEN} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={GREEN} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
@@ -248,48 +452,80 @@ export function PerformanceChart({
                 tickCount={4}
                 tickFormatter={(v: number) => formatGrouped(v, 0)}
               />
-              <Tooltip
-                contentStyle={{
-                  background: "rgba(255,255,255,0.96)",
-                  border: "1px solid rgba(0,0,0,0.08)",
-                  borderRadius: 12,
-                  boxShadow: "0 8px 30px -12px rgba(0,0,0,0.2)",
-                  fontSize: 12,
-                  color: "#0a0a0a",
-                }}
-                labelStyle={{ color: "rgba(0,0,0,0.55)" }}
-                labelFormatter={(ms: number) => tooltipDate(ms)}
-                formatter={(v: number, name: string) => [
-                  masked ? "••••" : formatAzn(v),
-                  name,
+              <Tooltip content={<ChartTip />} />
+              {/* Price mode keeps the classic under-line gradient; value mode
+                  trades it for the profit/loss bands against the cost basis —
+                  the strip between the lines IS the P&L. Children are an
+                  ARRAY, never a fragment: recharts matches its direct
+                  children by type and silently drops anything inside <>. */}
+              {(mode === "price" || !showInvested) && (
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="none"
+                  fill="url(#pcPrice)"
+                />
+              )}
+              {mode === "value" &&
+                showInvested && [
+                  <Area
+                    key="gainBand"
+                    type="monotone"
+                    dataKey="gainBand"
+                    stroke="none"
+                    fill="url(#pcGain)"
+                    isAnimationActive={false}
+                    tooltipType="none"
+                  />,
+                  <Area
+                    key="lossBand"
+                    type="monotone"
+                    dataKey="lossBand"
+                    stroke="none"
+                    fill={RED}
+                    fillOpacity={0.16}
+                    isAnimationActive={false}
+                    tooltipType="none"
+                  />,
                 ]}
-              />
-              <Area
+              <Line
                 type="monotone"
                 dataKey="value"
-                name={mode === "price" ? "1 payın qiyməti" : "Dəyər"}
-                stroke="#16a34a"
+                stroke={GREEN}
                 strokeWidth={2.5}
-                fill="url(#g)"
+                dot={false}
+                activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
               />
               {showInvested && (
                 <Line
                   type="stepAfter"
                   dataKey="invested"
-                  name="Maya dəyəri"
-                  stroke="#94a3b8"
+                  stroke={NEUTRAL}
                   strokeWidth={1.5}
                   strokeDasharray="5 4"
                   dot={false}
                   activeDot={false}
                 />
               )}
-              {last && (
+              {markers.map((mk) => (
+                <ReferenceDot
+                  key={`mk-${mk.ts}`}
+                  x={mk.ts}
+                  y={mk.value}
+                  shape={
+                    <TriangleDot dir={mk.buyUnits >= mk.sellUnits ? 1 : -1} />
+                  }
+                />
+              ))}
+              {ath && (
+                <ReferenceDot x={ath.ts} y={ath.value} shape={<AthDot />} />
+              )}
+              {last && (!ath || ath.ts !== last.ts) && (
                 <ReferenceDot
                   x={last.ts}
                   y={last.value}
                   r={4}
-                  fill="#16a34a"
+                  fill={GREEN}
                   stroke="#fff"
                   strokeWidth={2}
                 />
@@ -298,6 +534,37 @@ export function PerformanceChart({
           </ResponsiveContainer>
         )}
       </div>
+      {/* Glyph key — identity is never color-alone: the marker shapes and
+          line styles repeat here in words. Value mode only; price mode is a
+          single self-named series. */}
+      {mode === "value" && showInvested && timed.length > 0 ? (
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-black/40 dark:text-white/45">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-0.5 w-4 rounded" style={{ background: GREEN }} />
+            Dəyər
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-0 w-4 border-t border-dashed"
+              style={{ borderColor: NEUTRAL }}
+            />
+            Maya dəyəri
+          </span>
+          {markers.length > 0 ? (
+            <>
+              <span style={{ color: GREEN }}>▲ Alış</span>
+              <span style={{ color: RED }}>▼ Satış</span>
+            </>
+          ) : null}
+          <span className="flex items-center gap-1">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full border"
+              style={{ borderColor: GREEN }}
+            />
+            Zirvə
+          </span>
+        </div>
+      ) : null}
       {/* Range buttons below the plot — full-width tap targets on phones,
           inline on larger screens. */}
       <div className="mt-4 flex items-center gap-1.5 sm:gap-2">
