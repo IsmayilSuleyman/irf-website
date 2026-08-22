@@ -364,6 +364,14 @@ export default async function DashboardPage({
     priceHistory,
   );
 
+  // The holder's own buys/sells, for the chart's ▲/▼ markers — same name
+  // normalization the value history uses.
+  const normName = (s: string) =>
+    s.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
+  const chartEvents = mergedTransactions
+    .filter((t) => normName(t.holderName) === normName(holder.name))
+    .map((t) => ({ date: t.date, units: t.units }));
+
   // Unit-price series for the chart's "1 payın qiyməti" mode — same public
   // price every holder sees.
   const priceChartData = priceHistory.map((p) => ({
@@ -609,6 +617,7 @@ export default async function DashboardPage({
               <PerformanceChart
                 data={bookChartData}
                 priceData={priceChartData}
+                events={chartEvents}
                 hero={
                   <ChartSummary
                     value={bookValue}
