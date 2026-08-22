@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import { formatAzn, formatGrouped } from "@/lib/portfolio";
 import { usePrivacy } from "@/components/PrivacyProvider";
-import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
+import { IsmayilBankMark } from "@/components/IsmayilBankLogo";
 
 type Point = {
   label: string;
@@ -395,10 +395,10 @@ export function PerformanceChart({
           {showOther && p.other != null && p.other > 0 ? (
             <p className="flex items-center justify-between gap-6 pl-3.5 text-[11px]">
               <span className="flex items-center gap-1.5 text-black/50 dark:text-white/55">
-                {/* The ETF book is bought through İsmayılBank — its mark
-                    replaces a line swatch here, since the plot draws one
-                    total line and has no separate Digər aktivlər line. */}
-                <IsmayilBankLogo size={10} />
+                {/* The ETF book is bought through İsmayılBank — its cross
+                    mark replaces a line swatch here, since the plot draws
+                    one total line and has no separate Digər aktivlər line. */}
+                <IsmayilBankMark size={12} />
                 Digər aktivlər
               </span>
               <span className="num text-black/70 dark:text-white/75">{fmt(p.other)}</span>
