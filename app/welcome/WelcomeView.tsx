@@ -304,19 +304,6 @@ export function WelcomeView({
               Kalkulyatoru sına
             </Link>
           </div>
-          <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-black/45 dark:text-white/50">
-            {["Canlı bazar qiymətləri", "Gündəlik NAV qeydi", "Gizlilik rejimi"].map(
-              (t) => (
-                <li key={t} className="flex items-center gap-2">
-                  <span
-                    aria-hidden
-                    className="h-1.5 w-1.5 rounded-full bg-brand-green dark:bg-emerald-400"
-                  />
-                  {t}
-                </li>
-              ),
-            )}
-          </ul>
         </m.div>
 
         <m.div {...riseIn(0.16)}>
