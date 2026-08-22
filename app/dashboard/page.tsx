@@ -381,6 +381,24 @@ export default async function DashboardPage({
         : [{ date: new Date(ms).toISOString(), units: t.units }];
     });
 
+  // A holder with an ETF ledger but no İRF transactions still deserves the
+  // Tarixçə series: with no İRF points to ride on, the NAV-recording dates
+  // serve as the date grid and the İRF slice is simply zero. (A holder WITH
+  // İRF transactions gets the grid from computeHolderValueHistory, which
+  // emits zero-unit points too.)
+  const holderHasAssetRows = assetTxs.some(
+    (t) => normName(t.holderName) === normName(holder.name),
+  );
+  const chartGrid =
+    chartData.length === 0 && holderHasAssetRows
+      ? priceHistory.map((p) => ({
+          label: p.label,
+          value: 0,
+          invested: 0,
+          date: p.recordedAt,
+        }))
+      : chartData;
+
   // Unit-price series for the chart's "1 payın qiyməti" mode — same public
   // price every holder sees.
   const priceChartData = priceHistory.map((p) => ({
@@ -438,7 +456,7 @@ export default async function DashboardPage({
       ? getAssetValueOverlay(
           holder.name,
           assetTxs,
-          chartData.map((p) => p.date.slice(0, 10)),
+          chartGrid.map((p) => p.date.slice(0, 10)),
         )
       : Promise.resolve(null),
   ]);
@@ -490,21 +508,32 @@ export default async function DashboardPage({
     (s, p) => s + (p.totalPnlAzn ?? 0),
     0,
   );
-  const bookChartData = assetOverlay
-    ? chartData.map((p) => {
+  const mergedBook = assetOverlay
+    ? chartGrid.map((p) => {
         const o = assetOverlay[p.date.slice(0, 10)];
         return o
           ? {
               ...p,
               value: p.value + o.valueAzn,
               invested: Math.max(0, p.invested + o.investedAzn),
-              // The ETF book's own slice at this date — plotted as the
-              // chart's "Digər aktivlər" line and decomposed in its tooltip.
+              // The ETF book's own slice at this date — decomposed in the
+              // chart tooltip's İRF / Digər aktivlər rows.
               other: o.valueAzn,
             }
           : { ...p, other: 0 };
       })
-    : chartData;
+    : chartGrid;
+  // Zero-value edges say nothing: leading zeros are days before the book
+  // existed, trailing zeros a fully-exited one. Interior zeros stay — a real
+  // "worth nothing" stretch between an İRF exit and the first ETF buy.
+  let bookStart = 0;
+  let bookEnd = mergedBook.length;
+  while (bookStart < bookEnd && mergedBook[bookStart].value <= 0) bookStart += 1;
+  while (bookEnd > bookStart && mergedBook[bookEnd - 1].value <= 0) bookEnd -= 1;
+  const bookChartData =
+    bookStart > 0 || bookEnd < mergedBook.length
+      ? mergedBook.slice(bookStart, bookEnd)
+      : mergedBook;
   const bookValue = holdingValue + etfValueNow;
   const bookDayChange =
     dayChange != null || assetPositions.some((p) => p.dayChangeAzn != null)
