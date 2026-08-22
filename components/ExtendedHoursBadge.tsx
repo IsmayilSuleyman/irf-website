@@ -22,6 +22,11 @@ const SCOPE_TOOLTIP: Record<"fund" | "personal", string> = {
   personal: "sizin payınıza düşən məbləğ",
 };
 
+const SCOPE_VALUE_LABEL: Record<"fund" | "personal", string> = {
+  fund: "Fondun dəyəri",
+  personal: "Sərmayənizin dəyəri",
+};
+
 // Chart line follows the DATA's session (post data stays purple even when
 // hovered from the Gecə badge).
 const LINE_COLOR: Record<"pre" | "post" | "regular", string> = {
@@ -35,12 +40,24 @@ export function ExtendedHoursBadge({
   scope,
   history = [],
   align = "left",
+  extra,
 }: {
   data: ExtendedPortfolio;
   scope: "fund" | "personal";
   history?: SessionHistoryPoint[];
   /** Popover anchor edge — "right" when the badge sits near a card's right edge. */
   align?: "left" | "right";
+  /**
+   * Absolute figures for the popover (phones can't fit them in the pill):
+   * the value the delta applies to at the last close (viewer's slice or the
+   * whole fund, per scope), and the İRF pay price at close / at extended
+   * prices.
+   */
+  extra?: {
+    baseValueAzn: number;
+    unitPriceAzn: number;
+    unitPriceExtAzn: number | null;
+  };
 }) {
   const [open, setOpen] = useState(false);
   const up = data.changePct >= 0;
@@ -104,12 +121,53 @@ export function ExtendedHoursBadge({
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
               {chartTitle}
             </span>
-            <span className={`num text-sm font-semibold ${numberTone}`}>{pct}</span>
+            {/* Pct + ₼ side by side: phones hide the delta in the pill, so
+                the popover is where the manat amount is always readable. */}
+            <span className="flex items-baseline gap-1.5 whitespace-nowrap">
+              <span className={`num text-sm font-semibold ${numberTone}`}>{pct}</span>
+              {showDelta ? (
+                <Masked mask="••••" className="text-black/45 dark:text-white/50">
+                  <span className={`num text-[11px] font-medium opacity-90 ${numberTone}`}>
+                    ({delta})
+                  </span>
+                </Masked>
+              ) : null}
+            </span>
           </div>
           <p className="mt-0.5 text-[10px] leading-4 text-black/45 dark:text-white/50">
             Portfel {meta.tooltip} · {data.coveredCount}/{data.totalCount} mövqe
             {showDelta ? ` · ${SCOPE_TOOLTIP[scope]}` : ""}
           </p>
+
+          {extra ? (
+            <div className="mt-2.5 space-y-1 rounded-lg border border-black/[0.06] dark:border-white/10 bg-black/[0.03] dark:bg-white/5 px-2.5 py-2 text-[11px]">
+              <p className="flex items-center justify-between gap-4">
+                <span className="text-black/50 dark:text-white/55">
+                  {SCOPE_VALUE_LABEL[scope]}
+                </span>
+                <Masked mask="••••">
+                  <span className="num font-semibold text-black dark:text-white/90">
+                    {formatAzn(extra.baseValueAzn + data.deltaAzn)}
+                  </span>
+                </Masked>
+              </p>
+              {extra.unitPriceExtAzn != null ? (
+                <p className="flex items-center justify-between gap-4">
+                  <span className="text-black/50 dark:text-white/55">
+                    1 payın qiyməti
+                  </span>
+                  {/* The pay price is public — never masked. */}
+                  <span className="num text-black/60 dark:text-white/65">
+                    {formatAzn(extra.unitPriceAzn)}
+                    <span className="mx-1 opacity-50">→</span>
+                    <span className="font-semibold text-black dark:text-white/90">
+                      {formatAzn(extra.unitPriceExtAzn)}
+                    </span>
+                  </span>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {history.length >= 2 ? (
             <div className="mt-3">
