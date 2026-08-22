@@ -3,8 +3,18 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Masked } from "@/components/Masked";
-import { formatAzn, formatGroupedTrim } from "@/lib/portfolio";
+import { USD_TO_AZN, formatAzn, formatGroupedTrim } from "@/lib/portfolio";
 import type { AssetPosition } from "@/lib/personalAssets";
+
+/** A purchasable asset the holder does NOT own yet — shown on the podium as
+ *  an invitation, with its live per-unit price. */
+export type VaultInvite = {
+  symbol: string;
+  label: string;
+  iconKey: string | null;
+  priceUsd: number | null;
+  dayChangePct: number | null;
+};
 
 // The holder's valuables on a vault podium: the ETF book (gold / silver /
 // BTC / S&P) plus the İRF holding — one item takes the stage at a time
@@ -26,6 +36,10 @@ type VaultItem = {
   dayChangePct: number | null;
   totalPnlAzn: number | null;
   isIrf: boolean;
+  /** false = an invitation: the holder doesn't own this yet. */
+  owned: boolean;
+  /** Live per-unit USD price — shown on invitation plaques. */
+  unitPriceUsd: number | null;
 };
 
 /** Stage-sized asset marks (the shared ASSET_ICONS are 12px chips). */
@@ -102,12 +116,16 @@ function Arrow({ dir }: { dir: "left" | "right" }) {
 
 export function BankAssetsVault({
   positions,
+  unowned = [],
   irfValueAzn = 0,
 }: {
   positions: AssetPosition[];
+  /** Purchasable assets the holder does NOT own — podium invitations. */
+  unowned?: VaultInvite[];
   /** The holder's İRF pay value — podium item with its own not-a-deposit note. */
   irfValueAzn?: number;
 }) {
+  // Order: what you own first, then İRF, then the invitations.
   const items: VaultItem[] = [
     ...positions.map((p) => ({
       key: p.symbol,
@@ -118,21 +136,33 @@ export function BankAssetsVault({
       dayChangePct: p.dayChangePct,
       totalPnlAzn: p.totalPnlAzn,
       isIrf: false,
+      owned: true,
+      unitPriceUsd: null,
     })),
-    ...(irfValueAzn > 0
-      ? [
-          {
-            key: "irf",
-            label: "İRF Payı",
-            symbol: null,
-            iconKey: "irf",
-            valueAzn: irfValueAzn,
-            dayChangePct: null,
-            totalPnlAzn: null,
-            isIrf: true,
-          },
-        ]
-      : []),
+    {
+      key: "irf",
+      label: "İRF Payı",
+      symbol: null,
+      iconKey: "irf",
+      valueAzn: irfValueAzn,
+      dayChangePct: null,
+      totalPnlAzn: null,
+      isIrf: true,
+      owned: irfValueAzn > 0,
+      unitPriceUsd: null,
+    },
+    ...unowned.map((a) => ({
+      key: a.symbol,
+      label: a.label,
+      symbol: a.symbol,
+      iconKey: a.iconKey,
+      valueAzn: null,
+      dayChangePct: a.dayChangePct,
+      totalPnlAzn: null,
+      isIrf: false,
+      owned: false,
+      unitPriceUsd: a.priceUsd,
+    })),
   ];
   const [idx, setIdx] = useState(0);
   const n = items.length;
@@ -180,8 +210,20 @@ export function BankAssetsVault({
         ) : null}
 
         <div className="flex flex-col items-center">
-          <div className="flex h-40 w-40 items-center justify-center rounded-full bg-black/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_18px_40px_rgba(0,0,0,0.12)] dark:bg-white/[0.08] sm:h-44 sm:w-44">
-            <div className="vault-spin [transform-style:preserve-3d]">
+          {/* Invitations get a dashed ring and a dimmed mark — clearly an
+              empty pedestal waiting for its exhibit. */}
+          <div
+            className={`flex h-40 w-40 items-center justify-center rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_18px_40px_rgba(0,0,0,0.12)] sm:h-44 sm:w-44 ${
+              active.owned
+                ? "bg-black/[0.06] dark:bg-white/[0.08]"
+                : "border-2 border-dashed border-black/15 bg-black/[0.03] dark:border-white/20 dark:bg-white/[0.04]"
+            }`}
+          >
+            <div
+              className={`vault-spin [transform-style:preserve-3d] ${
+                active.owned ? "" : "opacity-50"
+              }`}
+            >
               {assetGlyph(active.iconKey, "stage")}
             </div>
           </div>
@@ -217,12 +259,32 @@ export function BankAssetsVault({
 
       {/* The star's plaque. */}
       <div className="mt-4 text-center">
+        {!active.owned ? (
+          <p className="mb-1.5">
+            <span className="rounded-full border border-brand-green/30 bg-brand-green/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-green dark:text-emerald-400">
+              Almaq mümkündür
+            </span>
+          </p>
+        ) : null}
         <p className="text-lg font-semibold tracking-[-0.01em] text-ink dark:text-white/90">
           {active.label}
         </p>
         <p className="num mt-1 text-3xl font-bold tracking-[-0.02em] text-ink dark:text-white/95">
-          {active.valueAzn != null ? (
-            <Masked mask="•••• ₼">{formatAzn(active.valueAzn)}</Masked>
+          {active.owned ? (
+            active.valueAzn != null ? (
+              <Masked mask="•••• ₼">{formatAzn(active.valueAzn)}</Masked>
+            ) : (
+              "—"
+            )
+          ) : active.isIrf ? (
+            <Masked mask="•••• ₼">{formatAzn(0)}</Masked>
+          ) : active.unitPriceUsd != null ? (
+            <>
+              {formatAzn(active.unitPriceUsd * USD_TO_AZN)}
+              <span className="ml-1.5 text-sm font-medium text-black/45 dark:text-white/50">
+                / ədəd
+              </span>
+            </>
           ) : (
             "—"
           )}
@@ -267,6 +329,11 @@ export function BankAssetsVault({
               Bazara keç — pay al
             </Link>
           </div>
+        ) : !active.owned ? (
+          <p className="mx-auto mt-3 max-w-sm text-[11px] leading-5 text-black/45 dark:text-white/50">
+            Bu aktiv hələ portfelində yoxdur — komissiyasız almaq üçün İsmayıl
+            ilə əlaqə saxla, seyfə buradan düşəcək.
+          </p>
         ) : null}
 
         {n > 1 ? (
