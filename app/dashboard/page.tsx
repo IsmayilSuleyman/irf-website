@@ -25,6 +25,7 @@ import {
   findLatestPriceBeforeDate,
 } from "@/lib/priceHistory";
 import { getHolderMarketState } from "@/lib/holdings";
+import { parseSheetDateMs } from "@/lib/sheetDates";
 import { getMarketQuotes } from "@/lib/market";
 import { requireUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
@@ -368,9 +369,17 @@ export default async function DashboardPage({
   // normalization the value history uses.
   const normName = (s: string) =>
     s.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
+  // Dates are normalized to ISO server-side (day-first sheet formats
+  // included); a row whose date can't be read gets no marker rather than a
+  // guessed position.
   const chartEvents = mergedTransactions
     .filter((t) => normName(t.holderName) === normName(holder.name))
-    .map((t) => ({ date: t.date, units: t.units }));
+    .flatMap((t) => {
+      const ms = parseSheetDateMs(t.date);
+      return ms == null
+        ? []
+        : [{ date: new Date(ms).toISOString(), units: t.units }];
+    });
 
   // Unit-price series for the chart's "1 payın qiyməti" mode — same public
   // price every holder sees.

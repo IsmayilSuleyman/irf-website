@@ -6,6 +6,7 @@ import {
   type DailyClose,
 } from "@/lib/yahoo";
 import type { AssetTransaction } from "@/lib/sheets";
+import { parseSheetDateMs } from "@/lib/sheetDates";
 
 // The personal ETF desk: holders (everyone but İsmayıl) buy SPY/IBIT/GLDM/
 // SIVR through İsmayıl — orders are agreed verbally, outside the app — and
@@ -269,14 +270,26 @@ export async function getAssetValueOverlay(
   const mine = txs.filter((t) => norm(t.holderName) === norm(holderName));
   if (mine.length === 0 || dates.length === 0) return null;
 
-  // Ledger rows follow the Transactions tab's date convention (parseable by
-  // new Date); an unparseable date reads as "held from the start" so the
-  // position never silently vanishes from the chart.
-  const txMs = (t: AssetTransaction) => {
-    const n = new Date(t.date).getTime();
-    return Number.isFinite(n) ? n : 0;
-  };
-  const earliest = Math.min(...mine.map(txMs));
+  // Ledger dates parse through parseSheetDateMs (day-first "14.05.2026"
+  // included). A row whose date can't be read anchors at the NEWEST
+  // requested date: the chart never backfills ownership it can't prove —
+  // a mis-typed date used to show the position months before its real buy —
+  // while the final point still matches the Aktivlərim headline.
+  const dayEndOf = (date: string) => new Date(`${date}T23:59:59Z`).getTime();
+  const anchorMs = Math.max(
+    ...dates.map(dayEndOf).filter((n) => Number.isFinite(n)),
+    0,
+  );
+  const rows = mine.map((t) => {
+    const ms = parseSheetDateMs(t.date);
+    if (ms == null) {
+      console.error(
+        `[personal-assets] unreadable ledger date "${t.date}" (${t.holderName}/${t.symbol}) — counted only at the newest chart point`,
+      );
+    }
+    return { t, ms: ms ?? anchorMs };
+  });
+  const earliest = Math.min(...rows.map((r) => r.ms));
   const days = Math.min(
     2000,
     Math.max(30, Math.ceil((Date.now() - Math.max(earliest, 0)) / 86_400_000) + 7),
@@ -302,15 +315,15 @@ export async function getAssetValueOverlay(
 
   const out: Record<string, AssetOverlayPoint> = {};
   for (const date of dates) {
-    const dayEnd = new Date(`${date}T23:59:59Z`).getTime();
+    const dayEnd = dayEndOf(date);
     // Same fold as buildAssetPositions: market cost for pricing fallbacks,
     // PAID basis (col G, gifts = 0) for the Maya dəyəri overlay.
     const held = new Map<
       string,
       { units: number; costUsd: number; paidAzn: number }
     >();
-    for (const t of mine) {
-      if (txMs(t) > dayEnd) continue;
+    for (const { t, ms } of rows) {
+      if (ms > dayEnd) continue;
       const a = held.get(t.symbol) ?? { units: 0, costUsd: 0, paidAzn: 0 };
       if (t.units >= 0) {
         a.units += t.units;
