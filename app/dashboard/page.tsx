@@ -439,11 +439,14 @@ export default async function DashboardPage({
       ? extendedPortfolio
       : { ...extendedPortfolio, deltaAzn: extendedPortfolio.deltaAzn * holderShare }
     : null;
-  // İRF pay price at extended prices — the fund-wide ₼ move spread over all
-  // units. Shown in the badge popover next to the close price.
+  // İRF pay price at extended prices: the sheet's own price plus the
+  // session's fund-wide ₼ move spread over all units. NEVER re-derive the
+  // level from totalCapital — the sheet computes the pay price on NET
+  // capital (the fund carries bank debt), so totalCapital/totalUnits sits
+  // ~20% above the real price.
   const unitPriceExtAzn =
     extendedPortfolio && fund.totalUnits > 0
-      ? (fund.totalCapital + extendedPortfolio.deltaAzn) / fund.totalUnits
+      ? fund.unitPrice + extendedPortfolio.deltaAzn / fund.totalUnits
       : null;
   // Fund-wide hero figures, computed on the same basis as the "Ümumi dəyəri"
   // tile below so the headline and the tile always agree.
