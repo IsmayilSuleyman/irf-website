@@ -1,6 +1,7 @@
 import { auth as googleAuth, sheets as sheetsApi } from "@googleapis/sheets";
 import { unstable_cache } from "next/cache";
 import { USD_TO_AZN } from "@/lib/portfolio";
+import { parseSheetDateMs } from "@/lib/sheetDates";
 import type { NavPoint } from "@/lib/priceHistory";
 
 export type Holder = {
@@ -500,12 +501,22 @@ export function computeHolderValueHistory(
 
   if (mine.length === 0) return [];
 
-  // Earliest transaction date (ms) — chart starts here
-  const firstTxMs = Math.min(
-    ...mine
-      .map((t) => new Date(t.date).getTime())
+  // Sheet dates parse through parseSheetDateMs (day-first "14.05.2026"
+  // included). A row whose date can't be read anchors at the newest price
+  // point — no fabricated history, but "now" still owns the units.
+  const lastPointMs = Math.max(
+    ...priceHistory
+      .map((p) => new Date(p.recordedAt).getTime())
       .filter((n) => Number.isFinite(n)),
+    0,
   );
+  const mineMs = mine.map((t) => ({
+    t,
+    ms: parseSheetDateMs(t.date) ?? lastPointMs,
+  }));
+
+  // Earliest transaction date (ms) — chart starts here
+  const firstTxMs = Math.min(...mineMs.map((r) => r.ms));
 
   const result: {
     label: string;
@@ -523,9 +534,8 @@ export function computeHolderValueHistory(
     // subtracts sale proceeds — the running total is net contributions.
     let units = 0;
     let invested = 0;
-    for (const t of mine) {
-      const tMs = new Date(t.date).getTime();
-      if (Number.isFinite(tMs) && tMs <= pointMs) {
+    for (const { t, ms } of mineMs) {
+      if (ms <= pointMs) {
         units += t.units;
         invested += t.units * t.price;
       }
@@ -561,12 +571,19 @@ export function computeFundValueHistory(
 ): { label: string; value: number; date: string }[] {
   if (transactions.length === 0) return [];
 
-  const firstTxMs = Math.min(
-    ...transactions
-      .map((t) => new Date(t.date).getTime())
+  // Same date discipline as computeHolderValueHistory: robust parse,
+  // unreadable dates anchored at the newest price point.
+  const lastPointMs = Math.max(
+    ...priceHistory
+      .map((p) => new Date(p.recordedAt).getTime())
       .filter((n) => Number.isFinite(n)),
+    0,
   );
-  if (!Number.isFinite(firstTxMs)) return [];
+  const txMs = transactions.map((t) => ({
+    t,
+    ms: parseSheetDateMs(t.date) ?? lastPointMs,
+  }));
+  const firstTxMs = Math.min(...txMs.map((r) => r.ms));
 
   const result: { label: string; value: number; date: string }[] = [];
 
@@ -576,9 +593,8 @@ export function computeFundValueHistory(
 
     // Total fund units outstanding at this point in time
     let units = 0;
-    for (const t of transactions) {
-      const tMs = new Date(t.date).getTime();
-      if (Number.isFinite(tMs) && tMs <= pointMs) {
+    for (const { t, ms } of txMs) {
+      if (ms <= pointMs) {
         units += t.units;
       }
     }
@@ -625,8 +641,10 @@ export function computeHoldingDeltaSince(
   const pastMs = pastDate.getTime();
   const mineInWindow = transactions.filter((t) => {
     if (norm(t.holderName) !== target) return false;
-    const ts = new Date(t.date).getTime();
-    return Number.isFinite(ts) && ts > pastMs;
+    // Unreadable dates anchor at "now", so the row nets out of the window
+    // like a fresh buy instead of counting as pre-existing value.
+    const ts = parseSheetDateMs(t.date);
+    return ts == null || ts > pastMs;
   });
 
   let netUnitsInWindow = 0;
