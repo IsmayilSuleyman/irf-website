@@ -71,15 +71,14 @@ type ModeKey = (typeof MODES)[number]["key"];
 const GREEN = "#16a34a";
 const RED = "#dc2626";
 const NEUTRAL = "#94a3b8";
-// Digər aktivlər (the ETF book) — bank-blue; the green↔blue pair passes all
-// six palette checks in both modes.
+// Digər aktivlər (the ETF book) — bank-blue, used only as the tooltip
+// decomposition row's swatch; the plot itself stays one total line.
 const BLUE = "#2f61d8";
 
 type TimedPoint = Point & {
   ts: number;
   gainBand: [number, number] | null;
   lossBand: [number, number] | null;
-  otherPlot: number | null;
 };
 
 type Marker = {
@@ -147,10 +146,6 @@ export function PerformanceChart({
   // New holders with no transactions still get the public price series.
   const [mode, setMode] = useState<ModeKey>(hasValue ? "value" : "price");
   const [range, setRange] = useState<RangeKey>("all");
-  // The Digər aktivlər line is small next to the İRF walk and stretches the
-  // y-domain; the key's chip toggles it so the viewer can trade composition
-  // for resolution. Tooltip decomposition stays either way.
-  const [otherVisible, setOtherVisible] = useState(true);
 
   const source = mode === "price" ? (priceData ?? []) : data;
 
@@ -168,7 +163,8 @@ export function PerformanceChart({
 
   const showInvested =
     mode === "value" && filtered.some((p) => p.invested != null);
-  // The ETF book's own line — only when the holder actually has one.
+  // One TOTAL line on the plot (İsmayıl's call) — the ETF book shows only
+  // as the tooltip's İRF / Digər aktivlər decomposition, gated here.
   const showOther =
     mode === "value" && filtered.some((p) => (p.other ?? 0) > 0);
 
@@ -209,9 +205,6 @@ export function PerformanceChart({
         ...p,
         gainBand: inv != null ? [inv, Math.max(inv, p.value)] : null,
         lossBand: inv != null ? [Math.min(inv, p.value), inv] : null,
-        // The line starts where the ETF book starts — no zero floor drawn
-        // across the pre-book history.
-        otherPlot: p.other != null && p.other > 0 ? p.other : null,
       } as TimedPoint;
     });
   }, [filtered, showInvested]);
@@ -545,17 +538,6 @@ export function PerformanceChart({
                   activeDot={false}
                 />
               )}
-              {showOther && otherVisible && (
-                <Line
-                  type="monotone"
-                  dataKey="otherPlot"
-                  stroke={BLUE}
-                  strokeWidth={1.5}
-                  dot={false}
-                  connectNulls={false}
-                  activeDot={{ r: 3, stroke: "#fff", strokeWidth: 1.2 }}
-                />
-              )}
               {markers.map((mk) => (
                 <ReferenceDot
                   key={`mk-${mk.ts}`}
@@ -599,22 +581,6 @@ export function PerformanceChart({
             />
             Maya dəyəri
           </span>
-          {showOther ? (
-            <button
-              type="button"
-              onClick={() => setOtherVisible((v) => !v)}
-              aria-pressed={otherVisible}
-              title={otherVisible ? "Xətti gizlət" : "Xətti göstər"}
-              className={`flex items-center gap-1.5 rounded px-1 transition ${
-                otherVisible
-                  ? "opacity-100"
-                  : "opacity-45 hover:opacity-70"
-              }`}
-            >
-              <span className="inline-block h-0.5 w-4 rounded" style={{ background: BLUE }} />
-              Digər aktivlər
-            </button>
-          ) : null}
           {markers.length > 0 ? (
             <>
               <span style={{ color: GREEN }}>▲ Alış</span>
