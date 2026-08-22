@@ -1,7 +1,7 @@
 import { formatAzn, formatPct } from "@/lib/portfolio";
 import { toTitleCaseAz } from "@/lib/user";
 import { Masked } from "@/components/Masked";
-import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
+import { IsmayilBankMark } from "@/components/IsmayilBankLogo";
 import type { AssetHolderSummary } from "@/lib/personalAssets";
 
 type Shareholder = { name: string; valueAzn: number; percent: number };
@@ -89,11 +89,9 @@ export function ShareholdersList({
               />
             ))}
           </div>
-          {/* The logo wordmark already says İsmayılBank — the text only
-              carries the rest of the sentence. */}
           <p className="mt-1 flex items-center gap-1.5 text-[10px] leading-relaxed text-black/45 dark:text-white/50">
-            <IsmayilBankLogo size={15} />
-            tərəfindən təqdim olunur
+            <IsmayilBankMark size={13} />
+            Məlumat İsmayılBank tərəfindən təqdim olunur.
           </p>
         </>
       )}
