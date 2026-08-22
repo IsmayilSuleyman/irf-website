@@ -489,8 +489,11 @@ export default async function DashboardPage({
               ...p,
               value: p.value + o.valueAzn,
               invested: Math.max(0, p.invested + o.investedAzn),
+              // The ETF book's own slice at this date — plotted as the
+              // chart's "Digər aktivlər" line and decomposed in its tooltip.
+              other: o.valueAzn,
             }
-          : p;
+          : { ...p, other: 0 };
       })
     : chartData;
   const bookValue = holdingValue + etfValueNow;
