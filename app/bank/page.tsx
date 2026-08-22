@@ -6,6 +6,8 @@ import {
   monthlyDepositInterestAzn,
   type BankAccount,
 } from "@/lib/bank";
+import { getFundData } from "@/lib/sheets";
+import { getHolderMarketState } from "@/lib/holdings";
 import { requireUser } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
@@ -17,7 +19,12 @@ import {
 } from "@/lib/bonds";
 import { computeLiquidityProjection } from "@/lib/liquidityProjection";
 import { getAssetTransactions } from "@/lib/sheets";
-import { computeAssetReserveAzn } from "@/lib/personalAssets";
+import {
+  buildAssetPositions,
+  computeAssetReserveAzn,
+  getAssetQuotes,
+} from "@/lib/personalAssets";
+import { BankAssetsVault } from "@/components/BankAssetsVault";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
 import { BankViewToggle } from "@/components/BankViewToggle";
@@ -54,10 +61,12 @@ function QuickActions({
   hasDeposit,
   hasBonds,
   hasCredit,
+  hasAssets,
 }: {
   hasDeposit: boolean;
   hasBonds: boolean;
   hasCredit: boolean;
+  hasAssets: boolean;
 }) {
   // The balance hero always renders now, so its anchor is always a valid
   // target — the card follows the hero's own label rule.
@@ -127,6 +136,24 @@ function QuickActions({
         </svg>
       ),
     },
+    // The vault: gold/silver/BTC/S&P bought through İsmayıl — stored at the
+    // bank but never part of the deposit balance.
+    ...(hasAssets
+      ? [
+          {
+            href: "#aktivlerim",
+            label: "Aktivlərim",
+            desc: "Seyf: İRF payı, qızıl, BTC, S&P",
+            icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <circle cx="11" cy="12" r="3.2" />
+                <path d="M11 10.4v1.6l1 1M17.5 8.5v7" />
+              </svg>
+            ),
+          },
+        ]
+      : []),
   ];
 
   // Flex-wrap instead of a fixed grid so 3, 4 or 5 cards all fill the row.
@@ -216,11 +243,41 @@ export default async function BankPage({
   }
 
   const name = displayNameOf(user.user_metadata);
-  const [sheetAccount, bonds, creditOffer] = await Promise.all([
-    getBankAccountByName(name),
-    getMyBondHoldings(),
-    getMyCreditOffer(name),
-  ]);
+  const [sheetAccount, bonds, creditOffer, allAssetTxs, fund, marketState] =
+    await Promise.all([
+      getBankAccountByName(name),
+      getMyBondHoldings(),
+      getMyCreditOffer(name),
+      getAssetTransactions(),
+      // İRF joins the vault podium (with its own not-a-deposit note); a
+      // sheet outage just leaves it off, never breaks the bank page.
+      getFundData().catch(() => null),
+      getHolderMarketState(name).catch(() => null),
+    ]);
+  const irfValueAzn =
+    fund && marketState ? fund.unitPrice * marketState.effectiveUnits : 0;
+
+  // The vault: the holder's ETF book (gold/silver/BTC/S&P bought through
+  // İsmayıl), valued live. Deliberately NEVER added to the deposit figure —
+  // these sit in the bank's safe, outside the balance and outside lendable
+  // funding.
+  const myAssetSymbols = name
+    ? [
+        ...new Set(
+          allAssetTxs
+            .filter(
+              (t) =>
+                normalizeHolderName(t.holderName) === normalizeHolderName(name),
+            )
+            .map((t) => t.symbol),
+        ),
+      ]
+    : [];
+  const assetQuotes =
+    myAssetSymbols.length > 0 ? await getAssetQuotes(myAssetSymbols) : {};
+  const assetPositions = name
+    ? buildAssetPositions(name, allAssetTxs, assetQuotes)
+    : [];
 
   // Bonds are bought on /bonds without any bank-sheet row, so a bondholder can
   // legitimately have no row at all. Fall back to a zero-deposit account for
@@ -405,6 +462,7 @@ export default async function BankPage({
             hasDeposit={account.depositedAzn > 0}
             hasBonds={bonds.totalUnits > 0}
             hasCredit={account.outstandingLoanAzn > 0 || account.paymentSchedule.length > 0}
+            hasAssets={assetPositions.length > 0 || irfValueAzn > 0}
           />
         </MotionSection>
 
@@ -430,6 +488,19 @@ export default async function BankPage({
             />
           </div>
         </MotionSection>
+
+        {/* ── The vault: other assets, stored at the bank but OUTSIDE the
+            balance above — the card itself says so. ── */}
+        {assetPositions.length > 0 || irfValueAzn > 0 ? (
+          <MotionSection delay={0.05}>
+            <div id="aktivlerim" className="mt-8 scroll-mt-6">
+              <BankAssetsVault
+                positions={assetPositions}
+                irfValueAzn={irfValueAzn}
+              />
+            </div>
+          </MotionSection>
+        ) : null}
 
         {/* ── Empty state — sits under the 0,00 ₼ hero and explains it ── */}
         {hasNoProducts ? (
