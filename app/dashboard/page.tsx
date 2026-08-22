@@ -39,13 +39,13 @@ import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
 import { getMarketTicker } from "@/lib/marketTicker";
 import { isTickerSymbol } from "@/lib/yahoo";
-import { StrategyStatementCard } from "@/components/StrategyStatementCard";
+import { FundNewsCard } from "@/components/FundNewsCard";
+import { getFundNews } from "@/lib/fundNews";
 import { DailyRewardCard } from "@/components/DailyRewardCard";
 import { getDailyRewardState } from "@/lib/dailyReward";
 import { MotionSection } from "@/components/MotionSection";
 import {
   getPurchaseCadence,
-  getStrategyStatement,
   getWeeklyBudgetAzn,
   isOwnerEmail,
 } from "@/lib/fundSettings";
@@ -123,14 +123,14 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, strategyStatement, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, marketTicker, assetTxs] =
+  const [holder, fund, priceHistory, transactions, holdings, fundNews, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, marketTicker, assetTxs] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
       getPriceHistory(),
       getTransactions(),
       getHoldings(),
-      getStrategyStatement(),
+      getFundNews(),
       isAdmin ? getDebts() : Promise.resolve([]),
       getHolderMarketState(name),
       getMarketQuotes(),
@@ -756,31 +756,27 @@ export default async function DashboardPage({
           </>
         )}
 
-        {/* Strategy statement — personal view only. The günlük mükafat card
-            docks to its bottom (İsmayıl's placement call); with no statement
-            to show, the reward card stands alone in the same slot. */}
-        {!fundView &&
-        (canEditStrategy || strategyStatement.trim().length > 0 || rewardState) ? (
-          <MotionSection delay={0.12} className="-mt-10">
-            {canEditStrategy || strategyStatement.trim().length > 0 ? (
-              <StrategyStatementCard
-                initialValue={strategyStatement}
-                canEdit={canEditStrategy}
-              />
-            ) : null}
-            {rewardState ? (
-              <div
-                className={
-                  canEditStrategy || strategyStatement.trim().length > 0
-                    ? "mt-4"
-                    : undefined
-                }
-              >
-                <DailyRewardCard state={rewardState} />
-              </div>
-            ) : null}
-          </MotionSection>
-        ) : null}
+        {/* Fondumuz haqqında xəbərlər — personal view only. The günlük
+            mükafat card docks to its bottom (İsmayıl's placement call); with
+            no news to show, the reward card stands alone in the same slot. */}
+        {(() => {
+          const hasNews =
+            fundNews.fresh.length > 0 || fundNews.archive.length > 0;
+          const showNewsCard = canEditStrategy || hasNews;
+          if (fundView || (!showNewsCard && !rewardState)) return null;
+          return (
+            <MotionSection delay={0.12} className="-mt-10">
+              {showNewsCard ? (
+                <FundNewsCard news={fundNews} canPost={canEditStrategy} />
+              ) : null}
+              {rewardState ? (
+                <div className={showNewsCard ? "mt-4" : undefined}>
+                  <DailyRewardCard state={rewardState} />
+                </div>
+              ) : null}
+            </MotionSection>
+          );
+        })()}
 
         {/* Debt panel — admin only, personal view only */}
         {!fundView && isAdmin && debts.length > 0 && (
