@@ -306,10 +306,10 @@ export function PerformanceChart({
   // change — a price series has no cash flows. VALUE mode: money moved in
   // or out (a sale, a fresh buy) must not read as performance — a holder
   // who exits İRF and keeps a 5 ₼ ETF book hasn't "lost 99%". The pill
-  // tracks the change in PROFIT/LOSS instead: value minus maya dəyəri,
-  // which nets contributions and so carries realized results too, measured
-  // against the largest capital at work in the window. Null when there is
-  // nothing to compare against.
+  // tracks PROFIT/LOSS instead: the change in unrealized P&L (value minus
+  // the holdings' maya dəyəri) plus the realized P&L of sales dated inside
+  // the window, measured against the largest capital at work in the
+  // window. Null when there is nothing to compare against.
   const periodChange = useMemo(() => {
     if (timed.length < 2) return null;
     const first = timed[0];
@@ -319,15 +319,27 @@ export function PerformanceChart({
       if (!Number.isFinite(open) || open <= 0) return null;
       return last.value / open - 1;
     }
+    let realized = 0;
+    for (const e of events ?? []) {
+      if (e.realizedAzn == null) continue;
+      const ms = new Date(e.date).getTime();
+      if (
+        Number.isFinite(ms) &&
+        ms >= first.ts - 43_200_000 &&
+        ms <= last.ts + 86_400_000
+      ) {
+        realized += e.realizedAzn;
+      }
+    }
     const pnlDelta =
-      last.value - last.invested - (first.value - first.invested);
+      last.value - last.invested - (first.value - first.invested) + realized;
     let base = 0;
     for (const p of timed) {
       if (p.invested != null && p.invested > base) base = p.invested;
     }
     if (base <= 0) return null;
     return pnlDelta / base;
-  }, [timed, mode]);
+  }, [timed, mode, events]);
 
   if (!hasValue && !hasPrice) {
     return (

@@ -513,10 +513,14 @@ export function computeHolderValueHistory(
       .filter((n) => Number.isFinite(n)),
     0,
   );
-  const mineMs = mine.map((t) => ({
-    t,
-    ms: parseSheetDateMs(t.date) ?? lastPointMs,
-  }));
+  // Date order matters: the average-cost fold below releases basis at the
+  // running average, so sells must see the buys that preceded them.
+  const mineMs = mine
+    .map((t) => ({
+      t,
+      ms: parseSheetDateMs(t.date) ?? lastPointMs,
+    }))
+    .sort((a, b) => a.ms - b.ms);
 
   // Earliest transaction date (ms) — chart starts here
   const firstTxMs = Math.min(...mineMs.map((r) => r.ms));
@@ -532,23 +536,30 @@ export function computeHolderValueHistory(
     const pointMs = new Date(point.recordedAt).getTime();
     if (!Number.isFinite(pointMs) || pointMs < firstTxMs) continue;
 
-    // Units held and net cash invested by this user at this point in time.
-    // t.units is negative for sells, so units*price both adds buy cost and
-    // subtracts sale proceeds — the running total is net contributions.
+    // Units held and the cost basis of THOSE UNITS at this point in time —
+    // average-cost accounting, the same fold the asset ledger uses: buys add
+    // cost, sells release it at the running average. A full exit takes the
+    // basis to zero; realized results live in the sale markers and the
+    // period pill, not in this line.
     let units = 0;
     let invested = 0;
     for (const { t, ms } of mineMs) {
-      if (ms <= pointMs) {
+      if (ms > pointMs) continue;
+      if (t.units >= 0) {
         units += t.units;
         invested += t.units * t.price;
+      } else {
+        const sellUnits = Math.min(-t.units, units);
+        if (units > 0) invested -= (invested / units) * sellUnits;
+        units -= sellUnits;
       }
     }
 
     result.push({
       label: point.label,
       value: units > 1e-9 ? units * point.price : 0,
-      // Selling at a profit can push net contributions below zero; clamp so
-      // the chart's break-even line never dips under the axis.
+      // The fold keeps the basis non-negative by construction; the clamp
+      // only guards float dust.
       invested: Math.max(0, invested),
       date: point.recordedAt,
     });
