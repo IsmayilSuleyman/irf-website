@@ -1,24 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { PurchaseCadence } from "@/lib/buyTicket";
 
-export async function getStrategyStatement(): Promise<string> {
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) return "";
-
-  const { data, error } = await supabase
-    .from("fund_settings")
-    .select("value")
-    .eq("key", "strategy_statement")
-    .maybeSingle();
-
-  if (error) {
-    console.error("fund_settings read failed:", error.message);
-    return "";
-  }
-
-  return data?.value ?? "";
-}
-
 /**
  * How often İsmayıl actually buys — drives the ticket's decision cadence
  * (weekly snapshot streaks vs month-average periods) and its copy. Stored as

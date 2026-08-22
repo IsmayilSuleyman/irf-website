@@ -148,7 +148,7 @@ function PortalPreview() {
         className="absolute -bottom-12 -left-5 hidden w-44 rotate-[-3deg] rounded-xl border border-white/25 bg-[linear-gradient(135deg,#1e3a8a,#2f61d8)] px-3.5 py-3 text-white shadow-[0_20px_50px_rgba(30,58,138,0.35)] sm:block"
       >
         <p className="text-[8px] font-semibold uppercase tracking-[0.22em] text-white/70">
-          İRF İstiqrazı
+          İsmayılBank İstiqrazı
         </p>
         <p className="num mt-1 text-sm font-bold tracking-[0.06em]">A1 · 2027</p>
         <p className="num mt-0.5 text-[10px] text-white/75">ayda +1,2% kupon</p>
@@ -304,19 +304,6 @@ export function WelcomeView({
               Kalkulyatoru sına
             </Link>
           </div>
-          <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-black/45 dark:text-white/50">
-            {["Canlı bazar qiymətləri", "Gündəlik NAV qeydi", "Gizlilik rejimi"].map(
-              (t) => (
-                <li key={t} className="flex items-center gap-2">
-                  <span
-                    aria-hidden
-                    className="h-1.5 w-1.5 rounded-full bg-brand-green dark:bg-emerald-400"
-                  />
-                  {t}
-                </li>
-              ),
-            )}
-          </ul>
         </m.div>
 
         <m.div {...riseIn(0.16)}>
@@ -358,7 +345,7 @@ export function WelcomeView({
         <ProductCard
           brand="İstiqrazlar"
           title="Aylıq kupon gəliri"
-          description="Fiziki sertifikat görünüşlü İRF istiqrazları: sabit aylıq kupon, buraxılış seriyaları və ikinci bazar — portalın içində."
+          description="Fiziki sertifikat görünüşlü İsmayılBank istiqrazları: sabit aylıq kupon, buraxılış seriyaları və ikinci bazar — portalın içində."
           href="/bonds"
           action="Seriyalara bax"
           tone="cert"
@@ -368,7 +355,7 @@ export function WelcomeView({
               className="w-fit rounded-xl border border-white/25 bg-[linear-gradient(135deg,#1e3a8a,#2f61d8)] px-3.5 py-2.5 text-white shadow-[0_14px_34px_rgba(30,58,138,0.3)]"
             >
               <p className="text-[8px] font-semibold uppercase tracking-[0.22em] text-white/70">
-                İRF İstiqrazı
+                İsmayılBank İstiqrazı
               </p>
               <p className="num mt-0.5 text-sm font-bold tracking-[0.06em]">
                 A1 · 2027

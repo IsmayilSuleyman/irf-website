@@ -407,3 +407,16 @@ body {
     animation: none;
   }
 }
+
+/* ============================================================
+   BankAssetsVault podium — the staged asset turns slowly like a
+   coin on a display turntable (3D y-rotation, compositor-only).
+   ============================================================ */
+@keyframes vault-spin {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(360deg); }
+}
+.vault-spin { animation: vault-spin 7s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .vault-spin { animation: none; }
+}
