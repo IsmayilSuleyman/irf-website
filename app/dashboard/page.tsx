@@ -54,6 +54,7 @@ import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
 import { FundViewToggle } from "@/components/FundViewToggle";
 import { ShareholdersList } from "@/components/ShareholdersList";
+import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { PrivacyProvider } from "@/components/PrivacyProvider";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { MarketCountdown } from "@/components/MarketCountdown";
@@ -498,6 +499,29 @@ export default async function DashboardPage({
   const assetHolders = fundView
     ? buildAssetHolderSummaries(assetTxs, assetQuotes)
     : [];
+  // Günün icmalı (fund view): the day's best and worst holding by daily %
+  // move, and the vault's fund-wide day change — everything else the card
+  // needs is already on hand for the hero.
+  const dayMovers = holdings.filter(
+    (h) => !h.isCash && h.dayChangePct != null,
+  );
+  const bestMover =
+    fundView && dayMovers.length > 0
+      ? dayMovers.reduce((a, b) => (b.dayChangePct! > a.dayChangePct! ? b : a))
+      : null;
+  const worstMover =
+    fundView && dayMovers.length > 1
+      ? dayMovers.reduce((a, b) => (b.dayChangePct! < a.dayChangePct! ? b : a))
+      : null;
+  const vaultValueAzn =
+    assetHolders.length > 0
+      ? assetHolders.reduce((s, h) => s + h.valueAzn, 0)
+      : null;
+  const vaultDayVals = assetHolders
+    .map((h) => h.dayAzn)
+    .filter((v): v is number => v != null);
+  const vaultDayAzn =
+    vaultDayVals.length > 0 ? vaultDayVals.reduce((s, v) => s + v, 0) : null;
   const positionBySymbol = Object.fromEntries(
     assetPositions.map((p) => [p.symbol, p]),
   );
@@ -683,6 +707,37 @@ export default async function DashboardPage({
                   />
                 )}
               </div>
+              {/* Günün icmalı fills the column's empty tail under the figure
+                  — auto-written from the figures above, on the news plate. */}
+              <DailySummaryCard
+                dateLabel={dateLabel}
+                valueAzn={fund.totalCapital}
+                dayAzn={fundDayChange}
+                unitPriceAzn={fund.unitPrice}
+                unitDayAzn={unitDayChange}
+                unitDayPct={unitDayPct}
+                best={
+                  bestMover
+                    ? { symbol: bestMover.symbol, pct: bestMover.dayChangePct! }
+                    : null
+                }
+                worst={
+                  worstMover
+                    ? { symbol: worstMover.symbol, pct: worstMover.dayChangePct! }
+                    : null
+                }
+                extended={
+                  extendedPortfolio
+                    ? {
+                        mode: extendedPortfolio.mode,
+                        changePct: extendedPortfolio.changePct,
+                        deltaAzn: extendedPortfolio.deltaAzn,
+                      }
+                    : null
+                }
+                vaultValueAzn={vaultValueAzn}
+                vaultDayAzn={vaultDayAzn}
+              />
             </div>
             <div className="lg:col-span-1">
               <ShareholdersList
