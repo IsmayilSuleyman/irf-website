@@ -439,6 +439,12 @@ export default async function DashboardPage({
       ? extendedPortfolio
       : { ...extendedPortfolio, deltaAzn: extendedPortfolio.deltaAzn * holderShare }
     : null;
+  // İRF pay price at extended prices — the fund-wide ₼ move spread over all
+  // units. Shown in the badge popover next to the close price.
+  const unitPriceExtAzn =
+    extendedPortfolio && fund.totalUnits > 0
+      ? (fund.totalCapital + extendedPortfolio.deltaAzn) / fund.totalUnits
+      : null;
   // Fund-wide hero figures, computed on the same basis as the "Ümumi dəyəri"
   // tile below so the headline and the tile always agree.
   const totalCostBasis = holdings.reduce((s, h) => s + h.costBasisAzn, 0);
@@ -575,6 +581,11 @@ export default async function DashboardPage({
           scope="personal"
           history={extendedHistory}
           align="right"
+          extra={{
+            baseValueAzn: holdingValue,
+            unitPriceAzn: fund.unitPrice,
+            unitPriceExtAzn,
+          }}
         />
       )}
       <PrivacyToggle />
@@ -661,6 +672,11 @@ export default async function DashboardPage({
                     data={badgePortfolio}
                     scope="fund"
                     history={extendedHistory}
+                    extra={{
+                      baseValueAzn: fund.totalCapital,
+                      unitPriceAzn: fund.unitPrice,
+                      unitPriceExtAzn,
+                    }}
                   />
                 )}
               </div>
