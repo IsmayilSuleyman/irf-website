@@ -67,25 +67,31 @@ function NewsBanner({
             </button>
           ) : null}
         </div>
-        <h3 className="mt-2 text-[clamp(1.15rem,2.6vw,1.45rem)] font-black tracking-[-0.03em]">
-          {item.title}
-        </h3>
-        {item.ticker && item.tickerDayPct != null ? (
-          <div className="mt-2">
-            <TickerChip item={item} />
+        {/* The picture sits as a compact square on the right; the text
+            keeps the stage. */}
+        <div className="flex items-start gap-4">
+          <div className="min-w-0 flex-1">
+            <h3 className="mt-2 text-[clamp(1.15rem,2.6vw,1.45rem)] font-black tracking-[-0.03em]">
+              {item.title}
+            </h3>
+            {item.ticker && item.tickerDayPct != null ? (
+              <div className="mt-2">
+                <TickerChip item={item} />
+              </div>
+            ) : null}
+            <p className="mt-2.5 whitespace-pre-line text-[13px] leading-6 text-white/85">
+              {item.body}
+            </p>
           </div>
-        ) : null}
-        {item.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.imageUrl}
-            alt=""
-            className="mt-3 max-h-72 w-full rounded-xl border border-white/15 object-cover"
-          />
-        ) : null}
-        <p className="mt-2.5 whitespace-pre-line text-[13px] leading-6 text-white/85">
-          {item.body}
-        </p>
+          {item.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.imageUrl}
+              alt=""
+              className="mt-2 h-24 w-24 shrink-0 rounded-xl border border-white/20 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.2)] sm:h-28 sm:w-28"
+            />
+          ) : null}
+        </div>
       </div>
     </article>
   );
@@ -293,17 +299,19 @@ export function FundNewsCard({
                     {item.dateLabel}
                   </span>
                 </summary>
-                {item.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.imageUrl}
-                    alt=""
-                    className="mt-2 max-h-56 w-full rounded-lg object-cover"
-                  />
-                ) : null}
-                <p className="mt-2 whitespace-pre-line text-[13px] leading-6 text-black/60 dark:text-white/65">
-                  {item.body}
-                </p>
+                <div className="mt-2 flex items-start gap-3">
+                  <p className="min-w-0 flex-1 whitespace-pre-line text-[13px] leading-6 text-black/60 dark:text-white/65">
+                    {item.body}
+                  </p>
+                  {item.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.imageUrl}
+                      alt=""
+                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : null}
+                </div>
                 {canPost ? (
                   <button
                     type="button"
