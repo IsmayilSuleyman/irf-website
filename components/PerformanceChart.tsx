@@ -427,8 +427,7 @@ export function PerformanceChart({
                 </span>
               </p>
               <p className="flex items-center justify-between gap-6 pl-3.5 text-[11px]">
-                <span className="flex items-center gap-1.5 text-black/50 dark:text-white/55">
-                  <IsmayilBankMark size={12} />
+                <span className="text-black/50 dark:text-white/55">
                   Digər aktivlər
                 </span>
                 <span className="num text-black/70 dark:text-white/75">
