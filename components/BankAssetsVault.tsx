@@ -3,16 +3,15 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Masked } from "@/components/Masked";
-import { USD_TO_AZN, formatAzn, formatGroupedTrim } from "@/lib/portfolio";
+import { formatAzn, formatGroupedTrim } from "@/lib/portfolio";
 import type { AssetPosition } from "@/lib/personalAssets";
 
 /** A purchasable asset the holder does NOT own yet — shown on the podium as
- *  an invitation, with its live per-unit price. */
+ *  an invitation. */
 export type VaultInvite = {
   symbol: string;
   label: string;
   iconKey: string | null;
-  priceUsd: number | null;
   dayChangePct: number | null;
 };
 
@@ -38,8 +37,6 @@ type VaultItem = {
   isIrf: boolean;
   /** false = an invitation: the holder doesn't own this yet. */
   owned: boolean;
-  /** Live per-unit USD price — shown on invitation plaques. */
-  unitPriceUsd: number | null;
 };
 
 /** Stage-sized asset marks (the shared ASSET_ICONS are 12px chips). */
@@ -137,7 +134,6 @@ export function BankAssetsVault({
       totalPnlAzn: p.totalPnlAzn,
       isIrf: false,
       owned: true,
-      unitPriceUsd: null,
     })),
     {
       key: "irf",
@@ -149,7 +145,6 @@ export function BankAssetsVault({
       totalPnlAzn: null,
       isIrf: true,
       owned: irfValueAzn > 0,
-      unitPriceUsd: null,
     },
     ...unowned.map((a) => ({
       key: a.symbol,
@@ -161,7 +156,6 @@ export function BankAssetsVault({
       totalPnlAzn: null,
       isIrf: false,
       owned: false,
-      unitPriceUsd: a.priceUsd,
     })),
   ];
   const [idx, setIdx] = useState(0);
@@ -276,17 +270,8 @@ export function BankAssetsVault({
             ) : (
               "—"
             )
-          ) : active.isIrf ? (
-            <Masked mask="•••• ₼">{formatAzn(0)}</Masked>
-          ) : active.unitPriceUsd != null ? (
-            <>
-              {formatAzn(active.unitPriceUsd * USD_TO_AZN)}
-              <span className="ml-1.5 text-sm font-medium text-black/45 dark:text-white/50">
-                / ədəd
-              </span>
-            </>
           ) : (
-            "—"
+            <Masked mask="•••• ₼">{formatAzn(0)}</Masked>
           )}
         </p>
         <p className="mt-1.5 flex items-center justify-center gap-3 text-[12px]">
@@ -331,8 +316,8 @@ export function BankAssetsVault({
           </div>
         ) : !active.owned ? (
           <p className="mx-auto mt-3 max-w-sm text-[11px] leading-5 text-black/45 dark:text-white/50">
-            Bu aktiv hələ portfelində yoxdur — komissiyasız almaq üçün İsmayıl
-            ilə əlaqə saxla, seyfə buradan düşəcək.
+            Bu aktivi 1 ₼-dən başlayaraq, komissiyasız ala bilərsən — almaq
+            üçün İsmayıl ilə əlaqə saxla, seyfə buradan düşəcək.
           </p>
         ) : null}
 

@@ -291,7 +291,6 @@ export default async function BankPage({
       symbol: a.symbol,
       label: a.label,
       iconKey: a.key,
-      priceUsd: q?.priceUsd ?? null,
       dayChangePct:
         q?.priceUsd != null && q?.prevCloseUsd != null && q.prevCloseUsd > 0
           ? q.priceUsd / q.prevCloseUsd - 1
