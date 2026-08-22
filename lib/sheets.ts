@@ -489,7 +489,10 @@ export function computeHolderPerformance(
  *   value_T = Σ(units from transactions on or before T) × unit_price_T
  *
  * Points before the user's first transaction are excluded so the chart starts
- * from when they first held units.
+ * from when they first held units. Zero-unit stretches AFTER that still emit
+ * points (value 0): the dashboard rides the ETF overlay on this grid, so a
+ * holder who exited İRF but holds ETFs keeps a chart — it trims zero-value
+ * edges after merging the overlay.
  */
 export function computeHolderValueHistory(
   holderName: string,
@@ -541,16 +544,14 @@ export function computeHolderValueHistory(
       }
     }
 
-    if (units > 0) {
-      result.push({
-        label: point.label,
-        value: units * point.price,
-        // Selling at a profit can push net contributions below zero; clamp so
-        // the chart's break-even line never dips under the axis.
-        invested: Math.max(0, invested),
-        date: point.recordedAt,
-      });
-    }
+    result.push({
+      label: point.label,
+      value: units > 1e-9 ? units * point.price : 0,
+      // Selling at a profit can push net contributions below zero; clamp so
+      // the chart's break-even line never dips under the axis.
+      invested: Math.max(0, invested),
+      date: point.recordedAt,
+    });
   }
 
   return result;

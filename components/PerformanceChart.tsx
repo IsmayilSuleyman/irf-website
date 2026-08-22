@@ -152,14 +152,24 @@ export function PerformanceChart({
   const filtered = useMemo(() => {
     if (!source || source.length === 0) return [];
     const days = RANGES.find((r) => r.key === range)?.days ?? null;
-    if (days == null) return source;
-    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-    return source.filter((p) => {
-      if (!p.date) return true;
-      const t = new Date(p.date).getTime();
-      return Number.isFinite(t) && t >= cutoff;
-    });
-  }, [source, range]);
+    const cutoff = days == null ? null : Date.now() - days * 24 * 60 * 60 * 1000;
+    const inWindow =
+      cutoff == null
+        ? source
+        : source.filter((p) => {
+            if (!p.date) return true;
+            const t = new Date(p.date).getTime();
+            return Number.isFinite(t) && t >= cutoff;
+          });
+    if (mode !== "value") return inWindow;
+    // A window can open inside a zero-value stretch (İRF sold, ETFs not yet
+    // bought). Those leading zeros carry no story and would pin the line's
+    // start to the axis — begin at the first owned day instead. A window
+    // that is ALL zeros empties out, reading as "no data for this period".
+    let start = 0;
+    while (start < inWindow.length && inWindow[start].value <= 0) start += 1;
+    return start > 0 ? inWindow.slice(start) : inWindow;
+  }, [source, range, mode]);
 
   const showInvested =
     mode === "value" && filtered.some((p) => p.invested != null);
@@ -211,6 +221,21 @@ export function PerformanceChart({
 
   const last = timed.length > 0 ? timed[timed.length - 1] : null;
 
+  // Whole-manat ticks collapse into "5 · 5 · 5" on a small book (a 5 ₼ ETF
+  // position moving by qəpiks) — grow decimals as the visible span shrinks
+  // so neighboring ticks stay distinct.
+  const yTickDecimals = useMemo(() => {
+    if (timed.length === 0) return 0;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (const p of timed) {
+      if (p.value < lo) lo = p.value;
+      if (p.value > hi) hi = p.value;
+    }
+    const span = hi - lo;
+    return span <= 0.4 ? 2 : span <= 4 ? 1 : 0;
+  }, [timed]);
+
   // The window's peak — ringed on the plot ("Zirvə" in the key). When the
   // peak IS the newest point, the ring replaces the plain last-point dot.
   const ath = useMemo(() => {
@@ -225,10 +250,19 @@ export function PerformanceChart({
     if (mode !== "value" || !events || events.length === 0 || timed.length === 0)
       return [];
     const plotted = timed.filter((p) => p.date != null);
+    if (plotted.length === 0) return [];
+    const windowStart = plotted[0].ts;
+    const windowEnd = plotted[plotted.length - 1].ts;
     const byTs = new Map<number, Marker>();
     for (const e of events) {
       const ms = new Date(e.date).getTime();
       if (!Number.isFinite(ms) || e.units === 0) continue;
+      // Only events inside the plotted window: a transaction from before it
+      // (an İRF exit months back, viewed on 1 AY) must not pin a marker to
+      // the window's first point. Half a day of slack absorbs recording-time
+      // vs midnight offsets.
+      if (ms < windowStart - 43_200_000 || ms > windowEnd + 86_400_000)
+        continue;
       let nearest = plotted[0];
       for (const p of plotted) {
         if (Math.abs(p.ts - ms) < Math.abs(nearest.ts - ms)) nearest = p;
@@ -488,7 +522,7 @@ export function PerformanceChart({
                 tickLine={false}
                 axisLine={false}
                 tickCount={4}
-                tickFormatter={(v: number) => formatGrouped(v, 0)}
+                tickFormatter={(v: number) => formatGrouped(v, yTickDecimals)}
               />
               <Tooltip content={<ChartTip />} />
               {/* Price mode keeps the classic under-line gradient; value mode
