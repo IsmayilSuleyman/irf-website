@@ -25,28 +25,21 @@ type Theme = {
   accent: string;
 };
 
-const THEMES: Theme[] = [
-  {
-    face: "bg-[linear-gradient(135deg,#2b55c4_0%,#1d3d92_55%,#142a68_100%)]",
-    glow: "bg-sky-400/30",
-    accent: "text-sky-200",
-  },
-  {
-    face: "bg-[linear-gradient(135deg,#12855c_0%,#0d6647_55%,#094a34_100%)]",
-    glow: "bg-emerald-300/25",
-    accent: "text-emerald-200",
-  },
-  {
-    face: "bg-[linear-gradient(135deg,#6d3fc4_0%,#53309c_55%,#3b2270_100%)]",
-    glow: "bg-fuchsia-300/25",
-    accent: "text-fuchsia-200",
-  },
-  {
-    face: "bg-[linear-gradient(135deg,#b06a10_0%,#8f540b_55%,#6b3e08_100%)]",
-    glow: "bg-amber-300/25",
-    accent: "text-amber-200",
-  },
-];
+// Color IS the ownership code: vivid bank-blue means the viewer holds this
+// series, a washed-out slate means they don't (the "SİZDƏ YOXDUR" stamp
+// spells it out), and dark graphite means the series is settled. No more
+// per-series edition hues — one glance sorts the wallet.
+const OWNED_THEME: Theme = {
+  face: "bg-[linear-gradient(135deg,#2b55c4_0%,#1d3d92_55%,#142a68_100%)]",
+  glow: "bg-sky-400/30",
+  accent: "text-sky-200",
+};
+
+const UNOWNED_THEME: Theme = {
+  face: "bg-[linear-gradient(135deg,#64748b_0%,#4d5a70_55%,#3a465b_100%)]",
+  glow: "bg-white/20",
+  accent: "text-white/75",
+};
 
 // Matured/cancelled series keep their slot in the wallet but lose the live
 // colors — a settled certificate reads as archived, not active.
@@ -55,6 +48,11 @@ const SETTLED_THEME: Theme = {
   glow: "bg-white/15",
   accent: "text-white/70",
 };
+
+function themeFor(series: BondSeries): Theme {
+  if (series.status !== "active") return SETTLED_THEME;
+  return series.my_units > 0 ? OWNED_THEME : UNOWNED_THEME;
+}
 
 // Hydration-safe Azerbaijani date labels — no Intl in a client component
 // (the repo's hydration rule; same recipe as PerformanceChart). Series dates
@@ -400,11 +398,7 @@ export function BondCardCarousel({
             >
               <CertificateCard
                 series={active}
-                theme={
-                  active.status === "active"
-                    ? THEMES[clamped % THEMES.length]
-                    : SETTLED_THEME
-                }
+                theme={themeFor(active)}
                 nowMs={nowMs}
               />
             </m.div>
