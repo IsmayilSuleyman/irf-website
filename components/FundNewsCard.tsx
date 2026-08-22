@@ -46,14 +46,17 @@ function NewsBanner({
   deleting: boolean;
 }) {
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-brand-green/30 bg-gradient-to-br from-brand-green to-brand-green-deep p-5 text-white dark:border-emerald-400/30 sm:p-6">
+    // A black plate (deliberately the same in both themes, like the bond
+    // certificates): white text reads crisply, the fund speaks through the
+    // green accents — date, border, glow.
+    <article className="relative overflow-hidden rounded-2xl border border-brand-green/25 bg-[linear-gradient(135deg,#0e1411,#18211b)] p-5 text-white sm:p-6">
       <div
         aria-hidden
-        className="absolute -right-10 -top-14 h-40 w-40 rounded-full bg-white/10 blur-2xl"
+        className="absolute -right-10 -top-14 h-40 w-40 rounded-full bg-brand-green/15 blur-2xl"
       />
       <div className="relative">
         <div className="flex items-start justify-between gap-3">
-          <p className="num text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70">
+          <p className="num text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-400/90">
             {item.dateLabel}
           </p>
           {canPost ? (
