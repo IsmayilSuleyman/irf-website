@@ -4,6 +4,15 @@ import Link from "next/link";
 import { m } from "framer-motion";
 import { Logo } from "@/components/Logo";
 import { IsmayilBankLogo, IsmayilBankMark } from "@/components/IsmayilBankLogo";
+import { DEFAULT_TERMS } from "@/lib/bankTermsData";
+import { formatGroupedTrim } from "@/lib/portfolio";
+
+// The bank's real top deposit rate, from the same tier table the public
+// calculator uses — never a made-up marketing number.
+const TOP_DEPOSIT_PCT = formatGroupedTrim(
+  Math.max(...DEFAULT_TERMS.deposit.map((t) => t.annualRatePct)),
+  1,
+);
 
 // The public front door: brand header, a benefit-led hero next to a
 // synthetic "inside the portal" preview card, the three product cards and
@@ -88,7 +97,10 @@ function MiniQuote({ label, pct, up }: { label: string; pct: string; up: boolean
 function PortalPreview() {
   return (
     <div className="relative mx-auto w-full max-w-md lg:mx-0">
-      <div className="rounded-hero border border-black/10 bg-white/85 p-5 shadow-[0_30px_80px_rgba(48,94,63,0.16)] backdrop-blur-xl transition-transform duration-500 dark:border-white/15 dark:bg-white/[0.07] sm:p-6 lg:rotate-[-1.5deg] lg:hover:rotate-0">
+      {/* No rotation here: a rotated element with backdrop-blur gets
+          rasterized into a soft snapshot — the whole card read as blurry
+          until hover re-rendered it straight. */}
+      <div className="rounded-hero border border-black/10 bg-white/85 p-5 shadow-[0_30px_80px_rgba(48,94,63,0.16)] backdrop-blur-xl dark:border-white/15 dark:bg-white/[0.07] sm:p-6">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/40 dark:text-white/45">
             Portalın içi · nümunə
@@ -121,7 +133,7 @@ function PortalPreview() {
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-bank-blue/25 bg-bank-blue/[0.06] px-3 py-2.5 dark:border-bank-blue/40 dark:bg-bank-blue/15">
           <span className="flex items-center gap-2 text-[11px] text-black/55 dark:text-white/65">
             <IsmayilBankMark size={13} />
-            Depozit illik 8% · kredit bir kliklə
+            Depozit illik {TOP_DEPOSIT_PCT}%-dək · kredit bir kliklə
           </span>
           <span className="num text-[11px] font-semibold text-bank-blue dark:text-blue-300">
             +83,20 ₼
@@ -133,7 +145,7 @@ function PortalPreview() {
           wallet from /bonds, teased. */}
       <div
         aria-hidden
-        className="absolute -bottom-12 -left-5 hidden w-44 rotate-[-7deg] rounded-xl border border-white/25 bg-[linear-gradient(135deg,#1e3a8a,#2f61d8)] px-3.5 py-3 text-white shadow-[0_20px_50px_rgba(30,58,138,0.35)] sm:block"
+        className="absolute -bottom-12 -left-5 hidden w-44 rotate-[-3deg] rounded-xl border border-white/25 bg-[linear-gradient(135deg,#1e3a8a,#2f61d8)] px-3.5 py-3 text-white shadow-[0_20px_50px_rgba(30,58,138,0.35)] sm:block"
       >
         <p className="text-[8px] font-semibold uppercase tracking-[0.22em] text-white/70">
           İRF İstiqrazı
@@ -333,7 +345,7 @@ export function WelcomeView({
         <ProductCard
           brand="İsmayılBank"
           title="Depozit və kredit"
-          description="İllik 8%-dək depozit, sərfəli kredit şərtləri və hesablaşmaların şəffaf cədvəli. Kalkulyator girişsiz də işləyir."
+          description={`İllik ${TOP_DEPOSIT_PCT}%-dək depozit, sərfəli kredit şərtləri və hesablaşmaların şəffaf cədvəli. Kalkulyator girişsiz də işləyir.`}
           href="/ismayilbank"
           action="Kalkulyatoru aç"
           tone="blue"
