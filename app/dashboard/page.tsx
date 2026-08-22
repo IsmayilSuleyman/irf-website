@@ -371,15 +371,33 @@ export default async function DashboardPage({
     s.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
   // Dates are normalized to ISO server-side (day-first sheet formats
   // included); a row whose date can't be read gets no marker rather than a
-  // guessed position.
-  const chartEvents = mergedTransactions
+  // guessed position. Each sale also carries its REALIZED profit or loss —
+  // sale price against the running average cost at that moment, the same
+  // average-cost accounting computeHolderPerformance uses — for the
+  // marker's tooltip.
+  const mineTxByDate = mergedTransactions
     .filter((t) => normName(t.holderName) === normName(holder.name))
     .flatMap((t) => {
       const ms = parseSheetDateMs(t.date);
-      return ms == null
-        ? []
-        : [{ date: new Date(ms).toISOString(), units: t.units }];
-    });
+      return ms == null ? [] : [{ t, ms }];
+    })
+    .sort((a, b) => a.ms - b.ms);
+  let runUnits = 0;
+  let runCostAzn = 0;
+  const chartEvents = mineTxByDate.map(({ t, ms }) => {
+    let realizedAzn: number | null = null;
+    if (t.units >= 0) {
+      runUnits += t.units;
+      runCostAzn += t.units * t.price;
+    } else {
+      const sellUnits = Math.min(-t.units, runUnits);
+      const avg = runUnits > 0 ? runCostAzn / runUnits : t.price;
+      realizedAzn = sellUnits * (t.price - avg);
+      runCostAzn -= avg * sellUnits;
+      runUnits -= sellUnits;
+    }
+    return { date: new Date(ms).toISOString(), units: t.units, realizedAzn };
+  });
 
   // A holder with an ETF ledger but no İRF transactions still deserves the
   // Tarixçə series: with no İRF points to ride on, the NAV-recording dates

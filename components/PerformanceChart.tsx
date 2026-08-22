@@ -14,18 +14,25 @@ import {
 } from "recharts";
 import { formatAzn, formatGrouped } from "@/lib/portfolio";
 import { usePrivacy } from "@/components/PrivacyProvider";
+import { IsmayilBankMark } from "@/components/IsmayilBankLogo";
 
 type Point = {
   label: string;
   value: number;
   invested?: number;
   date?: string;
-  /** The ETF book's slice of `value` at this date (Digər aktivlər line). */
+  /** The ETF book's slice of `value` at this date (tooltip decomposition). */
   other?: number;
 };
 
 /** A holder's own İRF transaction, for the ▲/▼ markers on the value line. */
-export type ChartEvent = { date: string; units: number };
+export type ChartEvent = {
+  date: string;
+  units: number;
+  /** A sale's realized P&L (sale price vs the running average cost at that
+   *  moment), computed server-side; null/absent on buys. */
+  realizedAzn?: number | null;
+};
 
 // Hydration-safe Azerbaijani date labels (no Intl in a client component).
 const AZ_MONTHS_SHORT = [
@@ -71,9 +78,6 @@ type ModeKey = (typeof MODES)[number]["key"];
 const GREEN = "#16a34a";
 const RED = "#dc2626";
 const NEUTRAL = "#94a3b8";
-// Digər aktivlər (the ETF book) — bank-blue, used only as the tooltip
-// decomposition row's swatch; the plot itself stays one total line.
-const BLUE = "#2f61d8";
 
 type TimedPoint = Point & {
   ts: number;
@@ -86,6 +90,9 @@ type Marker = {
   value: number;
   buyUnits: number;
   sellUnits: number;
+  /** Summed realized P&L of the sales snapped to this point; null when no
+   *  sale here carried one. */
+  realizedAzn: number | null;
 };
 
 function TriangleDot({
@@ -273,9 +280,15 @@ export function PerformanceChart({
         value: nearest.value,
         buyUnits: 0,
         sellUnits: 0,
+        realizedAzn: null,
       };
-      if (e.units > 0) m.buyUnits += e.units;
-      else m.sellUnits += -e.units;
+      if (e.units > 0) {
+        m.buyUnits += e.units;
+      } else {
+        m.sellUnits += -e.units;
+        if (e.realizedAzn != null)
+          m.realizedAzn = (m.realizedAzn ?? 0) + e.realizedAzn;
+      }
       byTs.set(nearest.ts, m);
     }
     return [...byTs.values()];
@@ -382,7 +395,10 @@ export function PerformanceChart({
           {showOther && p.other != null && p.other > 0 ? (
             <p className="flex items-center justify-between gap-6 pl-3.5 text-[11px]">
               <span className="flex items-center gap-1.5 text-black/50 dark:text-white/55">
-                <span className="inline-block h-0.5 w-3 rounded" style={{ background: BLUE }} />
+                {/* The ETF book is bought through İsmayılBank — its cross
+                    mark replaces a line swatch here, since the plot draws
+                    one total line and has no separate Digər aktivlər line. */}
+                <IsmayilBankMark size={12} />
                 Digər aktivlər
               </span>
               <span className="num text-black/70 dark:text-white/75">{fmt(p.other)}</span>
@@ -426,6 +442,18 @@ export function PerformanceChart({
               {marker.sellUnits > 0 ? (
                 <span style={{ color: RED }}>
                   ▼ Satış{masked ? "" : `: −${formatGrouped(marker.sellUnits, 0)} pay`}
+                </span>
+              ) : null}
+              {marker.realizedAzn != null ? (
+                <span
+                  className="mt-0.5 block"
+                  style={{ color: marker.realizedAzn >= 0 ? GREEN : RED }}
+                >
+                  Satışdan {marker.realizedAzn >= 0 ? "mənfəət" : "zərər"}:{" "}
+                  <span className="num font-semibold">
+                    {marker.realizedAzn >= 0 ? "+" : "−"}
+                    {fmt(Math.abs(marker.realizedAzn))}
+                  </span>
                 </span>
               ) : null}
             </p>
