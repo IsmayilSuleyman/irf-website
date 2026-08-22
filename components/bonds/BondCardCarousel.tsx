@@ -170,12 +170,14 @@ function CertificateCard({
                   <span className="num">{formatUnits(series.my_units)}</span> ədəd ×{" "}
                   <span className="num">{formatGrouped(series.face_value_azn, 2)}</span> ₼ nominal
                 </>
-              ) : (
+              ) : series.primary_available > 0 ? (
                 <>
                   1 ədədin nominalı ·{" "}
                   <span className="num">{formatUnits(series.primary_available)}</span> ədəd
                   buraxılışda
                 </>
+              ) : (
+                <>1 ədədin nominalı · ilkin satış bitib — bazardan al</>
               )}
             </p>
           </div>
