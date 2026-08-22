@@ -148,7 +148,7 @@ function PortalPreview() {
         className="absolute -bottom-12 -left-5 hidden w-44 rotate-[-3deg] rounded-xl border border-white/25 bg-[linear-gradient(135deg,#1e3a8a,#2f61d8)] px-3.5 py-3 text-white shadow-[0_20px_50px_rgba(30,58,138,0.35)] sm:block"
       >
         <p className="text-[8px] font-semibold uppercase tracking-[0.22em] text-white/70">
-          İRF İstiqrazı
+          İsmayılBank İstiqrazı
         </p>
         <p className="num mt-1 text-sm font-bold tracking-[0.06em]">A1 · 2027</p>
         <p className="num mt-0.5 text-[10px] text-white/75">ayda +1,2% kupon</p>
@@ -345,7 +345,7 @@ export function WelcomeView({
         <ProductCard
           brand="İstiqrazlar"
           title="Aylıq kupon gəliri"
-          description="Fiziki sertifikat görünüşlü İRF istiqrazları: sabit aylıq kupon, buraxılış seriyaları və ikinci bazar — portalın içində."
+          description="Fiziki sertifikat görünüşlü İsmayılBank istiqrazları: sabit aylıq kupon, buraxılış seriyaları və ikinci bazar — portalın içində."
           href="/bonds"
           action="Seriyalara bax"
           tone="cert"
@@ -355,7 +355,7 @@ export function WelcomeView({
               className="w-fit rounded-xl border border-white/25 bg-[linear-gradient(135deg,#1e3a8a,#2f61d8)] px-3.5 py-2.5 text-white shadow-[0_14px_34px_rgba(30,58,138,0.3)]"
             >
               <p className="text-[8px] font-semibold uppercase tracking-[0.22em] text-white/70">
-                İRF İstiqrazı
+                İsmayılBank İstiqrazı
               </p>
               <p className="num mt-0.5 text-sm font-bold tracking-[0.06em]">
                 A1 · 2027
