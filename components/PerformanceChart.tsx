@@ -302,19 +302,32 @@ export function PerformanceChart({
     [markers],
   );
 
-  // Change across the visible window: first plotted point to last. Follows
-  // both switches, so it answers "what did the selected series do over the
-  // selected period". Null when there is nothing to compare against — a
-  // single point, or a zero/negative opening value.
+  // The pill across the visible window. PRICE mode: plain first-to-last %
+  // change — a price series has no cash flows. VALUE mode: money moved in
+  // or out (a sale, a fresh buy) must not read as performance — a holder
+  // who exits İRF and keeps a 5 ₼ ETF book hasn't "lost 99%". The pill
+  // tracks the change in PROFIT/LOSS instead: value minus maya dəyəri,
+  // which nets contributions and so carries realized results too, measured
+  // against the largest capital at work in the window. Null when there is
+  // nothing to compare against.
   const periodChange = useMemo(() => {
     if (timed.length < 2) return null;
-    const open = timed[0].value;
-    const close = timed[timed.length - 1].value;
-    if (!Number.isFinite(open) || !Number.isFinite(close) || open <= 0) {
-      return null;
+    const first = timed[0];
+    const last = timed[timed.length - 1];
+    if (mode !== "value" || first.invested == null || last.invested == null) {
+      const open = first.value;
+      if (!Number.isFinite(open) || open <= 0) return null;
+      return last.value / open - 1;
     }
-    return close / open - 1;
-  }, [timed]);
+    const pnlDelta =
+      last.value - last.invested - (first.value - first.invested);
+    let base = 0;
+    for (const p of timed) {
+      if (p.invested != null && p.invested > base) base = p.invested;
+    }
+    if (base <= 0) return null;
+    return pnlDelta / base;
+  }, [timed, mode]);
 
   if (!hasValue && !hasPrice) {
     return (
@@ -339,7 +352,11 @@ export function PerformanceChart({
   const changePill = (className: string) =>
     periodChange == null ? null : (
       <span
-        title="Seçilmiş dövr üzrə dəyişim"
+        title={
+          mode === "value"
+            ? "Seçilmiş dövr üzrə mənfəət/zərər (reallaşmış + reallaşmamış)"
+            : "Seçilmiş dövr üzrə dəyişim"
+        }
         className={`num rounded-lg border px-2 py-1.5 text-center text-[10px] font-semibold tracking-[0.06em] sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
           periodChange >= 0
             ? "border-brand-green/30 bg-brand-green/10 text-brand-green dark:text-emerald-400"
