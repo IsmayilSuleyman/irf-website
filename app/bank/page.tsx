@@ -244,7 +244,7 @@ export default async function BankPage({
   }
 
   const name = displayNameOf(user.user_metadata);
-  const [sheetAccount, bonds, creditOffer, allAssetTxs, fund, marketState] =
+  const [sheetAccount, bonds, creditOffer, allAssetTxs, fund, marketState, baseQuotes] =
     await Promise.all([
       getBankAccountByName(name),
       getMyBondHoldings(),
@@ -254,6 +254,9 @@ export default async function BankPage({
       // sheet outage just leaves it off, never breaks the bank page.
       getFundData().catch(() => null),
       getHolderMarketState(name).catch(() => null),
+      // The purchasable set is static, so its quotes join the first round;
+      // only exotic held symbols (if any) need a follow-up fetch below.
+      getAssetQuotes(PURCHASABLE_ASSETS.map((a) => a.symbol)),
     ]);
   const irfValueAzn =
     fund && marketState ? fund.unitPrice * marketState.effectiveUnits : 0;
@@ -274,11 +277,13 @@ export default async function BankPage({
         ),
       ]
     : [];
-  // Quotes cover the WHOLE purchasable set, not just held symbols: unowned
-  // assets appear on the podium as invitations with their live prices.
-  const assetQuotes = await getAssetQuotes([
-    ...new Set([...PURCHASABLE_ASSETS.map((a) => a.symbol), ...myAssetSymbols]),
-  ]);
+  // Quotes cover the whole purchasable set (fetched in the first round);
+  // symbols held outside it are rare and merge in with one extra call.
+  const extraSymbols = myAssetSymbols.filter((s) => !(s in baseQuotes));
+  const assetQuotes =
+    extraSymbols.length > 0
+      ? { ...baseQuotes, ...(await getAssetQuotes(extraSymbols)) }
+      : baseQuotes;
   const assetPositions = name
     ? buildAssetPositions(name, allAssetTxs, assetQuotes)
     : [];
@@ -338,7 +343,18 @@ export default async function BankPage({
       ])
     : [null, [] as DailyRewardHolderTotal[]];
 
-  const adminAccounts = isAdmin ? await getBankAccounts() : [];
+  // Admin cabinet + credit-offer inputs in ONE parallel round after the
+  // isAdmin answer — every fetch is 60s-cached, but a cold cache used to pay
+  // for four of them serially.
+  const wantsShared = isAdmin || creditOffer != null;
+  const [sharedAccounts, sharedBondFundingAzn, sharedTerms, adminOffers] =
+    await Promise.all([
+      wantsShared ? getBankAccounts() : Promise.resolve([] as BankAccount[]),
+      wantsShared ? getBondFundingAzn() : Promise.resolve(0),
+      wantsShared ? getBankProductTerms() : Promise.resolve(null),
+      isAdmin ? getAllCreditOffers() : Promise.resolve([]),
+    ]);
+  const adminAccounts = isAdmin ? sharedAccounts : [];
   const debtors = adminAccounts
     .filter((a) => a.outstandingLoanAzn > 0)
     .map((a) => ({ name: a.name, amount: a.outstandingLoanAzn }));
@@ -349,12 +365,12 @@ export default async function BankPage({
   // outage returns [] and would otherwise make every borrower look loan-free
   // (the personal `account` can also be the zero-loan bond fallback). A
   // percent offer resolves against live net liquidity; the product terms
-  // supply the "faiz X%-dən başlayır" teaser. All 60s-cached fetches.
+  // supply the "faiz X%-dən başlayır" teaser.
   let offerEligible = false;
   let offerAzn = 0;
   let offerMinRatePct: number | null = null;
   if (creditOffer != null) {
-    const allAccounts = await getBankAccounts();
+    const allAccounts = sharedAccounts;
     const myRow = name
       ? allAccounts.find(
           (a) => normalizeHolderName(a.name) === normalizeHolderName(name),
@@ -364,28 +380,28 @@ export default async function BankPage({
       allAccounts.length > 0 && (myRow?.outstandingLoanAzn ?? 0) <= 0;
     if (offerEligible) {
       if (creditOffer.mode === "pct") {
-        const bondFunding = await getBondFundingAzn();
         const deposits = allAccounts.reduce((s, a) => s + a.depositedAzn, 0);
         const loans = allAccounts.reduce((s, a) => s + a.outstandingLoanAzn, 0);
-        offerAzn = offerAmountAzn(creditOffer, deposits + bondFunding - loans);
+        offerAzn = offerAmountAzn(
+          creditOffer,
+          deposits + sharedBondFundingAzn - loans,
+        );
       } else {
         offerAzn = offerAmountAzn(creditOffer, 0);
       }
-      if (offerAzn > 0) {
-        const terms = await getBankProductTerms();
-        const rates = terms.credit.map((t) => t.annualRatePct).filter((r) => r > 0);
+      if (offerAzn > 0 && sharedTerms) {
+        const rates = sharedTerms.credit
+          .map((t) => t.annualRatePct)
+          .filter((r) => r > 0);
         offerMinRatePct = rates.length > 0 ? Math.min(...rates) : null;
       }
     }
   }
 
-  const productTerms = isAdmin ? await getBankProductTerms() : null;
-  // Cabinet data: every offer with today's resolved amounts, plus the lowest
-  // credit rate for the banner preview's teaser.
-  const adminOffers = isAdmin ? await getAllCreditOffers() : [];
+  const productTerms = isAdmin ? sharedTerms : null;
   const adminNetLiquidity = isAdmin
     ? adminAccounts.reduce((s, a) => s + a.depositedAzn - a.outstandingLoanAzn, 0) +
-      (await getBondFundingAzn())
+      sharedBondFundingAzn
     : 0;
   const adminMinRatePct = (() => {
     if (!productTerms) return null;

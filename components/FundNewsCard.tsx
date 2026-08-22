@@ -2,7 +2,6 @@
 
 import { useRef, useState, useTransition } from "react";
 import { deleteFundNews, postFundNews } from "@/app/dashboard/news-actions";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { FundNews, FundNewsItem } from "@/lib/fundNews";
 
 // Fondumuz haqqında xəbərlər: dated posts from İsmayıl, each rendered as a
@@ -70,30 +69,29 @@ function NewsBanner({
             </button>
           ) : null}
         </div>
-        {/* The picture sits as a compact square on the right; the text
-            keeps the stage. */}
-        <div className="flex items-start gap-4">
-          <div className="min-w-0 flex-1">
-            <h3 className="mt-2 text-[clamp(1.15rem,2.6vw,1.45rem)] font-black tracking-[-0.03em]">
-              {item.title}
-            </h3>
-            {item.ticker && item.tickerDayPct != null ? (
-              <div className="mt-2">
-                <TickerChip item={item} />
-              </div>
-            ) : null}
-            <p className="mt-2.5 whitespace-pre-line text-[13px] leading-6 text-white/85">
-              {item.body}
-            </p>
-          </div>
+        {/* The picture floats as a compact square on the right: the title
+            wraps beside it, and the body reclaims the full card width as
+            soon as it clears the square (flow-root contains the float). */}
+        <div className="flow-root">
           {item.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={item.imageUrl}
               alt=""
-              className="mt-2 h-24 w-24 shrink-0 rounded-xl border border-white/20 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.2)] sm:h-28 sm:w-28"
+              className="float-right mb-2 ml-4 mt-2 h-24 w-24 rounded-xl border border-white/20 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.2)] sm:h-28 sm:w-28"
             />
           ) : null}
+          <h3 className="mt-2 text-[clamp(1.15rem,2.6vw,1.45rem)] font-black tracking-[-0.03em]">
+            {item.title}
+          </h3>
+          {item.ticker && item.tickerDayPct != null ? (
+            <div className="mt-2">
+              <TickerChip item={item} />
+            </div>
+          ) : null}
+          <p className="mt-2.5 whitespace-pre-line text-[13px] leading-6 text-white/85">
+            {item.body}
+          </p>
         </div>
       </div>
     </article>
@@ -124,7 +122,12 @@ export function FundNewsCard({
       const file = fileRef.current?.files?.[0];
       if (file) {
         // Upload from the browser: the storage policy only admits the fund
-        // admin, so a rejected upload is an auth answer, not a bug.
+        // admin, so a rejected upload is an auth answer, not a bug. The
+        // supabase client loads lazily — only İsmayıl's upload path pays
+        // for it, not every dashboard visitor's bundle.
+        const { createSupabaseBrowserClient } = await import(
+          "@/lib/supabase/client"
+        );
         const supabase = createSupabaseBrowserClient();
         if (!supabase) {
           setError("Supabase konfiqurasiya olunmayıb.");
@@ -302,18 +305,18 @@ export function FundNewsCard({
                     {item.dateLabel}
                   </span>
                 </summary>
-                <div className="mt-2 flex items-start gap-3">
-                  <p className="min-w-0 flex-1 whitespace-pre-line text-[13px] leading-6 text-black/60 dark:text-white/65">
-                    {item.body}
-                  </p>
+                <div className="mt-2 flow-root">
                   {item.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={item.imageUrl}
                       alt=""
-                      className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                      className="float-right mb-1.5 ml-3 h-16 w-16 rounded-lg object-cover"
                     />
                   ) : null}
+                  <p className="whitespace-pre-line text-[13px] leading-6 text-black/60 dark:text-white/65">
+                    {item.body}
+                  </p>
                 </div>
                 {canPost ? (
                   <button

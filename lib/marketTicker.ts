@@ -24,11 +24,9 @@ export type TickerQuote = {
   changePct: number | null;
   /** The latest session's intraday closes, for the tile sparkline. */
   spark: number[];
-  /**
-   * Five years of DATED daily closes, downsampled — the panel slices this
-   * client-side for its 6 AY / 1 İL / 5 İL ranges.
-   */
-  history5y: HistoryPoint[];
+  // NOTE: the 5-year dated history deliberately does NOT ride this payload.
+  // Six instruments × ~420 points ≈ 80KB of RSC on every dashboard render;
+  // the panel fetches /api/ticker-history on first expand instead.
 };
 
 // Daily closes move once a day; cache the 5-year series long (6h) and let
@@ -81,12 +79,11 @@ const INSTRUMENTS = [
 // viewer (same recipe as the extended-portfolio quote cache).
 const getCachedTicker = unstable_cache(
   async (): Promise<TickerQuote[]> => {
-    // Quotes, intraday sparks and 5y histories in one parallel pass; a
-    // failed series is just an empty line, never a missing tile.
-    const [quotes, sparks, histories] = await Promise.all([
+    // Quotes and intraday sparks in one parallel pass; a failed series is
+    // just an empty line, never a missing tile.
+    const [quotes, sparks] = await Promise.all([
       getExtendedQuotes(INSTRUMENTS.map((i) => i.symbol)),
       Promise.all(INSTRUMENTS.map((i) => getIntradaySpark(i.symbol))),
-      Promise.all(INSTRUMENTS.map((i) => getCached5y(i.symbol))),
     ]);
     const out: TickerQuote[] = [];
     INSTRUMENTS.forEach((inst, i) => {
@@ -100,15 +97,29 @@ const getCachedTicker = unstable_cache(
         price,
         changePct: prev != null && prev > 0 ? price / prev - 1 : null,
         spark: sparks[i] ?? [],
-        history5y: histories[i] ?? [],
       });
     });
     return out;
   },
-  // v3: history5y carries full-density dated points now.
-  ["market-ticker-quotes-v3"],
+  // v4: 5y histories moved to the on-demand /api/ticker-history route.
+  ["market-ticker-quotes-v4"],
   { revalidate: 60 },
 );
+
+/**
+ * The panel's 5-year dated history for one instrument key, served by
+ * /api/ticker-history when a tile expands. Unknown keys yield [].
+ */
+export async function getTickerHistory(key: string): Promise<HistoryPoint[]> {
+  const inst = INSTRUMENTS.find((i) => i.key === key);
+  if (!inst) return [];
+  try {
+    return await getCached5y(inst.symbol);
+  } catch (err) {
+    console.error(`[market-ticker] history failed for ${key}:`, err);
+    return [];
+  }
+}
 
 /**
  * Quotes for the ticker strip. Instruments Yahoo fails to return are simply
