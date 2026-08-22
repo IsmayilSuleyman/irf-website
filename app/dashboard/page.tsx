@@ -500,8 +500,7 @@ export default async function DashboardPage({
     ? buildAssetHolderSummaries(assetTxs, assetQuotes)
     : [];
   // Günün icmalı (fund view): the day's best and worst holding by daily %
-  // move, and the vault's fund-wide day change — everything else the card
-  // needs is already on hand for the hero.
+  // move — everything else the card needs is already on hand for the hero.
   const dayMovers = holdings.filter(
     (h) => !h.isCash && h.dayChangePct != null,
   );
@@ -513,15 +512,6 @@ export default async function DashboardPage({
     fundView && dayMovers.length > 1
       ? dayMovers.reduce((a, b) => (b.dayChangePct! < a.dayChangePct! ? b : a))
       : null;
-  const vaultValueAzn =
-    assetHolders.length > 0
-      ? assetHolders.reduce((s, h) => s + h.valueAzn, 0)
-      : null;
-  const vaultDayVals = assetHolders
-    .map((h) => h.dayAzn)
-    .filter((v): v is number => v != null);
-  const vaultDayAzn =
-    vaultDayVals.length > 0 ? vaultDayVals.reduce((s, v) => s + v, 0) : null;
   const positionBySymbol = Object.fromEntries(
     assetPositions.map((p) => [p.symbol, p]),
   );
@@ -713,9 +703,6 @@ export default async function DashboardPage({
                 dateLabel={dateLabel}
                 valueAzn={fund.totalCapital}
                 dayAzn={fundDayChange}
-                unitPriceAzn={fund.unitPrice}
-                unitDayAzn={unitDayChange}
-                unitDayPct={unitDayPct}
                 best={
                   bestMover
                     ? { symbol: bestMover.symbol, pct: bestMover.dayChangePct! }
@@ -726,17 +713,6 @@ export default async function DashboardPage({
                     ? { symbol: worstMover.symbol, pct: worstMover.dayChangePct! }
                     : null
                 }
-                extended={
-                  extendedPortfolio
-                    ? {
-                        mode: extendedPortfolio.mode,
-                        changePct: extendedPortfolio.changePct,
-                        deltaAzn: extendedPortfolio.deltaAzn,
-                      }
-                    : null
-                }
-                vaultValueAzn={vaultValueAzn}
-                vaultDayAzn={vaultDayAzn}
               />
             </div>
             <div className="lg:col-span-1">

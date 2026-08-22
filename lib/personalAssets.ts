@@ -172,8 +172,6 @@ export type AssetHolderSummary = {
   valueAzn: number;
   /** Paid basis (col G) locked behind their open positions, AZN. */
   paidAzn: number;
-  /** Day move of the book at live quotes, AZN; null when no position had day data. */
-  dayAzn: number | null;
 };
 
 /**
@@ -194,14 +192,10 @@ export function buildAssetHolderSummaries(
   for (const display of byName.values()) {
     const positions = buildAssetPositions(display, txs, quotes);
     if (positions.length === 0) continue;
-    const dayVals = positions
-      .map((p) => p.dayChangeAzn)
-      .filter((v): v is number => v != null);
     out.push({
       name: display,
       valueAzn: positions.reduce((s, p) => s + (p.valueAzn ?? 0), 0),
       paidAzn: positions.reduce((s, p) => s + p.costBasisAzn, 0),
-      dayAzn: dayVals.length > 0 ? dayVals.reduce((s, v) => s + v, 0) : null,
     });
   }
   out.sort((a, b) => b.valueAzn - a.valueAzn);
