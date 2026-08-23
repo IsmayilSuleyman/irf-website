@@ -101,6 +101,8 @@ function Leg({
 export function BalanceHero({
   depositedAzn,
   rewardAzn = 0,
+  interestAzn = 0,
+  interestTodayAzn = 0,
   termMonths,
   annualRatePct,
   maturityBonusAzn,
@@ -116,6 +118,12 @@ export function BalanceHero({
    *  İsmayıl settles them into the Sheet (then they arrive as sheet deposit
    *  and leave this figure, so the total never double-counts). */
   rewardAzn?: number;
+  /** Unsettled günlük faiz accruals — same settlement lifecycle as the
+   *  rewards: part of the displayed deposit until settled into the Sheet. */
+  interestAzn?: number;
+  /** The interest credited this morning (yesterday's earning) — the "bu gün
+   *  +X ₼" nudge in the meta line. */
+  interestTodayAzn?: number;
   termMonths: number | null;
   annualRatePct: number | null;
   maturityBonusAzn: number | null;
@@ -129,8 +137,10 @@ export function BalanceHero({
   /** Average coupon income per month across the held series. */
   bondMonthlyAzn: number;
 }) {
-  // Sheet deposit + unsettled daily rewards = the deposit the holder sees.
-  const depositTotalAzn = depositedAzn + Math.max(0, rewardAzn);
+  // Sheet deposit + unsettled daily rewards + unsettled daily interest =
+  // the deposit the holder sees.
+  const depositTotalAzn =
+    depositedAzn + Math.max(0, rewardAzn) + Math.max(0, interestAzn);
   const hasBonds = bondUnits > 0;
   const hasDeposit = depositTotalAzn > 0;
   const totalAzn = depositTotalAzn + bondValueAzn;
@@ -141,19 +151,27 @@ export function BalanceHero({
     maturityBonusAzn != null ? depositedAzn + maturityBonusAzn : null;
   const maturityDateLabel = formatDisplayDate(maturityDate);
 
-  const depositNote = (
-    <>
-      Depozit üzrə hesablanmış faiz yalnız depozit müddətinin sonunda
-      {maturityDateLabel ? ` (${maturityDateLabel})` : ""} ödənilir. Vaxtından əvvəl
-      çıxarılan depozitlərə faiz gəliri verilmir.
-    </>
-  );
-
   const hasTierMeta =
     (termMonths != null && termMonths > 0) ||
     (annualRatePct != null && annualRatePct > 0) ||
     (maturityEndAmount != null && maturityEndAmount !== depositedAzn) ||
     maturityDateLabel != null;
+
+  const depositNote = (
+    <>
+      Depozitə hər Bakı günü faiz hesablanır — illik effektiv 10%. Hər günün
+      faizi növbəti gün balansa əlavə olunur və İsmayıl onu Sheet depozitinə
+      köçürənədək «hesablaşılmamış» sayılır.
+      {hasTierMeta ? (
+        <>
+          {" "}
+          Müddətli depozitin bonusu isə yalnız müddətin sonunda
+          {maturityDateLabel ? ` (${maturityDateLabel})` : ""} ödənilir —
+          vaxtından əvvəl çıxarılan depozitlərə bonus verilmir.
+        </>
+      ) : null}
+    </>
+  );
 
   // Degenerate tiers read as noise, not facts — a 0-month term or a 0% rate
   // simply drops out of the meta line.
@@ -196,6 +214,28 @@ export function BalanceHero({
             {formatAmount(rewardAzn)} ₼
           </span>{" "}
           daxil
+        </>
+      ) : null}
+      {/* The daily-interest product line is always present — it IS the
+          deposit's standing offer; the amounts join once they round to a
+          visible qəpik. */}
+      {hasTierMeta || rewardAzn > 0 ? " · " : null}
+      günlük faiz (illik effektiv 10%)
+      {interestAzn >= 0.005 ? (
+        <>
+          {" — "}
+          <span className="num font-semibold text-status-paid dark:text-emerald-400">
+            {formatAmount(interestAzn)} ₼
+          </span>{" "}
+          daxil
+        </>
+      ) : null}
+      {interestTodayAzn >= 0.005 ? (
+        <>
+          , bu gün{" "}
+          <span className="num font-semibold text-status-paid dark:text-emerald-400">
+            +{formatGrouped(interestTodayAzn, 2)} ₼
+          </span>
         </>
       ) : null}
     </>

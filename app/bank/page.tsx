@@ -39,6 +39,13 @@ import {
   getDailyRewardTotals,
   type DailyRewardHolderTotal,
 } from "@/lib/dailyReward";
+import { BankInterestAdminCard } from "@/components/BankInterestAdminCard";
+import {
+  accrueAndGetBankInterest,
+  getBankInterestTotals,
+  type BankInterestHolderTotal,
+  type BankInterestState,
+} from "@/lib/bankInterest";
 import { CreditOfferBanner } from "@/components/CreditOfferBanner";
 import { CreditOfferPanel } from "@/components/CreditOfferPanel";
 import {
@@ -331,17 +338,35 @@ export default async function BankPage({
   const isAdmin = supabase
     ? (await supabase.rpc("is_fund_admin")).data === true
     : false;
-  // Günlük mükafat: today's claim state for the card, and (admin only) the
-  // per-holder settlement totals. Both degrade to "no card" when the
-  // migration hasn't been applied yet.
-  const [rewardState, rewardTotals] = supabase
+  // Günlük mükafat + günlük faiz in one round: today's claim state, the
+  // interest accrual (lazy — the RPC back-fills any missed Baku days on
+  // this very render, so "everyday" needs no cron) and, admin only, both
+  // settlement totals. Everything degrades to "no card" when the
+  // migrations aren't applied yet.
+  const [rewardState, rewardTotals, interestState, interestTotals] = supabase
     ? await Promise.all([
         getDailyRewardState(supabase, user.id),
         isAdmin
           ? getDailyRewardTotals(supabase)
           : Promise.resolve([] as DailyRewardHolderTotal[]),
+        account
+          ? accrueAndGetBankInterest(
+              supabase,
+              user.id,
+              account.name,
+              account.depositedAzn,
+            )
+          : Promise.resolve(null as BankInterestState | null),
+        isAdmin
+          ? getBankInterestTotals(supabase)
+          : Promise.resolve([] as BankInterestHolderTotal[]),
       ])
-    : [null, [] as DailyRewardHolderTotal[]];
+    : [
+        null,
+        [] as DailyRewardHolderTotal[],
+        null,
+        [] as BankInterestHolderTotal[],
+      ];
 
   // Admin cabinet + credit-offer inputs in ONE parallel round after the
   // isAdmin answer — every fetch is 60s-cached, but a cold cache used to pay
@@ -449,12 +474,17 @@ export default async function BankPage({
     );
   }
 
-  // Unsettled daily rewards are money too — an account holding only rewards
-  // is not "empty".
+  // Unsettled daily rewards and accrued interest are money too — an account
+  // holding only those is not "empty".
   const rewardAzn = rewardState?.available ? rewardState.unsettledAzn : 0;
+  const interestAzn = interestState?.available ? interestState.unsettledAzn : 0;
+  const interestTodayAzn = interestState?.available
+    ? interestState.creditedTodayAzn
+    : 0;
   const hasNoProducts =
     account.depositedAzn <= 0 &&
     rewardAzn <= 0 &&
+    interestAzn <= 0 &&
     account.outstandingLoanAzn <= 0 &&
     bonds.totalUnits <= 0 &&
     account.paymentSchedule.length === 0;
@@ -511,6 +541,8 @@ export default async function BankPage({
             <BalanceHero
               depositedAzn={account.depositedAzn}
               rewardAzn={rewardAzn}
+              interestAzn={interestAzn}
+              interestTodayAzn={interestTodayAzn}
               termMonths={account.termMonths}
               annualRatePct={account.annualRatePct}
               maturityBonusAzn={account.maturityBonusAzn}
@@ -588,6 +620,9 @@ export default async function BankPage({
                 <BroadcastPanel recipients={recipientNames} />
                 {rewardTotals.length > 0 ? (
                   <DailyRewardAdminCard totals={rewardTotals} />
+                ) : null}
+                {interestTotals.length > 0 ? (
+                  <BankInterestAdminCard totals={interestTotals} />
                 ) : null}
               </div>
               <div className="mt-4">
