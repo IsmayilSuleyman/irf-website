@@ -2,10 +2,23 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { formatAzn, formatGrouped, NBSP } from "@/lib/portfolio";
-import { DEFAULT_TERMS, type ProductTerm } from "@/lib/bankTermsData";
+import {
+  DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT,
+  DEFAULT_TERMS,
+  type ProductTerm,
+} from "@/lib/bankTermsData";
 
 const MIN_AMOUNT = 50;
 const MAX_AMOUNT = 2000;
+
+// The on-demand product compounds daily at the 365th root of the effective
+// annual — the same math the accrual RPC runs, so the calculator's promise
+// and the real ledger can never disagree.
+const DAILY_RATE =
+  Math.pow(1 + DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT / 100, 1 / 365) - 1;
+
+const MIN_HORIZON_MONTHS = 1;
+const MAX_HORIZON_MONTHS = 36;
 
 function formatAmount(value: number) {
   return `${formatGrouped(value, 0)}${NBSP}₼`;
@@ -129,6 +142,95 @@ function PeriodPicker({
   );
 }
 
+/** Projection-horizon slider for the on-demand product: it has no fixed
+ *  term, so the months here are just "how long will you keep it". */
+function HorizonField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  const progress = `${((value - MIN_HORIZON_MONTHS) / (MAX_HORIZON_MONTHS - MIN_HORIZON_MONTHS)) * 100}%`;
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-end justify-between gap-4">
+        <p className="text-sm font-medium text-black/55 dark:text-white/60">
+          Müddət (proqnoz)
+        </p>
+        <p className="num text-[1.6rem] font-semibold tracking-[-0.04em] text-ink dark:text-white/90">
+          {value} ay
+        </p>
+      </div>
+
+      <input
+        type="range"
+        min={MIN_HORIZON_MONTHS}
+        max={MAX_HORIZON_MONTHS}
+        step={1}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="bank-range"
+        style={{ "--range-progress": progress } as CSSProperties}
+        aria-label="Saxlama müddəti"
+      />
+
+      <div className="flex items-center justify-between text-xs text-black/45 dark:text-white/50">
+        <span>{MIN_HORIZON_MONTHS} ay</span>
+        <span>{MAX_HORIZON_MONTHS} ay</span>
+      </div>
+    </div>
+  );
+}
+
+function ModeToggle({
+  mode,
+  onChange,
+  topTermRatePct,
+}: {
+  mode: "daily" | "term";
+  onChange: (mode: "daily" | "term") => void;
+  topTermRatePct: number;
+}) {
+  const btn = (active: boolean) =>
+    `flex-1 rounded-xl px-3 py-2.5 text-center transition ${
+      active
+        ? "bg-brand-green text-white shadow-sm"
+        : "text-black/60 dark:text-white/65 hover:text-brand-green-deep dark:hover:text-emerald-400"
+    }`;
+  return (
+    <div className="flex gap-1 rounded-2xl border border-black/10 dark:border-white/15 bg-black/[0.04] dark:bg-white/5 p-1">
+      <button
+        type="button"
+        aria-pressed={mode === "daily"}
+        onClick={() => onChange("daily")}
+        className={btn(mode === "daily")}
+      >
+        <span className="block text-[13px] font-semibold">Günlük faiz</span>
+        <span
+          className={`num block text-[11px] ${mode === "daily" ? "text-white/75" : "text-black/40 dark:text-white/45"}`}
+        >
+          illik effektiv {formatGrouped(DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT, 0)}%
+        </span>
+      </button>
+      <button
+        type="button"
+        aria-pressed={mode === "term"}
+        onClick={() => onChange("term")}
+        className={btn(mode === "term")}
+      >
+        <span className="block text-[13px] font-semibold">Müddətli depozit</span>
+        <span
+          className={`num block text-[11px] ${mode === "term" ? "text-white/75" : "text-black/40 dark:text-white/45"}`}
+        >
+          {formatGrouped(topTermRatePct, 0)}%-dək
+        </span>
+      </button>
+    </div>
+  );
+}
+
 function SummaryRow({
   label,
   value,
@@ -161,7 +263,9 @@ export function IsmayilBankDepositCalculator({
     return list.length > 0 ? list : DEFAULT_TERMS.deposit;
   }, [terms]);
 
+  const [mode, setMode] = useState<"daily" | "term">("daily");
   const [amount, setAmount] = useState(500);
+  const [horizonMonths, setHorizonMonths] = useState(12);
   const [period, setPeriod] = useState(
     () => options[Math.min(1, options.length - 1)].termMonths,
   );
@@ -171,29 +275,62 @@ export function IsmayilBankDepositCalculator({
     options[Math.min(1, options.length - 1)];
 
   const annualRate = selectedOption.annualRatePct;
+  const topTermRate = options.reduce(
+    (m, o) => Math.max(m, o.annualRatePct),
+    0,
+  );
 
   // If İsmayıl removes the selected tier, fall back to the option's months so
   // the math always matches a real tier.
   const effectivePeriod = selectedOption.termMonths;
 
-  const { maturityAmount, gainAmount } = useMemo(() => {
+  const { maturityAmount, gainAmount, perDayAzn } = useMemo(() => {
+    if (mode === "daily") {
+      // Daily compounding at the 365th root — identical to the ledger's
+      // accrual, so the projection matches what actually lands each day.
+      const days = Math.round((horizonMonths * 365) / 12);
+      const maturity = amount * Math.pow(1 + DAILY_RATE, days);
+      return {
+        maturityAmount: maturity,
+        gainAmount: maturity - amount,
+        perDayAzn: amount * DAILY_RATE,
+      };
+    }
     const gain = amount * (annualRate / 100) * (effectivePeriod / 12);
-
     return {
       gainAmount: gain,
       maturityAmount: amount + gain,
+      perDayAzn: null,
     };
-  }, [amount, annualRate, effectivePeriod]);
+  }, [mode, amount, horizonMonths, annualRate, effectivePeriod]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)] lg:items-start lg:gap-8">
       <div className="space-y-7 lg:pt-1">
+        <ModeToggle mode={mode} onChange={setMode} topTermRatePct={topTermRate} />
         <AmountField value={amount} onChange={setAmount} />
-        <PeriodPicker options={options} value={effectivePeriod} onChange={setPeriod} />
+        {mode === "daily" ? (
+          <HorizonField value={horizonMonths} onChange={setHorizonMonths} />
+        ) : (
+          <PeriodPicker
+            options={options}
+            value={effectivePeriod}
+            onChange={setPeriod}
+          />
+        )}
 
         <p className="rounded-card bg-black/[0.04] dark:bg-white/5 px-4 py-3 text-xs leading-5 text-black/50 dark:text-white/55">
-          Depozit qazancı müddətin sonunda hesablanır. Vaxtından əvvəl çıxarış
-          zamanı faiz tətbiq olunmur.
+          {mode === "daily" ? (
+            <>
+              Faiz hər gün hesablanır və növbəti gün balansa əlavə olunur.
+              Pulu istənilən vaxt çıxara bilərsən — qazanılmış faiz itmir.
+            </>
+          ) : (
+            <>
+              Depozit qazancı müddətin sonunda hesablanır. Vaxtından əvvəl
+              çıxarış zamanı faiz tətbiq olunmur.
+            </>
+          )}
         </p>
       </div>
 
@@ -201,7 +338,7 @@ export function IsmayilBankDepositCalculator({
           composition, with the gain called out as its own chip. */}
       <div className="rounded-card bg-[linear-gradient(160deg,#16a34a_0%,#15803d_100%)] p-6 text-white sm:p-7">
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
-          Müddət sonu məbləğ
+          {mode === "daily" ? "Dövr sonu məbləğ (proqnoz)" : "Müddət sonu məbləğ"}
         </p>
         <p className="num mt-2 text-[2.4rem] font-semibold leading-none tracking-[-0.04em] sm:text-[2.8rem]">
           {formatMoney(maturityAmount)}
@@ -213,11 +350,36 @@ export function IsmayilBankDepositCalculator({
         <div className="mt-6 space-y-3 border-t border-white/15 pt-5">
           <SummaryRow label="Əsas məbləğ" value={formatMoney(amount)} />
           <SummaryRow label="Qazanc" value={formatMoney(gainAmount)} />
-          <SummaryRow label="İllik gəlir" value={formatRate(annualRate)} />
+          {mode === "daily" ? (
+            <>
+              <SummaryRow
+                label="İllik effektiv"
+                value={formatRate(DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT)}
+              />
+              {perDayAzn != null ? (
+                <SummaryRow
+                  label="Gündəlik faiz"
+                  value={`≈ +${formatMoney(perDayAzn)}`}
+                />
+              ) : null}
+            </>
+          ) : (
+            <SummaryRow label="İllik gəlir" value={formatRate(annualRate)} />
+          )}
         </div>
 
         <p className="mt-5 text-[11px] leading-5 text-white/60">
-          Hesablama illik gəlirin müddətə proporsional bölünməsi ilə aparılır.
+          {mode === "daily" ? (
+            <>
+              Hesablama günlük mürəkkəb faizlə aparılır — hər günün faizi
+              növbəti gündən özü də faiz qazanır.
+            </>
+          ) : (
+            <>
+              Hesablama illik gəlirin müddətə proporsional bölünməsi ilə
+              aparılır.
+            </>
+          )}
         </p>
       </div>
     </div>

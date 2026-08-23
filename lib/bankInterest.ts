@@ -8,7 +8,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Sheet deposit. Accrual is lazy: the /bank render calls the RPC, which
 // back-fills any missed days (bounded) and is idempotent per (user, day).
 
-export const INTEREST_EFFECTIVE_ANNUAL_PCT = 10;
+import { DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT } from "@/lib/bankTermsData";
+
+export const INTEREST_EFFECTIVE_ANNUAL_PCT = DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT;
 
 export type BankInterestState = {
   /** false when the table isn't reachable (migration not applied, outage) —
