@@ -47,6 +47,11 @@ function prevDayIso(iso: string): string {
  * interest state. The RPC needs the Sheet deposit as its base — Postgres
  * can't see the Sheet — and both the call and the read happen in one round
  * so today's credit shows on the very render that created it.
+ *
+ * Only ON-DEMAND deposits accrue: a Sheet row with a term product (rate /
+ * müddət filled) is governed by its own contract, so the caller uses
+ * getBankInterestState instead — the differentiation lives entirely in
+ * whether İsmayıl fills those cells.
  */
 export async function accrueAndGetBankInterest(
   supabase: SupabaseClient,
@@ -63,7 +68,19 @@ export async function accrueAndGetBankInterest(
     console.error("[bank-interest] accrual failed:", accrueError);
     // Fall through: stale rows still beat no rows.
   }
+  return getBankInterestState(supabase, userId, now);
+}
 
+/**
+ * Read-only state — for term-deposit accounts, which accrue nothing new
+ * but may still hold (and must still display) unsettled interest from
+ * their on-demand days.
+ */
+export async function getBankInterestState(
+  supabase: SupabaseClient,
+  userId: string,
+  now = new Date(),
+): Promise<BankInterestState> {
   const { data, error } = await supabase
     .from("bank_interest_accruals")
     .select("accrual_date, amount_azn, settled_at")

@@ -42,6 +42,7 @@ import {
 import { BankInterestAdminCard } from "@/components/BankInterestAdminCard";
 import {
   accrueAndGetBankInterest,
+  getBankInterestState,
   getBankInterestTotals,
   type BankInterestHolderTotal,
   type BankInterestState,
@@ -338,10 +339,20 @@ export default async function BankPage({
   const isAdmin = supabase
     ? (await supabase.rpc("is_fund_admin")).data === true
     : false;
+  // The Sheet row differentiates the two deposit products: filled term
+  // cells (rate / müddət) mean a TERM deposit governed by its own contract
+  // — no daily accrual; empty ones mean the on-demand deposit earning the
+  // standing daily 10% effective annual.
+  const hasTermProduct =
+    account != null &&
+    ((account.termMonths != null && account.termMonths > 0) ||
+      (account.annualRatePct != null && account.annualRatePct > 0));
+
   // Günlük mükafat + günlük faiz in one round: today's claim state, the
   // interest accrual (lazy — the RPC back-fills any missed Baku days on
-  // this very render, so "everyday" needs no cron) and, admin only, both
-  // settlement totals. Everything degrades to "no card" when the
+  // this very render, so "everyday" needs no cron; term-deposit accounts
+  // only READ leftover unsettled interest, never accrue) and, admin only,
+  // both settlement totals. Everything degrades to "no card" when the
   // migrations aren't applied yet.
   const [rewardState, rewardTotals, interestState, interestTotals] = supabase
     ? await Promise.all([
@@ -350,12 +361,14 @@ export default async function BankPage({
           ? getDailyRewardTotals(supabase)
           : Promise.resolve([] as DailyRewardHolderTotal[]),
         account
-          ? accrueAndGetBankInterest(
-              supabase,
-              user.id,
-              account.name,
-              account.depositedAzn,
-            )
+          ? hasTermProduct
+            ? getBankInterestState(supabase, user.id)
+            : accrueAndGetBankInterest(
+                supabase,
+                user.id,
+                account.name,
+                account.depositedAzn,
+              )
           : Promise.resolve(null as BankInterestState | null),
         isAdmin
           ? getBankInterestTotals(supabase)
