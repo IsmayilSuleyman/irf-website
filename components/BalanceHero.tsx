@@ -157,19 +157,21 @@ export function BalanceHero({
     (maturityEndAmount != null && maturityEndAmount !== depositedAzn) ||
     maturityDateLabel != null;
 
-  const depositNote = (
+  // Two products, two notes: a term deposit (Sheet term cells filled) pays
+  // its whole interest at maturity and accrues nothing daily; an on-demand
+  // deposit earns the standing daily 10% effective annual.
+  const depositNote = hasTierMeta ? (
+    <>
+      Bu müddətli depozitdir: faiz yalnız müddətin sonunda
+      {maturityDateLabel ? ` (${maturityDateLabel})` : ""} ödənilir —
+      vaxtından əvvəl çıxarılan depozitlərə faiz gəliri verilmir. Müddətli
+      depozitə günlük faiz hesablanmır.
+    </>
+  ) : (
     <>
       Depozitə hər Bakı günü faiz hesablanır — illik effektiv 10%. Hər günün
       faizi növbəti gün balansa əlavə olunur və İsmayıl onu Sheet depozitinə
       köçürənədək «hesablaşılmamış» sayılır.
-      {hasTierMeta ? (
-        <>
-          {" "}
-          Müddətli depozitin bonusu isə yalnız müddətin sonunda
-          {maturityDateLabel ? ` (${maturityDateLabel})` : ""} ödənilir —
-          vaxtından əvvəl çıxarılan depozitlərə bonus verilmir.
-        </>
-      ) : null}
     </>
   );
 
@@ -216,26 +218,40 @@ export function BalanceHero({
           daxil
         </>
       ) : null}
-      {/* The daily-interest product line is always present — it IS the
-          deposit's standing offer; the amounts join once they round to a
-          visible qəpik. */}
-      {hasTierMeta || rewardAzn > 0 ? " · " : null}
-      günlük faiz (illik effektiv 10%)
-      {interestAzn >= 0.005 ? (
+      {/* The daily-interest line: on an ON-DEMAND deposit (no term cells in
+          the Sheet) it is the standing offer; a TERM deposit is governed by
+          its own contract and only shows leftover unsettled interest from
+          its on-demand days. Amounts join once they round to a visible
+          qəpik. */}
+      {!hasTierMeta ? (
         <>
-          {" — "}
+          {rewardAzn > 0 ? " · " : null}
+          günlük faiz (illik effektiv 10%)
+          {interestAzn >= 0.005 ? (
+            <>
+              {" — "}
+              <span className="num font-semibold text-status-paid dark:text-emerald-400">
+                {formatAmount(interestAzn)} ₼
+              </span>{" "}
+              daxil
+            </>
+          ) : null}
+          {interestTodayAzn >= 0.005 ? (
+            <>
+              , bu gün{" "}
+              <span className="num font-semibold text-status-paid dark:text-emerald-400">
+                +{formatGrouped(interestTodayAzn, 2)} ₼
+              </span>
+            </>
+          ) : null}
+        </>
+      ) : interestAzn >= 0.005 ? (
+        <>
+          {" · "}hesablanmış günlük faiz{" "}
           <span className="num font-semibold text-status-paid dark:text-emerald-400">
             {formatAmount(interestAzn)} ₼
           </span>{" "}
           daxil
-        </>
-      ) : null}
-      {interestTodayAzn >= 0.005 ? (
-        <>
-          , bu gün{" "}
-          <span className="num font-semibold text-status-paid dark:text-emerald-400">
-            +{formatGrouped(interestTodayAzn, 2)} ₼
-          </span>
         </>
       ) : null}
     </>

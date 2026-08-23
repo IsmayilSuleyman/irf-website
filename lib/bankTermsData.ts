@@ -6,6 +6,12 @@
 
 export type ProductTerm = { termMonths: number; annualRatePct: number };
 
+// The on-demand deposit's standing rate: 10% EFFECTIVE annual, accrued
+// daily (the daily rate is the 365th root — see lib/bankInterest and the
+// accrue_bank_interest RPC, which hardcodes the same 1.10). Lives here so
+// the public calculator can import it without dragging server code.
+export const DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT = 10;
+
 export type BankProductTerms = {
   deposit: ProductTerm[];
   credit: ProductTerm[];
