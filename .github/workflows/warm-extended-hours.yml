@@ -1,0 +1,39 @@
+# Keeps the extended-hours pipeline warm while nobody is browsing: during
+# the US pre- and after-market windows this pings /api/extended-hours every
+# 10 minutes, which refreshes the Watchlist's Yahoo pre/post columns (and
+# keeps the quote path exercised) so the first family member to open the
+# portal after a quiet stretch sees a current fold, not a cold cache.
+#
+# Setup (one time): add the repository secret IRF_CRON_SECRET with the same
+# value as the Vercel CRON_SECRET env var. Without it every run is a no-op
+# that succeeds quietly.
+name: Warm extended-hours quotes
+
+on:
+  schedule:
+    # Windows in UTC, wide enough to cover both EDT and EST:
+    # pre-market 04:00–09:30 ET → 08:00–14:30 UTC.
+    - cron: "*/10 8-14 * * 1-5"
+    # after-market 16:00–20:00 ET → 20:00–24:00 UTC (winter tail below).
+    - cron: "*/10 20-23 * * 1-5"
+    # winter (EST) after-market tail: 00:00–01:00 UTC lands on the NEXT
+    # calendar day, hence Tue–Sat.
+    - cron: "*/10 0 * * 2-6"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /api/extended-hours
+        env:
+          CRON_SECRET: ${{ secrets.IRF_CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "IRF_CRON_SECRET not set — skipping (add it to enable warming)."
+            exit 0
+          fi
+          curl -sS -m 60 -o /dev/null -w "HTTP %{http_code}\n" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://ismayilrifahfondu-six.vercel.app/api/extended-hours"

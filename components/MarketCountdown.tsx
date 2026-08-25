@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { nextUsMarketTransition } from "@/lib/marketHours";
+import { currentUsSession, nextUsMarketTransition } from "@/lib/marketHours";
 import { RefreshTimer } from "@/components/RefreshTimer";
 import { SessionHistoryChart } from "@/components/SessionHistoryChartLazy";
 import { latestSessionTail, type SessionHistoryPoint } from "@/lib/sessionHistory";
@@ -50,6 +50,15 @@ export function MarketCountdown({
 
   const { open: marketOpen, at } = nextUsMarketTransition(now);
   const remaining = at.getTime() - now.getTime();
+  // "Bağlıdır" alone would sit next to visibly moving numbers — name the
+  // extended session that's actually driving them.
+  const session = marketOpen ? null : currentUsSession(now);
+  const closedLabel =
+    session === "pre"
+      ? "ABŞ bazarları bağlıdır · Premarket"
+      : session === "post"
+        ? "ABŞ bazarları bağlıdır · After-market"
+        : "ABŞ bazarları bağlıdır · Gecə seansı";
   const hasHistory = history != null;
   // Daily = the newest contiguous session (8h window fits the 6.5h regular
   // session); weekly = every recorded intraday point of the last 7 days,
@@ -68,7 +77,7 @@ export function MarketCountdown({
     >
       <RefreshTimer />
       <span className={marketOpen ? "text-brand-green dark:text-emerald-400" : "text-black/45 dark:text-white/50"}>
-        {marketOpen ? "ABŞ bazarları açıqdır" : "ABŞ bazarları bağlıdır"}
+        {marketOpen ? "ABŞ bazarları açıqdır" : closedLabel}
       </span>
       <span className="text-black/20 dark:text-white/30">·</span>
       <span className="text-black/45 dark:text-white/50">

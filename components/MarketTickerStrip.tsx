@@ -311,6 +311,16 @@ export function MarketTickerStrip({
             price={`${formatGrouped(q.price, 2)}$`}
             changePct={q.changePct}
             icon={ASSET_ICONS[q.key]}
+            sessionIcon={
+              q.sessionMode ? (
+                <span
+                  className={`inline-flex shrink-0 ${EXTENDED_META[q.sessionMode].iconTint}`}
+                  title={`${EXTENDED_META[q.sessionMode].label} — ETF proksisi ilə`}
+                >
+                  {EXTENDED_META[q.sessionMode].icon}
+                </span>
+              ) : undefined
+            }
             spark={q.spark}
             sparkId={q.key}
             expandable={assets?.[q.key] != null || INFO_TILES[q.key] != null}

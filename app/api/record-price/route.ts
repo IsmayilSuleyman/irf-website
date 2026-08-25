@@ -67,13 +67,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Piggybacked weekly momentum snapshot: this cron fires daily at 20:00
-    // UTC = 00:00 Baku, so the run whose Baku date is a Monday is the very
-    // first moment of the Baku week — US markets have been closed since
-    // Friday, making the sample a deterministic Friday close instead of
-    // "whenever the admin first opened the dashboard". Both Vercel cron
-    // slots are taken, hence the ride-along. Its failure never fails the
-    // price record.
+    // Piggybacked weekly momentum snapshot: this cron fires daily at 21:30
+    // UTC = 01:30 Baku — after the US close in BOTH winter (21:00 UTC) and
+    // summer (20:00 UTC), so every row holds the settled close, and still
+    // early in the Baku day so the row labeled D keeps meaning "the close
+    // before session D" for the day-change reference. The run whose Baku
+    // date is a Monday is the start of the Baku week — US markets have been
+    // closed since Friday, making the sample a deterministic Friday close
+    // instead of "whenever the admin first opened the dashboard". Both
+    // Vercel cron slots are taken, hence the ride-along. Its failure never
+    // fails the price record.
     let momentumWeek: SnapshotRunResult | null = null;
     const bakuWeekday = now.toLocaleDateString("en-US", {
       weekday: "short",

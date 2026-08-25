@@ -86,7 +86,7 @@ const num = (v: unknown) => {
  * read leaves the last-synced price in place rather than breaking the page.
  * The value comes from the trusted server; the RPC is secret-gated server-side.
  */
-async function refreshUnitPriceFromSheet(supabase: SupabaseClient): Promise<void> {
+export async function refreshUnitPriceFromSheet(supabase: SupabaseClient): Promise<void> {
   const secret = process.env.MARKET_REFRESH_SECRET;
   if (!secret) return;
   try {

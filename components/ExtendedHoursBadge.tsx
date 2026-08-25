@@ -30,6 +30,15 @@ const SCOPE_VALUE_LABEL: Record<"fund" | "personal", string> = {
   personal: "İRF payınızın dəyəri",
 };
 
+// Baku wall-clock of an epoch instant — fixed UTC+4, manual math (no Intl
+// in client renders, the hydration rule). Overnight and weekend folds can
+// be hours old; the popover says exactly how old.
+function bakuClock(ms: number): string {
+  const d = new Date(ms + 4 * 3_600_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} (Bakı)`;
+}
+
 // Chart line follows the DATA's session (post data stays purple even when
 // hovered from the Gecə badge).
 const LINE_COLOR: Record<"pre" | "post" | "regular", string> = {
@@ -160,6 +169,7 @@ export function ExtendedHoursBadge({
           <p className="mt-0.5 text-[10px] leading-4 text-black/45 dark:text-white/50">
             Portfel {meta.tooltip} · {data.coveredCount}/{data.totalCount} mövqe
             {showDelta ? ` · ${SCOPE_TOOLTIP[scope]}` : ""}
+            {data.asOfMs != null ? ` · kotirovka ${bakuClock(data.asOfMs)}` : ""}
           </p>
 
           {extra ? (

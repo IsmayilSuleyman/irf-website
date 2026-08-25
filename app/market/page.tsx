@@ -5,6 +5,7 @@ import { formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
 import { MotionSection } from "@/components/MotionSection";
 import { PriceBadge } from "@/components/PriceBadge";
+import { MarketCountdown } from "@/components/MarketCountdown";
 import { OrderTicket } from "@/components/market/OrderTicket";
 import { OrderBook } from "@/components/market/OrderBook";
 import { MyOrders } from "@/components/market/MyOrders";
@@ -54,6 +55,17 @@ export default async function MarketPage() {
           </div>
           <div className="lg:col-span-1">
             <PriceBadge current={data.status.unit_price} ask={quotes.ask} bid={quotes.bid} />
+            {/* Pricing-basis disclosure + the session-aware market chip with
+                its auto-refresh ring: the dashboard may show a livelier
+                extended price, but ORDERS execute at the Sheet's official
+                NAV — say so where the ticket is. */}
+            <div className="mt-2 flex flex-col items-start gap-1.5 lg:items-end">
+              <MarketCountdown compact />
+              <p className="text-[11px] leading-4 text-black/45 dark:text-white/50 lg:text-right">
+                Sifarişlər cədvəldəki rəsmi pay qiyməti ilə icra olunur —
+                seans (premarket/gecə) qiyməti ilə deyil.
+              </p>
+            </div>
           </div>
         </MotionSection>
 

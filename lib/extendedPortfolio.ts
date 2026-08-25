@@ -57,6 +57,9 @@ export type ExtendedPortfolio = {
   /** How many holdings actually had an extended-hours price. */
   coveredCount: number;
   totalCount: number;
+  /** Newest print time among the quotes used (epoch ms) — the honest
+   *  "as of" for a fold that may be hours old on a weekend. */
+  asOfMs: number | null;
   /**
    * Per-holding extended quotes for the Fond Portfeli list, keyed by the
    * holding's own symbol upper-cased (the key AllocationList derives), so
@@ -105,10 +108,12 @@ export function computeExtendedPortfolio(
 
   // Overnight the freshest extended print is the after-market close.
   const useField = expected === "pre" ? "preMarketPrice" : "postMarketPrice";
+  const timeField = expected === "pre" ? "preMarketTimeMs" : "postMarketTimeMs";
 
   let valueBase = 0;
   let valueExt = 0;
   let coveredCount = 0;
+  let asOfMs: number | null = null;
   const perSymbol: Record<string, ExtendedSymbolQuote> = {};
   for (const h of stocks) {
     const q = bySymbol.get(toYahooSymbol(h.symbol));
@@ -119,6 +124,8 @@ export function computeExtendedPortfolio(
     valueExt += h.sharesHeld * (ext ?? base);
     if (ext != null) {
       coveredCount += 1;
+      const t = q?.[timeField];
+      if (t != null && (asOfMs == null || t > asOfMs)) asOfMs = t;
       perSymbol[h.symbol.trim().toUpperCase()] = {
         priceUsd: ext,
         changePct: ext / base - 1,
@@ -134,6 +141,7 @@ export function computeExtendedPortfolio(
     deltaAzn: (valueExt - valueBase) * USD_TO_AZN,
     coveredCount,
     totalCount: stocks.length,
+    asOfMs,
     perSymbol,
   };
 }

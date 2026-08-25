@@ -641,6 +641,34 @@ export default async function DashboardPage({
       ? (holdingPnl ?? 0) + etfPnlAzn
       : null;
 
+  // The plotted line ends at the last recorded close while the headline
+  // above breathes — a dashed "İndi" tail point reconciles them
+  // (Yahoo-style). Appended only when there is an actual live read; the
+  // chart excludes it from the Zirvə search.
+  const hasLiveRead = extendedPortfolio != null || regularPortfolio != null;
+  const nowIso = new Date().toISOString();
+  const lastBook = bookChartData[bookChartData.length - 1];
+  const bookChartLive =
+    hasLiveRead && lastBook != null
+      ? [
+          ...bookChartData,
+          {
+            ...lastBook,
+            label: "İndi",
+            date: nowIso,
+            value: bookValue + liveDeltaMineAzn,
+            live: true,
+          },
+        ]
+      : bookChartData;
+  const priceChartLive =
+    hasLiveRead && priceChartData.length > 0
+      ? [
+          ...priceChartData,
+          { label: "İndi", date: nowIso, value: unitPriceLiveAzn, live: true },
+        ]
+      : priceChartData;
+
   // The chart headline's right-edge cluster: the extended-hours badge (when
   // a session is live) next to the hide-amounts eye. Personal view only —
   // the fund view keeps both in its own rows.
@@ -706,7 +734,9 @@ export default async function DashboardPage({
                 // Unit-price history stands in for an intraday line — the
                 // pay reprices daily, so its "movement" is the last stretch
                 // of recorded prices.
-                spark: priceChartData.slice(-30).map((p) => p.value),
+                // The live tail point rides along, so the glowing line ends
+                // at the price the tile displays.
+                spark: priceChartLive.slice(-30).map((p) => p.value),
               }}
               assets={tileAssets}
               showBuyHint={!isAdmin}
@@ -796,8 +826,9 @@ export default async function DashboardPage({
           <>
             <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-11">
               <PerformanceChart
-                data={bookChartData}
-                priceData={priceChartData}
+                data={bookChartLive}
+                priceData={priceChartLive}
+                sessionMode={extendedPortfolio?.mode ?? null}
                 events={chartEvents}
                 hero={
                   <ChartSummary
