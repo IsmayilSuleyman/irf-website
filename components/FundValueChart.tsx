@@ -190,10 +190,10 @@ export function FundValueChart({
                       boxShadow: "0 8px 30px -12px rgba(0,0,0,0.3)",
                     }}
                   >
-                    <p className="text-[11px] text-black/50">
+                    <p className="text-[11px] text-black/50 dark:text-white/55">
                       {bakuDate(p.ts)}, {bakuTime(p.ts)}
                     </p>
-                    <p className="num mt-1 font-semibold text-black">
+                    <p className="num mt-1 font-semibold text-black dark:text-white/90">
                       {fmt(p.value)}
                     </p>
                   </div>
