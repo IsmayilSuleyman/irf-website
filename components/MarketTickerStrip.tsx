@@ -9,6 +9,8 @@ import {
 } from "@/lib/portfolio";
 import { Masked } from "@/components/Masked";
 import { ASSET_ICONS } from "@/components/assetIcons";
+import { EXTENDED_META } from "@/components/extendedHoursMeta";
+import type { ExtendedMode as ExtendedModeKey } from "@/lib/marketHours";
 import type { HistoryPoint, TickerQuote } from "@/lib/marketTicker";
 
 // The Yahoo-Finance-style ticker card under the dashboard greeting: the
@@ -161,6 +163,7 @@ function Tile({
   price,
   changePct,
   icon,
+  sessionIcon,
   spark,
   sparkId,
   expandable = false,
@@ -171,6 +174,9 @@ function Tile({
   price: string;
   changePct: number | null;
   icon?: ReactNode;
+  /** Session glyph (moon/sunrise/sunset) beside the % — the figure carries
+   *  an extended-hours move. */
+  sessionIcon?: ReactNode;
   spark?: number[];
   sparkId: string;
   expandable?: boolean;
@@ -196,9 +202,10 @@ function Tile({
         {price}
       </div>
       <div
-        className={`num tile-figure relative mt-0.5 text-[10px] font-semibold ${toneOf(changePct)}`}
+        className={`num tile-figure relative mt-0.5 flex items-center gap-1 text-[10px] font-semibold ${toneOf(changePct)}`}
       >
         {changePct == null ? "—" : fmtPct(changePct)}
+        {sessionIcon}
       </div>
     </>
   );
@@ -239,8 +246,14 @@ export function MarketTickerStrip({
   showBuyHint = true,
 }: {
   quotes: TickerQuote[];
-  /** The fund's own tile: unit price in AZN + its day change + price history sparkline. */
-  irf: { priceAzn: number; changePct: number | null; spark?: number[] };
+  /** The fund's own tile: unit price in AZN + its day change + price history
+   *  sparkline, plus the extended session folded into the price, if any. */
+  irf: {
+    priceAzn: number;
+    changePct: number | null;
+    spark?: number[];
+    sessionMode?: ExtendedModeKey | null;
+  };
   /** The countdown / extended-hours chips row rendered below the tiles. */
   statusRow?: ReactNode;
   /** Purchasable-ETF info per instrument key; tiles without one stay static. */
@@ -298,6 +311,16 @@ export function MarketTickerStrip({
             price={`${formatGrouped(q.price, 2)}$`}
             changePct={q.changePct}
             icon={ASSET_ICONS[q.key]}
+            sessionIcon={
+              q.sessionMode ? (
+                <span
+                  className={`inline-flex shrink-0 ${EXTENDED_META[q.sessionMode].iconTint}`}
+                  title={`${EXTENDED_META[q.sessionMode].label} — ETF proksisi ilə`}
+                >
+                  {EXTENDED_META[q.sessionMode].icon}
+                </span>
+              ) : undefined
+            }
             spark={q.spark}
             sparkId={q.key}
             expandable={assets?.[q.key] != null || INFO_TILES[q.key] != null}
@@ -312,6 +335,16 @@ export function MarketTickerStrip({
           price={`${formatGrouped(irf.priceAzn, 2)}₼`}
           changePct={irf.changePct}
           icon={ASSET_ICONS.irf}
+          sessionIcon={
+            irf.sessionMode ? (
+              <span
+                className={`inline-flex shrink-0 ${EXTENDED_META[irf.sessionMode].iconTint}`}
+                title={EXTENDED_META[irf.sessionMode].label}
+              >
+                {EXTENDED_META[irf.sessionMode].icon}
+              </span>
+            ) : undefined
+          }
           spark={irf.spark}
           sparkId="irf"
         />

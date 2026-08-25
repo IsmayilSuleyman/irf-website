@@ -4,6 +4,8 @@ import {
   getExtendedQuotes,
   getIntradaySpark,
 } from "@/lib/yahoo";
+import type { ExtendedMode } from "@/lib/marketHours";
+import { effectiveSessionMode, sessionPriceOf } from "@/lib/sessionPricing";
 
 // The dashboard's Yahoo-style ticker strip: a fixed basket of world
 // benchmarks shown next to the fund's own unit price. Brent is the oil
@@ -24,6 +26,10 @@ export type TickerQuote = {
   changePct: number | null;
   /** The latest session's intraday closes, for the tile sparkline. */
   spark: number[];
+  /** The extended session baked into price/changePct via an ETF proxy
+   *  (SPY/QQQ for the cash indices, which don't trade off-hours) — the
+   *  tile shows the session glyph when set. */
+  sessionMode?: ExtendedMode | null;
   // NOTE: the 5-year dated history deliberately does NOT ride this payload.
   // Six instruments × ~420 points ≈ 80KB of RSC on every dashboard render;
   // the panel fetches /api/ticker-history on first expand instead.
@@ -75,6 +81,14 @@ const INSTRUMENTS = [
   { key: "oil", label: "Neft", symbol: "BZ=F" },
 ] as const;
 
+// The cash indices freeze outside regular hours (crypto trades 24/7 and the
+// futures nearly 24/5) — their tiles ride the pre/post move of the liquid
+// ETF twin instead, applied as a percentage on top of the index level.
+const EXT_PROXIES: Record<string, string> = {
+  "^GSPC": "SPY",
+  "^NDX": "QQQ",
+};
+
 // One shared 60s cache of the basket — public market data, same for every
 // viewer (same recipe as the extended-portfolio quote cache).
 const getCachedTicker = unstable_cache(
@@ -82,27 +96,48 @@ const getCachedTicker = unstable_cache(
     // Quotes and intraday sparks in one parallel pass; a failed series is
     // just an empty line, never a missing tile.
     const [quotes, sparks] = await Promise.all([
-      getExtendedQuotes(INSTRUMENTS.map((i) => i.symbol)),
+      getExtendedQuotes([
+        ...INSTRUMENTS.map((i) => i.symbol),
+        ...Object.values(EXT_PROXIES),
+      ]),
       Promise.all(INSTRUMENTS.map((i) => getIntradaySpark(i.symbol))),
     ]);
+    // The proxies' own marketState decides whether an extended window is
+    // actually printing (the same guard the İRF fold uses).
+    const proxyQuotes = Object.values(EXT_PROXIES)
+      .map((s) => quotes.get(s))
+      .filter((q) => q != null);
+    const mode = effectiveSessionMode(proxyQuotes);
     const out: TickerQuote[] = [];
     INSTRUMENTS.forEach((inst, i) => {
       const q = quotes.get(inst.symbol);
       const price = q?.regularMarketPrice;
       if (price == null || price <= 0) return;
       const prev = q?.regularMarketPreviousClose;
+      let livePrice = price;
+      let sessionMode: ExtendedMode | null = null;
+      const proxySymbol = EXT_PROXIES[inst.symbol];
+      const proxy = proxySymbol != null ? quotes.get(proxySymbol) : undefined;
+      if (mode != null && proxy?.regularMarketPrice != null) {
+        const ext = sessionPriceOf(proxy, mode);
+        if (ext != null && proxy.regularMarketPrice > 0) {
+          livePrice = price * (ext / proxy.regularMarketPrice);
+          sessionMode = mode;
+        }
+      }
       out.push({
         key: inst.key,
         label: inst.label,
-        price,
-        changePct: prev != null && prev > 0 ? price / prev - 1 : null,
+        price: livePrice,
+        changePct: prev != null && prev > 0 ? livePrice / prev - 1 : null,
         spark: sparks[i] ?? [],
+        sessionMode,
       });
     });
     return out;
   },
-  // v4: 5y histories moved to the on-demand /api/ticker-history route.
-  ["market-ticker-quotes-v4"],
+  // v5: index tiles carry the ETF-proxied extended session (+sessionMode).
+  ["market-ticker-quotes-v5"],
   { revalidate: 60 },
 );
 

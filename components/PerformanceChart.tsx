@@ -26,6 +26,10 @@ type Point = {
   /** The ETF book's slice of `invested` at this date, so the tooltip can
    *  split Maya dəyəri the same way it splits Dəyər. */
   otherInvested?: number;
+  /** A provisional "right now" point (the live session price the headline
+   *  shows) — plotted as a dashed tail with a pulsing dot, excluded from
+   *  the Zirvə search so a session print can't mint an all-time high. */
+  live?: boolean;
 };
 
 /** A holder's own İRF transaction, for the ▲/▼ markers on the value line. */
@@ -86,7 +90,58 @@ type TimedPoint = Point & {
   ts: number;
   gainBand: [number, number] | null;
   lossBand: [number, number] | null;
+  /** The solid line's series: every recorded point, null at the live tail. */
+  valueSolid: number | null;
+  /** The dashed tail's series: the last recorded point + the live point. */
+  valueLive: number | null;
 };
+
+// The dashed tail wears the session's identity color (EXTENDED_META tints);
+// during regular hours it stays the line's own green.
+const LIVE_STROKE: Record<string, string> = {
+  pre: "#f59e0b",
+  post: "#a855f7",
+  overnight: "#3b82f6",
+};
+
+function LiveDot({
+  cx,
+  cy,
+  color,
+}: {
+  cx?: number;
+  cy?: number;
+  color?: string;
+}) {
+  if (cx == null || cy == null) return null;
+  const c = color ?? GREEN;
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={4} fill={c} stroke="#fff" strokeWidth={1.5}>
+        <animate
+          attributeName="opacity"
+          values="1;0.55;1"
+          dur="1.6s"
+          repeatCount="indefinite"
+        />
+      </circle>
+      <circle cx={cx} cy={cy} r={4} fill="none" stroke={c} strokeWidth={1.5}>
+        <animate
+          attributeName="r"
+          values="4;9"
+          dur="1.6s"
+          repeatCount="indefinite"
+        />
+        <animate
+          attributeName="opacity"
+          values="0.6;0"
+          dur="1.6s"
+          repeatCount="indefinite"
+        />
+      </circle>
+    </g>
+  );
+}
 
 type Marker = {
   ts: number;
@@ -133,6 +188,7 @@ export function PerformanceChart({
   data,
   priceData,
   events,
+  sessionMode = null,
   hero,
   priceHero,
 }: {
@@ -141,6 +197,9 @@ export function PerformanceChart({
   /** The holder's own buys/sells — rendered as ▲/▼ markers in value mode so
    *  contribution jumps never masquerade as market moves. */
   events?: ChartEvent[];
+  /** The extended session behind the live tail point, if any — colors the
+   *  dashed segment and its pulsing dot. */
+  sessionMode?: "pre" | "post" | "overnight" | null;
   /**
    * Optional summary block (headline figure + change lines) rendered inside
    * the card between the header and the plot — the Yahoo-app "portfolio
@@ -216,8 +275,12 @@ export function PerformanceChart({
       }
     }
 
-    return withCrossings.map((p) => {
-      const inv = showInvested ? (p.invested ?? null) : null;
+    const liveIdx = withCrossings.findIndex((p) => (p as Point).live);
+    return withCrossings.map((p, i) => {
+      // The live tail carries no P&L band — the recorded basis story ends
+      // at the last recorded point.
+      const inv =
+        showInvested && !(p as Point).live ? (p.invested ?? null) : null;
       // Bands as [low, high] range areas, continuous (zero-height on the
       // inactive side) so the fills never break; the crossing points
       // inserted above pinch each band to nothing exactly at the line.
@@ -225,6 +288,11 @@ export function PerformanceChart({
         ...p,
         gainBand: inv != null ? [inv, Math.max(inv, p.value)] : null,
         lossBand: inv != null ? [Math.min(inv, p.value), inv] : null,
+        valueSolid: (p as Point).live ? null : p.value,
+        valueLive:
+          liveIdx >= 0 && (i === liveIdx || i === liveIdx - 1)
+            ? p.value
+            : null,
       } as TimedPoint;
     });
   }, [filtered, showInvested]);
@@ -248,9 +316,14 @@ export function PerformanceChart({
 
   // The window's peak — ringed on the plot ("Zirvə" in the key). When the
   // peak IS the newest point, the ring replaces the plain last-point dot.
+  // The live tail never competes: a provisional session print must not
+  // mint an all-time high.
   const ath = useMemo(() => {
     let best: TimedPoint | null = null;
-    for (const p of timed) if (best == null || p.value > best.value) best = p;
+    for (const p of timed) {
+      if (p.live) continue;
+      if (best == null || p.value > best.value) best = p;
+    }
     return best;
   }, [timed]);
 
@@ -407,7 +480,9 @@ export function PerformanceChart({
           boxShadow: "0 8px 30px -12px rgba(0,0,0,0.3)",
         }}
       >
-        <p className="text-[11px] text-black/50 dark:text-white/50">{tooltipDate(p.ts)}</p>
+        <p className="text-[11px] text-black/50 dark:text-white/50">
+          {p.live ? "İndi — seans qiyməti" : tooltipDate(p.ts)}
+        </p>
         <div className="mt-1.5 space-y-1">
           <p className="flex items-center justify-between gap-6">
             <span className="flex items-center gap-1.5 text-black/60 dark:text-white/65">
@@ -642,11 +717,23 @@ export function PerformanceChart({
                 ]}
               <Line
                 type="monotone"
-                dataKey="value"
+                dataKey="valueSolid"
                 stroke={GREEN}
                 strokeWidth={2.5}
                 dot={false}
                 activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
+              />
+              {/* Dashed live tail: last recorded close → the session price
+                  the headline shows, in the session's identity color. */}
+              <Line
+                type="linear"
+                dataKey="valueLive"
+                stroke={sessionMode ? LIVE_STROKE[sessionMode] : GREEN}
+                strokeWidth={2}
+                strokeDasharray="4 3"
+                dot={false}
+                activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
+                isAnimationActive={false}
               />
               {showInvested && (
                 <Line
@@ -672,7 +759,18 @@ export function PerformanceChart({
               {ath && (
                 <ReferenceDot x={ath.ts} y={ath.value} shape={<AthDot />} />
               )}
-              {last && (!ath || ath.ts !== last.ts) && (
+              {last && last.live && (
+                <ReferenceDot
+                  x={last.ts}
+                  y={last.value}
+                  shape={
+                    <LiveDot
+                      color={sessionMode ? LIVE_STROKE[sessionMode] : GREEN}
+                    />
+                  }
+                />
+              )}
+              {last && !last.live && (!ath || ath.ts !== last.ts) && (
                 <ReferenceDot
                   x={last.ts}
                   y={last.value}

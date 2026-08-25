@@ -22,7 +22,7 @@ import { AssetHoldingsCard } from "@/components/AssetHoldingsCard";
 import {
   getPriceHistory,
   computePeriodChanges,
-  findLatestPriceBeforeDate,
+  dayChangeReference,
 } from "@/lib/priceHistory";
 import { getHolderMarketState } from "@/lib/holdings";
 import { parseSheetDateMs } from "@/lib/sheetDates";
@@ -64,6 +64,8 @@ import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule"
 import { after } from "next/server";
 import { refreshExtendedHours } from "@/lib/watchlistExtended";
 import {
+  currentUsRegularSession,
+  currentUsSession,
   getExtendedHistory,
   getExtendedPortfolio,
   getRegularHistory,
@@ -72,7 +74,10 @@ import {
   type SessionHistoryPoint,
 } from "@/lib/extendedPortfolio";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ExtendedHoursBadge } from "@/components/ExtendedHoursBadge";
+import {
+  ExtendedHoursBadge,
+  ExtendedHoursPlaceholder,
+} from "@/components/ExtendedHoursBadge";
 import { buildMomentumItems, getSpyReferences } from "@/lib/momentumData";
 import {
   DEFAULT_WEIGHTS,
@@ -172,15 +177,17 @@ export default async function DashboardPage({
   // countdown chart.
   const extendedAndHistory = (async () => {
     const extendedPortfolio = await getExtendedPortfolio(holdings);
+    // During regular hours the same fold rides live regular quotes instead
+    // — the Sheet's GOOGLEFINANCE runs ~15-20 min behind the market.
+    const regularPortfolio = extendedPortfolio
+      ? null
+      : await getRegularPortfolio(holdings);
     let extendedHistory: SessionHistoryPoint[] = [];
     let regularHistory: SessionHistoryPoint[] = [];
     // Past weeks of momentum scores, for the buy ticket's hysteresis replay.
     let momentumWeeks: WeekScores[] = [];
     const histSupabase = await createSupabaseServerClient();
     if (histSupabase) {
-      const regularPortfolio = extendedPortfolio
-        ? null
-        : await getRegularPortfolio(holdings);
       const record = extendedPortfolio
         ? extendedPortfolio.mode !== "overnight"
           ? recordSessionSnapshot(histSupabase, extendedPortfolio.mode, extendedPortfolio.changePct)
@@ -204,7 +211,13 @@ export default async function DashboardPage({
         recordWeek.catch(() => undefined),
       ]);
     }
-    return { extendedPortfolio, extendedHistory, regularHistory, momentumWeeks };
+    return {
+      extendedPortfolio,
+      regularPortfolio,
+      extendedHistory,
+      regularHistory,
+      momentumWeeks,
+    };
   })();
 
   // Personal ETF desk quotes (SPY/IBIT/GLDM/SIVR + ledger symbols) — started
@@ -226,8 +239,13 @@ export default async function DashboardPage({
     return state.available ? state : null;
   })();
 
-  const { extendedPortfolio, extendedHistory, regularHistory, momentumWeeks } =
-    await extendedAndHistory;
+  const {
+    extendedPortfolio,
+    regularPortfolio,
+    extendedHistory,
+    regularHistory,
+    momentumWeeks,
+  } = await extendedAndHistory;
   const rewardState = await rewardStatePromise;
 
   // This period's ticket. Sector data rides along for the advised set's
@@ -328,7 +346,11 @@ export default async function DashboardPage({
     effectiveUnits,
   );
   const periodChanges = computePeriodChanges(fund.unitPrice, priceHistory);
-  const previousPricePoint = findLatestPriceBeforeDate(priceHistory, new Date());
+  // Session-aware "yesterday's close" — see dayChangeReference's own note.
+  const previousPricePoint = dayChangeReference(
+    priceHistory,
+    currentUsRegularSession(),
+  );
   // The İRF tile's day change: unit price vs the last recorded price point —
   // the same reference the personal day-change figure uses.
   const unitDayPct =
@@ -449,6 +471,36 @@ export default async function DashboardPage({
     extendedPortfolio && fund.totalUnits > 0
       ? fund.unitPrice + extendedPortfolio.deltaAzn / fund.totalUnits
       : null;
+  // 24/7 headline figures: the live session's ₼ move folds into the
+  // headline trio itself — sərmayənin dəyəri, fondun dəyəri, 1 payın
+  // qiyməti. Outside regular hours that's the extended fold the Gecə/
+  // Premarket badge explains (weekends and holidays ride the persisted
+  // after-market close); during regular hours it's the live regular delta
+  // vs the Sheet's own prices, covering GOOGLEFINANCE's ~15-20 min lag.
+  // Both deltas measure against the Sheet's prices, so sheet + delta is a
+  // real valuation and nothing ever double-counts.
+  const liveDeltaFundAzn =
+    extendedPortfolio?.deltaAzn ?? regularPortfolio?.deltaAzn ?? 0;
+  const liveDeltaMineAzn = liveDeltaFundAzn * holderShare;
+  const unitPriceLiveAzn =
+    fund.totalUnits > 0
+      ? fund.unitPrice + liveDeltaFundAzn / fund.totalUnits
+      : fund.unitPrice;
+  const unitLiveDeltaAzn = unitPriceLiveAzn - fund.unitPrice;
+  // Which session is on right now — the badge placeholder and the session
+  // glyphs read this even when the fold itself came back empty.
+  const sessionNow = currentUsSession();
+  const unitDayPctLive =
+    previousPricePoint && previousPricePoint.price > 0
+      ? unitPriceLiveAzn / previousPricePoint.price - 1
+      : null;
+  // Shift a change figure by the extended delta; a null DAY change only
+  // becomes a number when the session actually moved something, while a
+  // null P&L stays null — a bare session delta is not a total P&L.
+  const withExt = (base: number | null, delta: number): number | null =>
+    base != null ? base + delta : delta !== 0 ? delta : null;
+  const withExtPnl = (base: number | null, delta: number): number | null =>
+    base != null ? base + delta : null;
   // Fund-wide hero figures, computed on the same basis as the "Ümumi dəyəri"
   // tile below so the headline and the tile always agree.
   const totalCostBasis = holdings.reduce((s, h) => s + h.costBasisAzn, 0);
@@ -519,14 +571,16 @@ export default async function DashboardPage({
     PURCHASABLE_ASSETS.map((a) => {
       const q = assetQuotes[a.symbol];
       const pos = positionBySymbol[a.symbol];
+      // Session price first — the panel's figures breathe with the rows.
+      const livePriceUsd = q?.extPriceUsd ?? q?.priceUsd ?? null;
       return [
         a.key,
         {
           symbol: a.symbol,
-          priceUsd: q?.priceUsd ?? null,
+          priceUsd: livePriceUsd,
           dayChangePct:
-            q?.priceUsd != null && q?.prevCloseUsd != null && q.prevCloseUsd > 0
-              ? q.priceUsd / q.prevCloseUsd - 1
+            livePriceUsd != null && q?.prevCloseUsd != null && q.prevCloseUsd > 0
+              ? livePriceUsd / q.prevCloseUsd - 1
               : null,
           units: pos?.units ?? 0,
           valueAzn: pos?.valueAzn ?? null,
@@ -587,12 +641,40 @@ export default async function DashboardPage({
       ? (holdingPnl ?? 0) + etfPnlAzn
       : null;
 
+  // The plotted line ends at the last recorded close while the headline
+  // above breathes — a dashed "İndi" tail point reconciles them
+  // (Yahoo-style). Appended only when there is an actual live read; the
+  // chart excludes it from the Zirvə search.
+  const hasLiveRead = extendedPortfolio != null || regularPortfolio != null;
+  const nowIso = new Date().toISOString();
+  const lastBook = bookChartData[bookChartData.length - 1];
+  const bookChartLive =
+    hasLiveRead && lastBook != null
+      ? [
+          ...bookChartData,
+          {
+            ...lastBook,
+            label: "İndi",
+            date: nowIso,
+            value: bookValue + liveDeltaMineAzn,
+            live: true,
+          },
+        ]
+      : bookChartData;
+  const priceChartLive =
+    hasLiveRead && priceChartData.length > 0
+      ? [
+          ...priceChartData,
+          { label: "İndi", date: nowIso, value: unitPriceLiveAzn, live: true },
+        ]
+      : priceChartData;
+
   // The chart headline's right-edge cluster: the extended-hours badge (when
   // a session is live) next to the hide-amounts eye. Personal view only —
   // the fund view keeps both in its own rows.
   const chartActions = (
     <div className="flex items-center gap-2">
-      {badgePortfolio && (
+      {badgePortfolio ? (
         <ExtendedHoursBadge
           data={badgePortfolio}
           scope="personal"
@@ -604,7 +686,12 @@ export default async function DashboardPage({
             unitPriceExtAzn,
           }}
         />
-      )}
+      ) : sessionNow ? (
+        // The wall clock says a session is on but the fold came back empty
+        // — name the state instead of silently dropping the chip while the
+        // headline reverts.
+        <ExtendedHoursPlaceholder mode={sessionNow} />
+      ) : null}
       <PrivacyToggle />
     </div>
   );
@@ -641,12 +728,15 @@ export default async function DashboardPage({
             <MarketTickerStrip
               quotes={marketTicker}
               irf={{
-                priceAzn: fund.unitPrice,
-                changePct: unitDayPct,
+                priceAzn: unitPriceLiveAzn,
+                changePct: unitDayPctLive,
+                sessionMode: extendedPortfolio?.mode ?? null,
                 // Unit-price history stands in for an intraday line — the
                 // pay reprices daily, so its "movement" is the last stretch
                 // of recorded prices.
-                spark: priceChartData.slice(-30).map((p) => p.value),
+                // The live tail point rides along, so the glowing line ends
+                // at the price the tile displays.
+                spark: priceChartLive.slice(-30).map((p) => p.value),
               }}
               assets={tileAssets}
               showBuyHint={!isAdmin}
@@ -674,9 +764,10 @@ export default async function DashboardPage({
                 variant="fund"
                 showGreeting={false}
                 holderName={holder.name}
-                value={fund.totalCapital}
-                dayChange={fundDayChange}
-                totalChange={fundTotalChange}
+                value={fund.totalCapital + liveDeltaFundAzn}
+                dayChange={withExt(fundDayChange, liveDeltaFundAzn)}
+                totalChange={fundTotalChange + liveDeltaFundAzn}
+                sessionMode={extendedPortfolio?.mode ?? null}
               />
               {/* Market status + extended-hours badge, below the figure —
                   this view has no ticker card or chart card to carry them.
@@ -684,7 +775,7 @@ export default async function DashboardPage({
                   on desktop. */}
               <div className="flex flex-wrap items-center gap-2">
                 <MarketCountdown history={regularHistory} compact />
-                {badgePortfolio && (
+                {badgePortfolio ? (
                   <ExtendedHoursBadge
                     data={badgePortfolio}
                     scope="fund"
@@ -695,14 +786,17 @@ export default async function DashboardPage({
                       unitPriceExtAzn,
                     }}
                   />
-                )}
+                ) : sessionNow ? (
+                  <ExtendedHoursPlaceholder mode={sessionNow} />
+                ) : null}
               </div>
               {/* Günün icmalı fills the column's empty tail under the figure
                   — auto-written from the figures above, on the news plate. */}
               <DailySummaryCard
                 dateLabel={dateLabel}
-                valueAzn={fund.totalCapital}
-                dayAzn={fundDayChange}
+                valueAzn={fund.totalCapital + liveDeltaFundAzn}
+                dayAzn={withExt(fundDayChange, liveDeltaFundAzn)}
+                sessionMode={extendedPortfolio?.mode ?? null}
                 best={
                   bestMover
                     ? { symbol: bestMover.symbol, pct: bestMover.dayChangePct! }
@@ -716,8 +810,14 @@ export default async function DashboardPage({
               />
             </div>
             <div className="lg:col-span-1">
+              {/* Each holder's row carries their slice of the live delta
+                  (delta distributes per pay, so percent-of-fund is the
+                  right weight) — the rows keep summing to the hero. */}
               <ShareholdersList
-                holders={fund.holders}
+                holders={fund.holders.map((h) => ({
+                  ...h,
+                  valueAzn: h.valueAzn + liveDeltaFundAzn * h.percent,
+                }))}
                 assetHolders={assetHolders}
               />
             </div>
@@ -726,28 +826,31 @@ export default async function DashboardPage({
           <>
             <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-11">
               <PerformanceChart
-                data={bookChartData}
-                priceData={priceChartData}
+                data={bookChartLive}
+                priceData={priceChartLive}
+                sessionMode={extendedPortfolio?.mode ?? null}
                 events={chartEvents}
                 hero={
                   <ChartSummary
-                    value={bookValue}
-                    dayChange={bookDayChange}
-                    totalChange={bookPnl}
+                    value={bookValue + liveDeltaMineAzn}
+                    dayChange={withExt(bookDayChange, liveDeltaMineAzn)}
+                    totalChange={withExtPnl(bookPnl, liveDeltaMineAzn)}
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
+                    sessionMode={extendedPortfolio?.mode ?? null}
                     action={chartActions}
                   />
                 }
                 priceHero={
                   <ChartSummary
                     masked={false}
-                    value={fund.unitPrice}
-                    dayChange={unitDayChange}
-                    totalChange={unit3mChange}
+                    value={unitPriceLiveAzn}
+                    dayChange={withExt(unitDayChange, unitLiveDeltaAzn)}
+                    totalChange={withExtPnl(unit3mChange, unitLiveDeltaAzn)}
                     totalLabel="son 3 ayda"
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
+                    sessionMode={extendedPortfolio?.mode ?? null}
                     action={chartActions}
                   />
                 }
@@ -770,12 +873,18 @@ export default async function DashboardPage({
                       ? {
                           units: effectiveUnits,
                           avgBuyAzn: perf.avgBuyPrice,
-                          priceAzn: fund.unitPrice,
-                          valueAzn: holdingValue,
-                          dayChangePct: unitDayPct,
-                          dayChangeAzn: dayChange,
-                          totalPnlAzn: holdingPnl,
+                          priceAzn: unitPriceLiveAzn,
+                          // Header-sum coherence: a row whose P&L cannot
+                          // carry the delta (no cost basis) keeps the delta
+                          // out of its value too.
+                          valueAzn:
+                            holdingValue +
+                            (holdingPnl != null ? liveDeltaMineAzn : 0),
+                          dayChangePct: unitDayPctLive,
+                          dayChangeAzn: withExt(dayChange, liveDeltaMineAzn),
+                          totalPnlAzn: withExtPnl(holdingPnl, liveDeltaMineAzn),
                           spark: irfRowSpark,
+                          sessionMode: extendedPortfolio?.mode ?? null,
                         }
                       : null
                   }

@@ -15,6 +15,10 @@ export type ExtendedQuote = {
   preMarketChangePercent: number | null;
   postMarketPrice: number | null;
   postMarketChangePercent: number | null;
+  /** Epoch ms of the pre/post print — the honest "as of" for a figure that
+   *  may be hours old on a weekend. Null when Yahoo omits it. */
+  preMarketTimeMs: number | null;
+  postMarketTimeMs: number | null;
 };
 
 // Sheet symbols are free-form ("nvda", "OPEN", "BATS:DRAM", "BRK.B"); Yahoo
@@ -173,7 +177,21 @@ export async function getExtendedQuotes(
       preMarketChangePercent: numOrNull(q.preMarketChangePercent),
       postMarketPrice: numOrNull(q.postMarketPrice),
       postMarketChangePercent: numOrNull(q.postMarketChangePercent),
+      preMarketTimeMs: epochMsOrNull(q.preMarketTime),
+      postMarketTimeMs: epochMsOrNull(q.postMarketTime),
     });
   }
   return map;
+}
+
+// yahoo-finance2 parses quote times into Date objects; raw payloads carry
+// epoch seconds. Accept both, return epoch ms.
+function epochMsOrNull(v: unknown): number | null {
+  if (v instanceof Date) {
+    const t = v.getTime();
+    return Number.isFinite(t) ? t : null;
+  }
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n < 10_000_000_000 ? n * 1000 : n;
 }

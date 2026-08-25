@@ -3,36 +3,50 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { revalidateSheetData } from "@/app/dashboard/refresh-actions";
-import { isUsMarketOpen } from "@/lib/marketHours";
+import { currentUsSession } from "@/lib/marketHours";
 
-// Cadence chosen against the Google Sheets API quota (60 reads/minute/user).
-// One full refresh = one batchGet against the snapshot cache = one read, so:
-//   - Market open:   4 reads/min/tab  (well under quota even with many viewers)
-//   - Market closed: 0.5 reads/min/tab (still catches admin edits between sessions)
+// Cadence chosen against the Google Sheets API quota (60 reads/minute/user)
+// AND against when the figures actually move:
+//   - Regular session: 15s, with the sheet-tag revalidation (GOOGLEFINANCE
+//     is live, one batchGet per refresh = one quota read).
+//   - Pre/post: 30s, WITHOUT the sheet action — the sheet is frozen but the
+//     extended fold moves live, so the refresh only re-renders against the
+//     60s Yahoo quote cache. Zero Google reads.
+//   - Overnight/weekend: 120s, also without the sheet action — the fold is
+//     pinned to the after-market close; the slow tick still catches admin
+//     edits and the daily NAV row.
 // Hidden tabs don't tick at all.
-const INTERVAL_OPEN_MS = 15_000;
-const INTERVAL_CLOSED_MS = 120_000;
+const INTERVALS = { open: 15_000, ext: 30_000, closed: 120_000 } as const;
+
+type Cadence = keyof typeof INTERVALS;
+
+function cadenceNow(): Cadence {
+  const s = currentUsSession();
+  if (s === null) return "open";
+  return s === "overnight" ? "closed" : "ext";
+}
 
 export function RefreshTimer() {
   const router = useRouter();
-  const [open, setOpen] = useState<boolean | null>(null);
+  const [cadence, setCadence] = useState<Cadence | null>(null);
   // 0 = just refreshed, 1 = about to refresh.
   const [progress, setProgress] = useState(0);
   const inFlightRef = useRef(false);
 
-  // Watch the market state so the cadence flips on the open/close boundary.
+  // Watch the market state so the cadence flips on session boundaries.
   useEffect(() => {
-    const update = () => setOpen(isUsMarketOpen());
+    const update = () => setCadence(cadenceNow());
     update();
     const id = window.setInterval(update, 60_000);
     return () => window.clearInterval(id);
   }, []);
 
   // Refresh loop. Re-mounts (and resets the cycle) whenever the cadence
-  // changes, which is what we want — opening/closing should restart the ring.
+  // changes, which is what we want — session boundaries should restart the
+  // ring.
   useEffect(() => {
-    if (open === null) return;
-    const interval = open ? INTERVAL_OPEN_MS : INTERVAL_CLOSED_MS;
+    if (cadence === null) return;
+    const interval = INTERVALS[cadence];
     let cycleStart = Date.now();
 
     async function fire() {
@@ -44,7 +58,8 @@ export function RefreshTimer() {
       cycleStart = Date.now();
       setProgress(0);
       try {
-        await revalidateSheetData();
+        // The sheet-tag bust only pays off while GOOGLEFINANCE is live.
+        if (cadence === "open") await revalidateSheetData();
         router.refresh();
       } finally {
         inFlightRef.current = false;
@@ -71,9 +86,9 @@ export function RefreshTimer() {
       window.clearInterval(tickId);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [open, router]);
+  }, [cadence, router]);
 
-  if (open === null) return null;
+  if (cadence === null) return null;
 
   // SVG ring that drains over the current cycle.
   const size = 14;
@@ -81,7 +96,7 @@ export function RefreshTimer() {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const dashOffset = c * progress;
-  const tooltipSec = (open ? INTERVAL_OPEN_MS : INTERVAL_CLOSED_MS) / 1000;
+  const tooltipSec = INTERVALS[cadence] / 1000;
 
   return (
     <span

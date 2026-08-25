@@ -11,6 +11,8 @@ import {
 } from "@/lib/portfolio";
 import { ASSET_ICONS } from "@/components/assetIcons";
 import { RowSpark } from "@/components/RowSpark";
+import { EXTENDED_META } from "@/components/extendedHoursMeta";
+import type { ExtendedMode } from "@/lib/marketHours";
 import type { AssetPosition } from "@/lib/personalAssets";
 
 // "Aktivlərim" — the holder's whole personal book: İRF pays and the ETF
@@ -32,6 +34,8 @@ export type IrfHoldingSummary = {
   totalPnlAzn: number | null;
   /** Six-month unit prices, for the row sparkline. */
   spark?: number[];
+  /** The extended session folded into the figures right now, if any. */
+  sessionMode?: ExtendedMode | null;
 };
 
 
@@ -62,6 +66,8 @@ type Row = {
   dayChangeAzn: number | null;
   totalPnlAzn: number | null;
   totalPnlPct: number | null;
+  /** The extended session behind the row's day figure, if any. */
+  sessionMode?: ExtendedMode | null;
 };
 
 function AnimatedFigure({
@@ -240,6 +246,7 @@ export function AssetHoldingsCard({
               irf.totalPnlAzn != null && irf.valueAzn - irf.totalPnlAzn > 0
                 ? irf.totalPnlAzn / (irf.valueAzn - irf.totalPnlAzn)
                 : null,
+            sessionMode: irf.sessionMode ?? null,
           },
         ]
       : []),
@@ -258,6 +265,7 @@ export function AssetHoldingsCard({
       dayChangeAzn: p.dayChangeAzn,
       totalPnlAzn: p.totalPnlAzn,
       totalPnlPct: p.totalPnlPct,
+      sessionMode: p.sessionMode ?? null,
     })),
   ].sort((a, b) => b.valueAzn - a.valueAzn);
   if (rows.length === 0) return null;
@@ -434,7 +442,7 @@ export function AssetHoldingsCard({
                       )}
                     </AnimatePresence>
                   </div>
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-end gap-1">
                     <AnimatePresence initial={false}>
                       {showDay && (
                         <AnimatedFigure keyName="dayChange">
@@ -448,6 +456,14 @@ export function AssetHoldingsCard({
                         </AnimatedFigure>
                       )}
                     </AnimatePresence>
+                    {showDay && row.sessionMode ? (
+                      <span
+                        className={`inline-flex shrink-0 ${EXTENDED_META[row.sessionMode].iconTint}`}
+                        title={`${EXTENDED_META[row.sessionMode].label} — seans hərəkəti daxildir`}
+                      >
+                        {EXTENDED_META[row.sessionMode].icon}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </div>

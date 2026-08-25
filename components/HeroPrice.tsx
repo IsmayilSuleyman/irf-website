@@ -2,6 +2,27 @@ import type { ReactNode } from "react";
 import { formatAzn, formatGroupedTrim, formatUnits } from "@/lib/portfolio";
 import { Odometer } from "@/components/Odometer";
 import { Masked } from "@/components/Masked";
+import { EXTENDED_META } from "@/components/extendedHoursMeta";
+import type { ExtendedMode } from "@/lib/marketHours";
+
+// When an extended session's move is folded into the figures, the
+// day-change label says so: everything since the last regular close, with
+// the session's own glyph. During regular hours the plain wording stays.
+function daySessionLabel(
+  mode: ExtendedMode | null | undefined,
+  regular: string,
+): ReactNode {
+  if (!mode) return regular;
+  const meta = EXTENDED_META[mode];
+  return (
+    <>
+      <span className={`mr-1 inline-flex align-[-2px] ${meta.iconTint}`}>
+        {meta.icon}
+      </span>
+      son bağlanışdan
+    </>
+  );
+}
 
 type PersonalProps = {
   variant?: "personal";
@@ -22,6 +43,8 @@ type FundProps = {
   value: number;
   dayChange: number | null;
   totalChange: number | null;
+  /** The extended session folded into the figures right now, if any. */
+  sessionMode?: ExtendedMode | null;
   toggle?: ReactNode;
   privacyToggle?: ReactNode;
   showGreeting?: boolean;
@@ -146,6 +169,7 @@ function FundHero({
   value,
   dayChange,
   totalChange,
+  sessionMode,
   toggle,
   privacyToggle,
   showGreeting = true,
@@ -177,7 +201,7 @@ function FundHero({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-black/45 dark:text-white/50">
         {dayStr ? (
           <span>
-            günlük dəyişim{" "}
+            {daySessionLabel(sessionMode, "günlük dəyişim")}{" "}
             <Masked mask="••••" className={MASK_TONE}>
               <span className={changeTone(dayChange)}>{dayStr}</span>
             </Masked>
@@ -214,6 +238,7 @@ export function ChartSummary({
   avgBuyPrice,
   masked = true,
   totalLabel = "ümumi fərq",
+  sessionMode,
   action,
 }: {
   value: number;
@@ -224,10 +249,13 @@ export function ChartSummary({
   masked?: boolean;
   /** Second line's label — "ümumi fərq" by default, "son 3 ayda" in price mode. */
   totalLabel?: string;
+  /** The extended session folded into the figures right now, if any —
+   *  swaps "bu gün" for the honest session label + glyph. */
+  sessionMode?: ExtendedMode | null;
   /** Control docked at the card's right edge beside the headline (the hide-amounts eye). */
   action?: ReactNode;
 }) {
-  const line = (amount: number | null, label: string) => {
+  const line = (amount: number | null, label: ReactNode) => {
     if (amount == null) return null;
     const base = value - amount;
     const pct = base > 0 ? amount / base : null;
@@ -272,7 +300,7 @@ export function ChartSummary({
           to make room next to it. */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
-          {line(dayChange, "bu gün")}
+          {line(dayChange, daySessionLabel(sessionMode, "bu gün"))}
           {line(totalChange, totalLabel)}
         </div>
         {action ? <div className="shrink-0">{action}</div> : null}

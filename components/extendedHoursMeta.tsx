@@ -1,4 +1,4 @@
-import type { ExtendedMode } from "@/lib/extendedPortfolio";
+import type { ExtendedMode } from "@/lib/marketHours";
 
 // Shared visual identity of the three extended-hours windows: amber sunrise
 // (pre), purple sunset (post), blue moon (overnight). Used by the dashboard

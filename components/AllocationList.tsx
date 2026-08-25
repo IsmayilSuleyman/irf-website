@@ -558,8 +558,17 @@ export function AllocationList({
                 <div className="num text-xs font-medium text-black/85 dark:text-white/90 sm:text-[13px]">
                   <AnimatePresence initial={false}>
                     {visible.value && (
-                      <AnimatedFigure keyName={`value-${valueCur}`} inline>
-                        {formatMoney(item.valueAzn, valueCur)}
+                      <AnimatedFigure
+                        keyName={`${extQuote ? "value-ext" : "value"}-${valueCur}`}
+                        inline
+                      >
+                        {/* With the session chip on, the value follows the
+                            price beside it — shares × session price, not the
+                            sheet's regular valuation. */}
+                        {formatMoney(
+                          item.valueAzn + (extQuote?.deltaAzn ?? 0),
+                          valueCur,
+                        )}
                       </AnimatedFigure>
                     )}
                   </AnimatePresence>

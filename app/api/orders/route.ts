@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthedContext, rpcErrorResponse } from "@/lib/api";
+import { refreshUnitPriceFromSheet } from "@/lib/market";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,12 @@ export async function POST(req: Request) {
   if (!Number.isFinite(price) || price <= 0) {
     return NextResponse.json({ error: "price must be a positive number" }, { status: 400 });
   }
+
+  // Re-pull the Sheet price right before filling: fund-side fills execute at
+  // fund_config.unit_price, which otherwise only updates when someone LOADS
+  // /market — a ticket left open an hour must not fill against an hour-old
+  // NAV. Best-effort: a Sheet hiccup falls back to the last synced price.
+  await refreshUnitPriceFromSheet(ctx.supabase);
 
   const { data, error } = await ctx.supabase.rpc("place_order", {
     p_side: side,

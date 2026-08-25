@@ -1,5 +1,13 @@
 import { formatGrouped } from "@/lib/portfolio";
 import { Masked } from "@/components/Masked";
+import type { ExtendedMode } from "@/lib/marketHours";
+
+// The extra sentence's session name when an extended move is folded in.
+const SESSION_GENITIVE: Record<ExtendedMode, string> = {
+  pre: "premarket seansının",
+  post: "after-market seansının",
+  overnight: "gecə seansının",
+};
 
 // Günün icmalı — the fund view's auto-written daily digest, following
 // İsmayıl's base text word for word:
@@ -33,6 +41,7 @@ export function DailySummaryCard({
   dayAzn,
   best,
   worst,
+  sessionMode = null,
 }: {
   dateLabel: string;
   valueAzn: number;
@@ -40,16 +49,23 @@ export function DailySummaryCard({
   dayAzn: number | null;
   best: DailySummaryMover | null;
   worst: DailySummaryMover | null;
+  /** The extended session folded into the figures right now, if any —
+   *  the wording stops claiming "bu gün" over a mixed or frozen figure. */
+  sessionMode?: ExtendedMode | null;
 }) {
   const dayPct =
     dayAzn != null && valueAzn - dayAzn > 0 ? dayAzn / (valueAzn - dayAzn) : null;
 
+  // With an extended move folded in, "bu gün" would claim tonight's (or the
+  // whole weekend's) movement happened during a trading day — say "son
+  // bağlanışdan" instead.
+  const period = sessionMode ? "son bağlanışdan" : "bu gün";
   const title =
     dayPct == null || dayPct === 0 ? (
-      <>Fondun dəyəri bu gün dəyişməyib</>
+      <>Fondun dəyəri {period} dəyişməyib</>
     ) : (
       <>
-        Fondun dəyəri bu gün{" "}
+        Fondun dəyəri {period}{" "}
         <span className={tone(dayPct)}>{pctAbs(dayPct)}</span>{" "}
         {dayPct >= 0 ? "yüksəlib" : "azalıb"}
       </>
@@ -76,7 +92,9 @@ export function DailySummaryCard({
           {best ? (
             worst && worst.symbol !== best.symbol ? (
               <>
-                Ticarət günü ərzində ən yaxşı nəticə göstərən hazırda{" "}
+                {sessionMode
+                  ? "Son ticarət günündə ən yaxşı nəticə göstərən"
+                  : "Ticarət günü ərzində ən yaxşı nəticə göstərən hazırda"}{" "}
                 <span className="num font-semibold">{best.symbol}</span>{" "}
                 {moverPct(best)} olmaqla, ən zəif nəticəni{" "}
                 <span className="num font-semibold">{worst.symbol}</span>{" "}
@@ -84,7 +102,9 @@ export function DailySummaryCard({
               </>
             ) : (
               <>
-                Ticarət günü ərzində ən yaxşı nəticəni hazırda{" "}
+                {sessionMode
+                  ? "Son ticarət günündə ən yaxşı nəticəni"
+                  : "Ticarət günü ərzində ən yaxşı nəticəni hazırda"}{" "}
                 <span className="num font-semibold">{best.symbol}</span>{" "}
                 {moverPct(best)} göstərib.{" "}
               </>
@@ -101,6 +121,9 @@ export function DailySummaryCard({
               {dayAzn >= 0 ? "artıb" : "azalıb"} (
               <span className={`num ${tone(dayPct)}`}>{pctAbs(dayPct)}</span>).
             </>
+          ) : null}
+          {sessionMode ? (
+            <> Rəqəmlərə {SESSION_GENITIVE[sessionMode]} hərəkəti də daxildir.</>
           ) : null}
         </p>
       </div>

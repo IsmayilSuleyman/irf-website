@@ -22,10 +22,22 @@ const SCOPE_TOOLTIP: Record<"fund" | "personal", string> = {
   personal: "sizin payınıza düşən məbləğ",
 };
 
+// "personal" names the İRF slice explicitly — the headline above may also
+// carry the viewer's ETF book, and an unlabeled "your investment" figure
+// that differs from it by exactly that book reads as a bug.
 const SCOPE_VALUE_LABEL: Record<"fund" | "personal", string> = {
   fund: "Fondun dəyəri",
-  personal: "Sərmayənizin dəyəri",
+  personal: "İRF payınızın dəyəri",
 };
+
+// Baku wall-clock of an epoch instant — fixed UTC+4, manual math (no Intl
+// in client renders, the hydration rule). Overnight and weekend folds can
+// be hours old; the popover says exactly how old.
+function bakuClock(ms: number): string {
+  const d = new Date(ms + 4 * 3_600_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} (Bakı)`;
+}
 
 // Chart line follows the DATA's session (post data stays purple even when
 // hovered from the Gecə badge).
@@ -34,6 +46,26 @@ const LINE_COLOR: Record<"pre" | "post" | "regular", string> = {
   post: "#a855f7",
   regular: "#16a34a",
 };
+
+/**
+ * Neutral stand-in for the badge slot when the wall clock says a session is
+ * on but the fold came back empty (Yahoo hiccup with no fresh last-good) —
+ * the state gets named instead of the chip silently vanishing while the
+ * headline reverts.
+ */
+export function ExtendedHoursPlaceholder({
+  mode,
+}: {
+  mode: keyof typeof EXTENDED_META;
+}) {
+  const meta = EXTENDED_META[mode];
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-white/70 dark:bg-white/10 px-3 py-1.5 text-[11px] font-medium text-black/45 shadow-sm dark:text-white/50">
+      <span className={`shrink-0 ${meta.iconTint}`}>{meta.icon}</span>
+      {meta.label}: qiymətlər yüklənir…
+    </span>
+  );
+}
 
 export function ExtendedHoursBadge({
   data,
@@ -137,17 +169,25 @@ export function ExtendedHoursBadge({
           <p className="mt-0.5 text-[10px] leading-4 text-black/45 dark:text-white/50">
             Portfel {meta.tooltip} · {data.coveredCount}/{data.totalCount} mövqe
             {showDelta ? ` · ${SCOPE_TOOLTIP[scope]}` : ""}
+            {data.asOfMs != null ? ` · kotirovka ${bakuClock(data.asOfMs)}` : ""}
           </p>
 
           {extra ? (
             <div className="mt-2.5 space-y-1 rounded-lg border border-black/[0.06] dark:border-white/10 bg-black/[0.03] dark:bg-white/5 px-2.5 py-2 text-[11px]">
+              {/* close → now arrow, same shape as the pay-price row below —
+                  the badge EXPLAINS the movement, it is not an extra amount
+                  on top of the headline. */}
               <p className="flex items-center justify-between gap-4">
                 <span className="text-black/50 dark:text-white/55">
                   {SCOPE_VALUE_LABEL[scope]}
                 </span>
                 <Masked mask="••••">
-                  <span className="num font-semibold text-black dark:text-white/90">
-                    {formatAzn(extra.baseValueAzn + data.deltaAzn)}
+                  <span className="num text-black/60 dark:text-white/65">
+                    {formatAzn(extra.baseValueAzn)}
+                    <span className="mx-1 opacity-50">→</span>
+                    <span className="font-semibold text-black dark:text-white/90">
+                      {formatAzn(extra.baseValueAzn + data.deltaAzn)}
+                    </span>
                   </span>
                 </Masked>
               </p>
@@ -166,6 +206,9 @@ export function ExtendedHoursBadge({
                   </span>
                 </p>
               ) : null}
+              <p className="pt-0.5 text-[10px] leading-4 text-black/45 dark:text-white/50">
+                Bu hərəkət yuxarıdakı rəqəmlərə artıq daxildir.
+              </p>
             </div>
           ) : null}
 
