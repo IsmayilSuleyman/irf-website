@@ -63,6 +63,28 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "shares", label: "Pay sayı" },
 ];
 
+// Sorting is a separate axis from the visibility chips above: those choose
+// WHAT each row shows, this chooses the ORDER rows come in. "momentum" and
+// "session" join the list only when their data exists (same rule as their
+// chips). Rows without the chosen metric (cash, uncovered symbols) always
+// sink to the bottom, whichever direction is active.
+type SortKey =
+  | "value"
+  | "price"
+  | "totalChange"
+  | "dayChange"
+  | "shares"
+  | "momentum"
+  | "session";
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "value", label: "Dəyər" },
+  { key: "dayChange", label: "Günlük dəyişim" },
+  { key: "totalChange", label: "Ümumi dəyişim" },
+  { key: "price", label: "Qiymət" },
+  { key: "shares", label: "Pay sayı" },
+];
+
 // Per-column display currency: the left toggle governs the value column
 // (value + total change), the right one the price column (price + day/
 // session change). Amounts are AZN-denominated end-to-end; conversion and
@@ -280,6 +302,11 @@ export function AllocationList({
   // rendering (values in AZN, prices in USD).
   const [valueCur, setValueCur] = useState<Currency>("azn");
   const [priceCur, setPriceCur] = useState<Currency>("usd");
+  // Sort control: collapsed by default (value-desc = the historical order).
+  // Picking the active key again flips direction.
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("value");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
 
   if (!items || items.length === 0) {
     return <div className="text-black/45 dark:text-white/50">Məlumat yoxdur.</div>;
@@ -298,6 +325,53 @@ export function AllocationList({
     setVisible((v) => ({ ...v, [key]: !v[key] }));
   const flipMode = (setter: typeof setDayMode, name: string) =>
     setter((m) => ({ ...m, [name]: m[name] === "amount" ? "pct" : "amount" }));
+
+  const sortChoices: { key: SortKey; label: string }[] = [
+    ...SORT_OPTIONS,
+    ...(momentum ? [{ key: "momentum" as const, label: "Momentum balı" }] : []),
+    ...(extended
+      ? [{ key: "session" as const, label: EXTENDED_META[extended.mode].label }]
+      : []),
+  ];
+  const pickSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+  const sortMetricOf = (item: Item): number | null => {
+    const ticker = (item.symbol ?? "").trim().toUpperCase();
+    switch (sortKey) {
+      case "value":
+        return item.valueAzn;
+      case "price":
+        return item.isCash ? null : (item.priceUsd ?? null);
+      case "totalChange":
+        return item.isCash ? null : (item.changePct ?? null);
+      case "dayChange":
+        return item.isCash ? null : (item.dayChangePct ?? null);
+      case "shares":
+        return item.isCash ? null : (item.sharesHeld ?? null);
+      case "momentum":
+        return momentum?.[ticker]?.score ?? null;
+      case "session":
+        return extended?.quotes[ticker]?.changePct ?? null;
+    }
+  };
+  const sorted = [...items].sort((a, b) => {
+    const ma = sortMetricOf(a);
+    const mb = sortMetricOf(b);
+    // Metric-less rows sink to the bottom in value order, both directions.
+    if (ma == null && mb == null) return b.valueAzn - a.valueAzn;
+    if (ma == null) return 1;
+    if (mb == null) return -1;
+    if (ma === mb) return b.valueAzn - a.valueAzn;
+    return sortDir === "desc" ? mb - ma : ma - mb;
+  });
+  const activeSortLabel = sortChoices.find((c) => c.key === sortKey)?.label;
+  const sortIsDefault = sortKey === "value" && sortDir === "desc";
 
   return (
     <div className="flex flex-col gap-3">
@@ -351,7 +425,77 @@ export function AllocationList({
             {EXTENDED_META[extended.mode].label}
           </button>
         )}
+        {/* The sort toggle sits apart from the visibility chips (ml-auto):
+            those choose what a row shows, this chooses the order. While a
+            non-default sort is active the button names it even when the
+            options row is collapsed. */}
+        <button
+          type="button"
+          onClick={() => setSortOpen((o) => !o)}
+          aria-expanded={sortOpen}
+          className={`ml-auto inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+            sortOpen || !sortIsDefault
+              ? "border-transparent bg-brand-green/15 text-brand-green dark:text-emerald-400"
+              : "border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
+          }`}
+        >
+          <svg
+            aria-hidden
+            viewBox="0 0 12 12"
+            className="h-3 w-3 fill-none stroke-current"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3.5 2v8M3.5 10 1.8 8.2M3.5 10l1.7-1.8M8.5 10V2M8.5 2 6.8 3.8M8.5 2l1.7 1.8" />
+          </svg>
+          {sortIsDefault
+            ? "Sırala"
+            : `${activeSortLabel} ${sortDir === "desc" ? "↓" : "↑"}`}
+        </button>
       </div>
+
+      <AnimatePresence initial={false}>
+        {sortOpen && (
+          <m.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="-mt-1.5 overflow-hidden"
+          >
+            <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+              <span className="text-[11px] font-medium text-black/45 dark:text-white/50">
+                Sırala:
+              </span>
+              {sortChoices.map((c) => {
+                const active = sortKey === c.key;
+                return (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => pickSort(c.key)}
+                    aria-pressed={active}
+                    title={
+                      active
+                        ? "İstiqaməti çevirmək üçün yenidən bas"
+                        : undefined
+                    }
+                    className={`num rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+                      active
+                        ? "border-transparent bg-brand-green/15 text-brand-green dark:text-emerald-400"
+                        : "border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
+                    }`}
+                  >
+                    {c.label}
+                    {active ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </m.div>
+        )}
+      </AnimatePresence>
 
       {/* Per-column currency toggles, mirroring the rows' number grid so
           each sits above the column it governs. Hidden with the column. */}
@@ -388,8 +532,11 @@ export function AllocationList({
         );
       })()}
 
+      {/* Rows follow the chosen sort; the rank badge stays VALUE-ranked on
+          purpose, so sorting by movers reads "the #5 holding is today's
+          best performer". */}
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
-        {items.map((item) => {
+        {sorted.map((item) => {
           const ticker = (item.symbol ?? "").trim().toUpperCase();
           const primary = item.isCash ? item.name : ticker || item.name;
           const secondary =
