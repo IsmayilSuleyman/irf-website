@@ -559,7 +559,6 @@ export type BankWideAggregate = {
   /**
    * Everything the bank owes its depositors if they all left: principal +
    * pending term bonuses + the unsettled daily interest/reward ledger.
-   * The base of the guarantee card's coverage ratio.
    */
   depositObligationsAzn: number;
   depositors: BankWideDepositor[];

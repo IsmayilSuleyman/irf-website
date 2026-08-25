@@ -1,47 +1,13 @@
 import { formatAzn, formatGroupedTrim } from "@/lib/portfolio";
 
-// Pure, client-safe health/coverage math for the Ümumbank baxışı. Kept out
-// of lib/bank.ts on purpose: that module drags @googleapis/sheets +
+// Pure, client-safe health math for the Ümumbank baxışı. Kept out of
+// lib/bank.ts on purpose: that module drags @googleapis/sheets +
 // next/cache along, and these helpers are plain arithmetic over already-
 // aggregated numbers (mirrors the lib/bankTermsData split).
-
-export type DepositCoverage = {
-  /** backing ÷ deposit obligations; null when obligations are 0. */
-  ratio: number | null;
-  /** True when the İRF stake was unavailable — the ratio is then a floor
-   *  ("ən azı"), computed from free liquidity alone. */
-  minOnly: boolean;
-  backingAzn: number;
-  netLiquidityAzn: number;
-  principalStakeAzn: number;
-  depositObligationsAzn: number;
-};
-
-/**
- * The guarantee card's number: how many manat stand behind every 1 ₼ of
- * deposit obligations. Backing = the bank's free liquidity + İsmayıl's own
- * live İRF stake (the personal guarantee made quantitative). A negative
- * net liquidity honestly REDUCES the backing rather than clamping to 0.
- */
-export function computeDepositCoverage(input: {
-  depositObligationsAzn: number;
-  netLiquidityAzn: number;
-  principalStakeAzn: number | null;
-}): DepositCoverage {
-  const stake = input.principalStakeAzn;
-  const backingAzn = input.netLiquidityAzn + (stake ?? 0);
-  return {
-    ratio:
-      input.depositObligationsAzn > 0
-        ? backingAzn / input.depositObligationsAzn
-        : null,
-    minOnly: stake == null,
-    backingAzn,
-    netLiquidityAzn: input.netLiquidityAzn,
-    principalStakeAzn: stake ?? 0,
-    depositObligationsAzn: input.depositObligationsAzn,
-  };
-}
+//
+// Deliberately NO coverage-ratio math here: İsmayılBank's obligations are
+// the bank's own — they are not backed by the İRF fund, and the verdict
+// must never fold fund assets into the bank's standing.
 
 export type BankHealthLevel = "saglam" | "diqqet" | "gergin";
 export type BankHealthTone = "good" | "warn" | "bad";
@@ -53,21 +19,18 @@ export type BankHealth = {
 };
 
 const az = (n: number) => formatAzn(n);
-const x = (r: number) => `${formatGroupedTrim(r, 2)}×`;
 
 /**
- * One verdict from the four signals people actually care about. Thresholds
- * follow the established liquidityTone scale (60/30) plus the two absolute
- * red lines: a projection that dips below zero and deposits not fully
- * covered. Null inputs (data unavailable) simply contribute no reason —
- * the verdict never punishes a Sheets outage.
+ * One verdict from the three signals people actually care about. Thresholds
+ * follow the established liquidityTone scale (60/30) plus the absolute red
+ * line: a projection that dips below zero. Null inputs (data unavailable)
+ * simply contribute no reason — the verdict never punishes a Sheets outage.
  */
 export function computeBankHealth(input: {
   liquidityPct: number | null;
   overdueCount: number;
   overdueTotalAzn: number;
   projectionMinAzn: number | null;
-  coverage: DepositCoverage | null;
 }): BankHealth {
   const reasons: BankHealthReason[] = [];
   const push = (tone: BankHealthTone, text: string) => {
@@ -99,22 +62,6 @@ export function computeBankHealth(input: {
       );
     } else {
       push("good", "Proqnoz bütün dövr boyu müsbət qalır");
-    }
-  }
-
-  const cov = input.coverage;
-  if (cov?.ratio != null) {
-    const floor = cov.minOnly ? "ən azı " : "";
-    if (cov.ratio >= 1.5) {
-      push("good", `Depozitlərin təminat əmsalı ${floor}${x(cov.ratio)} — tam örtülür`);
-    } else if (cov.ratio >= 1) {
-      push("warn", `Depozitlərin təminat əmsalı ${floor}${x(cov.ratio)}`);
-    } else if (cov.minOnly) {
-      // A sub-1 FLOOR isn't a verdict — the stake half of the backing was
-      // simply unavailable this render.
-      push("warn", `Təminat əmsalı ən azı ${x(cov.ratio)} (fond payı hesablanmadı)`);
-    } else {
-      push("bad", `Təminat əmsalı ${x(cov.ratio)} — depozitlər tam örtülmür`);
     }
   }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeBankWide, type BankAccount } from "@/lib/bank";
 import { computeBondObligations } from "@/lib/liquidityProjection";
-import { computeBankHealth, computeDepositCoverage } from "@/lib/bankHealth";
+import { computeBankHealth } from "@/lib/bankHealth";
 import type { BondFundingSeries } from "@/lib/bonds";
 
 const TODAY = new Date("2026-08-25T12:00:00Z");
@@ -120,53 +120,13 @@ describe("computeBankWide — deposit obligations", () => {
   });
 });
 
-describe("computeDepositCoverage", () => {
-  it("backing = free liquidity + the principal's live stake", () => {
-    const cov = computeDepositCoverage({
-      depositObligationsAzn: 1000,
-      netLiquidityAzn: 600,
-      principalStakeAzn: 1400,
-    });
-    expect(cov.ratio).toBeCloseTo(2, 10);
-    expect(cov.minOnly).toBe(false);
-    expect(cov.backingAzn).toBe(2000);
-  });
-
-  it("degrades to a liquidity-only FLOOR when the stake is unavailable", () => {
-    const cov = computeDepositCoverage({
-      depositObligationsAzn: 1000,
-      netLiquidityAzn: 600,
-      principalStakeAzn: null,
-    });
-    expect(cov.ratio).toBeCloseTo(0.6, 10);
-    expect(cov.minOnly).toBe(true);
-  });
-
-  it("no obligations → no ratio", () => {
-    expect(
-      computeDepositCoverage({
-        depositObligationsAzn: 0,
-        netLiquidityAzn: 100,
-        principalStakeAzn: 50,
-      }).ratio,
-    ).toBeNull();
-  });
-});
-
 describe("computeBankHealth", () => {
-  const strongCoverage = computeDepositCoverage({
-    depositObligationsAzn: 1000,
-    netLiquidityAzn: 800,
-    principalStakeAzn: 1200,
-  });
-
   it("all signals green → Sağlam", () => {
     const h = computeBankHealth({
       liquidityPct: 70,
       overdueCount: 0,
       overdueTotalAzn: 0,
       projectionMinAzn: 120,
-      coverage: strongCoverage,
     });
     expect(h.level).toBe("saglam");
     expect(h.reasons.every((r) => r.tone === "good")).toBe(true);
@@ -178,7 +138,6 @@ describe("computeBankHealth", () => {
       overdueCount: 2,
       overdueTotalAzn: 90,
       projectionMinAzn: 120,
-      coverage: strongCoverage,
     });
     expect(h.level).toBe("diqqet");
   });
@@ -189,37 +148,25 @@ describe("computeBankHealth", () => {
       overdueCount: 0,
       overdueTotalAzn: 0,
       projectionMinAzn: -40,
-      coverage: strongCoverage,
     });
     expect(h.level).toBe("gergin");
   });
 
-  it("true under-coverage is Gərgin, but a sub-1 FLOOR (stake unavailable) only warns", () => {
-    const real = computeBankHealth({
-      liquidityPct: 70,
+  it("low liquidity is Gərgin, mid liquidity is Diqqət", () => {
+    const low = computeBankHealth({
+      liquidityPct: 20,
       overdueCount: 0,
       overdueTotalAzn: 0,
       projectionMinAzn: 100,
-      coverage: computeDepositCoverage({
-        depositObligationsAzn: 1000,
-        netLiquidityAzn: 300,
-        principalStakeAzn: 400,
-      }),
     });
-    expect(real.level).toBe("gergin");
-
-    const floor = computeBankHealth({
-      liquidityPct: 70,
+    expect(low.level).toBe("gergin");
+    const mid = computeBankHealth({
+      liquidityPct: 45,
       overdueCount: 0,
       overdueTotalAzn: 0,
       projectionMinAzn: 100,
-      coverage: computeDepositCoverage({
-        depositObligationsAzn: 1000,
-        netLiquidityAzn: 300,
-        principalStakeAzn: null,
-      }),
     });
-    expect(floor.level).toBe("diqqet");
+    expect(mid.level).toBe("diqqet");
   });
 
   it("unavailable inputs contribute no reason — a Sheets outage is not a bad verdict", () => {
@@ -228,7 +175,6 @@ describe("computeBankHealth", () => {
       overdueCount: 0,
       overdueTotalAzn: 0,
       projectionMinAzn: null,
-      coverage: null,
     });
     expect(h.level).toBe("saglam");
     expect(h.reasons).toHaveLength(1); // only the overdue "yoxdur" line
