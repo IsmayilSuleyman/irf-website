@@ -1,9 +1,50 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { formatAzn, formatGroupedTrim, formatUnits } from "@/lib/portfolio";
 import { Odometer } from "@/components/Odometer";
 import { Masked } from "@/components/Masked";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
+import { useLivePricing } from "@/components/LivePricing";
 import type { ExtendedMode } from "@/lib/marketHours";
+
+/**
+ * A figure's subscription to the 3-5s live ticker: the BASE amounts
+ * (without any session delta) plus the scale that maps the fund-wide
+ * delta onto this figure (1 for the fund, the holder's share for a
+ * personal slice, 1/totalUnits for the pay price). The server passes the
+ * render-time numbers through the normal props too, so everything is
+ * identical until the first poll lands.
+ */
+export type LiveFigure = {
+  baseValue: number;
+  baseDay: number | null;
+  baseTotal: number | null;
+  scale: number;
+};
+
+/** Fold the polled delta into a figure — same null semantics as the
+ *  server's withExt/withExtPnl: a missing day change becomes the bare
+ *  session move, a missing P&L stays missing. */
+function applyLive(
+  live: LiveFigure | undefined,
+  ctx: ReturnType<typeof useLivePricing>,
+  fallback: {
+    value: number;
+    day: number | null;
+    total: number | null;
+    mode: ExtendedMode | null | undefined;
+  },
+) {
+  if (!live || !ctx) return fallback;
+  const d = ctx.deltaAzn * live.scale;
+  return {
+    value: live.baseValue + d,
+    day: live.baseDay != null ? live.baseDay + d : d !== 0 ? d : null,
+    total: live.baseTotal != null ? live.baseTotal + d : null,
+    mode: ctx.mode,
+  };
+}
 
 // When an extended session's move is folded into the figures, the
 // day-change label says so: everything since the last regular close, with
@@ -45,6 +86,8 @@ type FundProps = {
   totalChange: number | null;
   /** The extended session folded into the figures right now, if any. */
   sessionMode?: ExtendedMode | null;
+  /** Subscribe the figures to the 3-5s live ticker. */
+  live?: LiveFigure;
   toggle?: ReactNode;
   privacyToggle?: ReactNode;
   showGreeting?: boolean;
@@ -170,10 +213,22 @@ function FundHero({
   dayChange,
   totalChange,
   sessionMode,
+  live,
   toggle,
   privacyToggle,
   showGreeting = true,
 }: FundProps) {
+  const liveCtx = useLivePricing();
+  const figures = applyLive(live, liveCtx, {
+    value,
+    day: dayChange,
+    total: totalChange,
+    mode: sessionMode,
+  });
+  value = figures.value;
+  dayChange = figures.day;
+  totalChange = figures.total;
+  sessionMode = figures.mode;
   const dayStr = changeText(dayChange);
   const totalStr = changeText(totalChange);
 
@@ -239,6 +294,7 @@ export function ChartSummary({
   masked = true,
   totalLabel = "ümumi fərq",
   sessionMode,
+  live,
   action,
 }: {
   value: number;
@@ -252,9 +308,22 @@ export function ChartSummary({
   /** The extended session folded into the figures right now, if any —
    *  swaps "bu gün" for the honest session label + glyph. */
   sessionMode?: ExtendedMode | null;
+  /** Subscribe the figures to the 3-5s live ticker. */
+  live?: LiveFigure;
   /** Control docked at the card's right edge beside the headline (the hide-amounts eye). */
   action?: ReactNode;
 }) {
+  const liveCtx = useLivePricing();
+  const figures = applyLive(live, liveCtx, {
+    value,
+    day: dayChange,
+    total: totalChange,
+    mode: sessionMode,
+  });
+  value = figures.value;
+  dayChange = figures.day;
+  totalChange = figures.total;
+  sessionMode = figures.mode;
   const line = (amount: number | null, label: ReactNode) => {
     if (amount == null) return null;
     const base = value - amount;

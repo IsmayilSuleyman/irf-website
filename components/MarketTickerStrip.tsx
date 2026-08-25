@@ -10,6 +10,7 @@ import {
 import { Masked } from "@/components/Masked";
 import { ASSET_ICONS } from "@/components/assetIcons";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
+import { useLivePricing } from "@/components/LivePricing";
 import type { ExtendedMode as ExtendedModeKey } from "@/lib/marketHours";
 import type { HistoryPoint, TickerQuote } from "@/lib/marketTicker";
 
@@ -247,12 +248,19 @@ export function MarketTickerStrip({
 }: {
   quotes: TickerQuote[];
   /** The fund's own tile: unit price in AZN + its day change + price history
-   *  sparkline, plus the extended session folded into the price, if any. */
+   *  sparkline, plus the extended session folded into the price, if any.
+   *  `live` subscribes the tile to the 3-5s ticker: price = base +
+   *  delta/totalUnits, day % re-derived against the same reference. */
   irf: {
     priceAzn: number;
     changePct: number | null;
     spark?: number[];
     sessionMode?: ExtendedModeKey | null;
+    live?: {
+      basePriceAzn: number;
+      prevCloseAzn: number | null;
+      totalUnits: number;
+    };
   };
   /** The countdown / extended-hours chips row rendered below the tiles. */
   statusRow?: ReactNode;
@@ -263,6 +271,21 @@ export function MarketTickerStrip({
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [histRange, setHistRange] = useState<HistRangeKey>("5y");
+  // The İRF tile reticks with the live poll; the server-passed figures are
+  // the fallback (and the exact hydration match, since the provider's
+  // initial state carries the same render-time delta).
+  const liveCtx = useLivePricing();
+  let irfPriceAzn = irf.priceAzn;
+  let irfChangePct = irf.changePct;
+  let irfSessionMode = irf.sessionMode ?? null;
+  if (irf.live && liveCtx && irf.live.totalUnits > 0) {
+    irfPriceAzn = irf.live.basePriceAzn + liveCtx.deltaAzn / irf.live.totalUnits;
+    irfChangePct =
+      irf.live.prevCloseAzn != null && irf.live.prevCloseAzn > 0
+        ? irfPriceAzn / irf.live.prevCloseAzn - 1
+        : irf.changePct;
+    irfSessionMode = liveCtx.mode;
+  }
   // 5-year histories arrive on demand (they'd be ~80KB of page payload for
   // all six tiles) and stick around for the session once fetched.
   const [histories, setHistories] = useState<Record<string, HistoryPoint[]>>(
@@ -332,16 +355,16 @@ export function MarketTickerStrip({
         ))}
         <Tile
           label="İRF Payı"
-          price={`${formatGrouped(irf.priceAzn, 2)}₼`}
-          changePct={irf.changePct}
+          price={`${formatGrouped(irfPriceAzn, 2)}₼`}
+          changePct={irfChangePct}
           icon={ASSET_ICONS.irf}
           sessionIcon={
-            irf.sessionMode ? (
+            irfSessionMode ? (
               <span
-                className={`inline-flex shrink-0 ${EXTENDED_META[irf.sessionMode].iconTint}`}
-                title={EXTENDED_META[irf.sessionMode].label}
+                className={`inline-flex shrink-0 ${EXTENDED_META[irfSessionMode].iconTint}`}
+                title={EXTENDED_META[irfSessionMode].label}
               >
-                {EXTENDED_META[irf.sessionMode].icon}
+                {EXTENDED_META[irfSessionMode].icon}
               </span>
             ) : undefined
           }

@@ -56,6 +56,7 @@ import { FundViewToggle } from "@/components/FundViewToggle";
 import { ShareholdersList } from "@/components/ShareholdersList";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { PrivacyProvider } from "@/components/PrivacyProvider";
+import { LivePricingProvider } from "@/components/LivePricing";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { MarketCountdown } from "@/components/MarketCountdown";
 import { AutoRetry } from "@/components/AutoRetry";
@@ -701,6 +702,15 @@ export default async function DashboardPage({
       <Header dateLabel={dateLabel} />
 
       <PrivacyProvider initialHidden={amountsHidden}>
+      {/* The 3-5s ticker: subscribed figures retick between full refreshes.
+          initial carries the render-time delta, so hydration matches. */}
+      <LivePricingProvider
+        initial={{
+          deltaAzn: liveDeltaFundAzn,
+          mode: extendedPortfolio?.mode ?? null,
+          asOfMs: extendedPortfolio?.asOfMs ?? null,
+        }}
+      >
       <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
         {/* Hero — greeting with the view controls inline on its own line
             (every breakpoint), then the Yahoo-style ticker card:
@@ -731,6 +741,11 @@ export default async function DashboardPage({
                 priceAzn: unitPriceLiveAzn,
                 changePct: unitDayPctLive,
                 sessionMode: extendedPortfolio?.mode ?? null,
+                live: {
+                  basePriceAzn: fund.unitPrice,
+                  prevCloseAzn: previousPricePoint?.price ?? null,
+                  totalUnits: fund.totalUnits,
+                },
                 // Unit-price history stands in for an intraday line — the
                 // pay reprices daily, so its "movement" is the last stretch
                 // of recorded prices.
@@ -768,6 +783,12 @@ export default async function DashboardPage({
                 dayChange={withExt(fundDayChange, liveDeltaFundAzn)}
                 totalChange={fundTotalChange + liveDeltaFundAzn}
                 sessionMode={extendedPortfolio?.mode ?? null}
+                live={{
+                  baseValue: fund.totalCapital,
+                  baseDay: fundDayChange,
+                  baseTotal: fundTotalChange,
+                  scale: 1,
+                }}
               />
               {/* Market status + extended-hours badge, below the figure —
                   this view has no ticker card or chart card to carry them.
@@ -838,6 +859,12 @@ export default async function DashboardPage({
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
                     sessionMode={extendedPortfolio?.mode ?? null}
+                    live={{
+                      baseValue: bookValue,
+                      baseDay: bookDayChange,
+                      baseTotal: bookPnl,
+                      scale: holderShare,
+                    }}
                     action={chartActions}
                   />
                 }
@@ -851,6 +878,12 @@ export default async function DashboardPage({
                     units={effectiveUnits}
                     avgBuyPrice={perf.avgBuyPrice}
                     sessionMode={extendedPortfolio?.mode ?? null}
+                    live={{
+                      baseValue: fund.unitPrice,
+                      baseDay: unitDayChange,
+                      baseTotal: unit3mChange,
+                      scale: fund.totalUnits > 0 ? 1 / fund.totalUnits : 0,
+                    }}
                     action={chartActions}
                   />
                 }
@@ -1146,6 +1179,7 @@ export default async function DashboardPage({
           </MotionSection>
         )}
       </div>
+      </LivePricingProvider>
       </PrivacyProvider>
     </main>
   );
