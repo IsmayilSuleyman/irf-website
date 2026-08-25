@@ -6,25 +6,25 @@ import type {
   BondObligations,
   LiquidityProjectionPoint,
 } from "@/lib/liquidityProjection";
-import type { BankHealth, DepositCoverage } from "@/lib/bankHealth";
+import type { BankHealth } from "@/lib/bankHealth";
 import type { BankTrendSeries } from "@/lib/bankSnapshots";
 import { DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT } from "@/lib/bankTermsData";
 import { LiquidityProjectionChart } from "@/components/LiquidityProjectionChartLazy";
 import { Odometer } from "@/components/Odometer";
 import { sparkPath } from "@/components/RowSpark";
 import { BankHealthBanner } from "@/components/BankHealthBanner";
-import { BankGuaranteeCard } from "@/components/BankGuaranteeCard";
 import { BankBalanceSheet } from "@/components/BankBalanceSheet";
 import { BankObligationsCard } from "@/components/BankObligationsCard";
 
 // Ümumbank baxışı in the bank's card language (CreditPanel / BalanceHero),
 // ordered the way a depositor actually reads it: the VERDICT first (health
 // banner), then the balance-sheet hero (figure, funding bar, stat tiles
-// with daily-snapshot sparklines, the interest strip), the İsmayıl
-// guarantee certificate with its coverage ratio, the two-column balance
-// sheet, the full obligations list, the projection chart, overdue +
-// 30-day flows, the person lists, and a deposit CTA to close. A chip
-// quick-nav up top keeps the long page navigable.
+// with daily-snapshot sparklines, the interest strip), the two-column
+// balance sheet, the full obligations list, the projection chart, overdue
+// + 30-day flows, the person lists, and a deposit CTA to close. A chip
+// quick-nav up top keeps the long page navigable. Deliberately NO
+// guarantee/coverage card: İsmayılBank's obligations are the bank's own —
+// they are not backed by the İRF fund, and nothing here may imply it.
 
 // === Tiny presentational helpers (component-local on purpose) ===
 
@@ -237,7 +237,6 @@ function ListSection({
 const QUICK_NAV = [
   { href: "#veziyyet", label: "Vəziyyət" },
   { href: "#likvidlik", label: "Likvidlik" },
-  { href: "#zemanet", label: "Zəmanət" },
   { href: "#balans", label: "Balans" },
   { href: "#ohdelikler", label: "Öhdəliklər" },
   { href: "#proqnoz", label: "Proqnoz" },
@@ -249,7 +248,6 @@ export function BankWideView({
   aggregate,
   projection,
   bondObligations,
-  coverage,
   health,
   trend,
   unsettledAvailable,
@@ -258,7 +256,6 @@ export function BankWideView({
   aggregate: BankWideAggregate;
   projection?: LiquidityProjectionPoint[];
   bondObligations: BondObligations;
-  coverage: DepositCoverage | null;
   health: BankHealth;
   trend: BankTrendSeries | null;
   unsettledAvailable: boolean;
@@ -489,9 +486,6 @@ export function BankWideView({
           </div>
         ) : null}
       </section>
-
-      {/* ── The İsmayıl guarantee, with its coverage ratio. ── */}
-      <BankGuaranteeCard coverage={coverage} />
 
       {/* ── Two mirrored columns: where the money comes from / where it sits. ── */}
       <BankBalanceSheet

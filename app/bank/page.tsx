@@ -12,7 +12,7 @@ import {
   getLiveFundDelta,
 } from "@/lib/extendedPortfolio";
 import { dayChangeReference, getPriceHistory } from "@/lib/priceHistory";
-import { FUND_PRINCIPAL_NAME, getHolderMarketState } from "@/lib/holdings";
+import { getHolderMarketState } from "@/lib/holdings";
 import { requireUser } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
@@ -26,7 +26,7 @@ import {
   computeBondObligations,
   computeLiquidityProjection,
 } from "@/lib/liquidityProjection";
-import { computeBankHealth, computeDepositCoverage } from "@/lib/bankHealth";
+import { computeBankHealth } from "@/lib/bankHealth";
 import { getBankDailySeries } from "@/lib/bankSnapshots";
 import { getAssetTransactions } from "@/lib/sheets";
 import {
@@ -235,9 +235,6 @@ export default async function BankPage({
       assetTxs,
       unsettledTotals,
       trend,
-      fund,
-      fundHoldings,
-      principalState,
     ] = await Promise.all([
       getBankAccounts(),
       getBondFundingAzn(),
@@ -245,13 +242,7 @@ export default async function BankPage({
       getAssetTransactions(),
       supabase ? getBankUnsettledTotals(supabase) : Promise.resolve(totalsUnavailable),
       supabase ? getBankDailySeries(supabase) : Promise.resolve(null),
-      getFundData().catch(() => null),
-      getHoldings().catch(() => []),
-      // İsmayıl's live İRF stake backs the guarantee card's coverage
-      // ratio; a Sheets outage degrades to a liquidity-only floor.
-      getHolderMarketState(FUND_PRINCIPAL_NAME).catch(() => null),
     ]);
-    const liveDelta = await getLiveFundDelta(fundHoldings);
     const aggregate = computeBankWide(
       accounts,
       now,
@@ -273,17 +264,6 @@ export default async function BankPage({
       now,
     );
     const bondObligations = computeBondObligations(bondBreakdown, now);
-    // The same live-valuation recipe the personal İRF tile uses.
-    const principalStakeAzn =
-      fund && principalState && fund.totalUnits > 0
-        ? fund.unitPrice * principalState.effectiveUnits +
-          liveDelta.deltaAzn * (principalState.effectiveUnits / fund.totalUnits)
-        : null;
-    const coverage = computeDepositCoverage({
-      depositObligationsAzn: aggregate.depositObligationsAzn,
-      netLiquidityAzn: aggregate.netLiquidityAzn,
-      principalStakeAzn,
-    });
     const projectionMinAzn =
       projection.length >= 2
         ? Math.min(...projection.map((p) => p.valueAzn))
@@ -293,7 +273,6 @@ export default async function BankPage({
       overdueCount: aggregate.overdue.items.length,
       overdueTotalAzn: aggregate.overdue.totalAzn,
       projectionMinAzn,
-      coverage,
     });
     // Baku is fixed UTC+4 — manual math, no Intl (hydration rule).
     const baku = new Date(now.getTime() + 4 * 3_600_000);
@@ -318,7 +297,6 @@ export default async function BankPage({
               aggregate={aggregate}
               projection={projection}
               bondObligations={bondObligations}
-              coverage={coverage}
               health={health}
               trend={trend}
               unsettledAvailable={unsettledTotals.available}
