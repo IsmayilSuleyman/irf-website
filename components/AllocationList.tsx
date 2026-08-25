@@ -455,47 +455,48 @@ export function AllocationList({
         </button>
       </div>
 
-      <AnimatePresence initial={false}>
-        {sortOpen && (
-          <m.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className="-mt-1.5 overflow-hidden"
-          >
-            <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
-              <span className="text-[11px] font-medium text-black/45 dark:text-white/50">
-                Sırala:
-              </span>
-              {sortChoices.map((c) => {
-                const active = sortKey === c.key;
-                return (
-                  <button
-                    key={c.key}
-                    type="button"
-                    onClick={() => pickSort(c.key)}
-                    aria-pressed={active}
-                    title={
-                      active
-                        ? "İstiqaməti çevirmək üçün yenidən bas"
-                        : undefined
-                    }
-                    className={`num rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
-                      active
-                        ? "border-transparent bg-brand-green/15 text-brand-green dark:text-emerald-400"
-                        : "border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
-                    }`}
-                  >
-                    {c.label}
-                    {active ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
-                  </button>
-                );
-              })}
-            </div>
-          </m.div>
-        )}
-      </AnimatePresence>
+      {/* Native grid-rows collapse — same reasoning as the momentum
+          drill-down below: a JS height tween above the list reflows every
+          row per frame on phones. */}
+      <div
+        aria-hidden={!sortOpen}
+        className={`-mt-1.5 grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${
+          sortOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+            <span className="text-[11px] font-medium text-black/45 dark:text-white/50">
+              Sırala:
+            </span>
+            {sortChoices.map((c) => {
+              const active = sortKey === c.key;
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => pickSort(c.key)}
+                  aria-pressed={active}
+                  tabIndex={sortOpen ? undefined : -1}
+                  title={
+                    active
+                      ? "İstiqaməti çevirmək üçün yenidən bas"
+                      : undefined
+                  }
+                  className={`num rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+                    active
+                      ? "border-transparent bg-brand-green/15 text-brand-green dark:text-emerald-400"
+                      : "border-black/10 dark:border-white/15 text-black/45 dark:text-white/50 hover:text-black/70 dark:hover:text-white/75"
+                  }`}
+                >
+                  {c.label}
+                  {active ? (sortDir === "desc" ? " ↓" : " ↑") : ""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Per-column currency toggles, mirroring the rows' number grid so
           each sits above the column it governs. Hidden with the column. */}
@@ -812,47 +813,60 @@ export function AllocationList({
                   rank and value pill. The meta line labels the momentum
                   score and adds the average purchase price; on phones it
                   also carries the portfolio % and pay count that the
-                  collapsed row omits. */}
+                  collapsed row omits.
+
+                  Opened with a NATIVE grid-rows transition instead of the
+                  old framer height tween: a JS-driven height re-layouts the
+                  whole list (every row plus its sparkline SVG backdrop) on
+                  EVERY frame, which visibly lagged on phones. Here the
+                  browser interpolates one property itself, and the panel's
+                  content stays mounted after its first open, so re-opening
+                  costs no mount work either. Rows never tapped keep an
+                  empty collapsed wrapper — the factor table isn't in the
+                  DOM until it's first asked for. */}
               {momoRow && (
-                <AnimatePresence initial={false}>
-                  {momoIsOpen && (
-                    <m.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.22, ease: "easeOut" }}
-                      className="overflow-hidden"
-                    >
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-4 pt-2 text-[11px] text-black/45 dark:text-white/50 sm:pl-12">
-                        <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:hidden">
-                          {secondaryExtras}
-                        </span>
-                        <span className="hidden items-center gap-1.5 sm:inline-flex">
-                          <span
-                            className={`num rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
-                          >
-                            {momoRow.score.toFixed(1)}
+                <div
+                  aria-hidden={!momoIsOpen}
+                  className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${
+                    momoIsOpen
+                      ? "grid-rows-[1fr] opacity-100"
+                      : "grid-rows-[0fr] opacity-0"
+                  }`}
+                >
+                  <div className="min-h-0 overflow-hidden">
+                    {momoIsOpen || momoOpen[item.name] != null ? (
+                      <>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-4 pt-2 text-[11px] text-black/45 dark:text-white/50 sm:pl-12">
+                          <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:hidden">
+                            {secondaryExtras}
                           </span>
-                          Momentum balı
-                        </span>
-                        {item.avgPurchaseUsd != null && item.avgPurchaseUsd > 0 && (
-                          <span>
-                            Ortalama alış qiyməti:{" "}
-                            <span className="num text-black/70 dark:text-white/75">
-                              {priceCur === "usd"
-                                ? formatUsd(item.avgPurchaseUsd)
-                                : formatAzn(item.avgPurchaseUsd * USD_TO_AZN)}
+                          <span className="hidden items-center gap-1.5 sm:inline-flex">
+                            <span
+                              className={`num rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
+                            >
+                              {momoRow.score.toFixed(1)}
                             </span>
+                            Momentum balı
                           </span>
-                        )}
-                      </div>
-                      <MomentumFactorRows
-                        row={momoRow}
-                        className="pb-1 pl-4 pr-2 pt-3 sm:pl-12"
-                      />
-                    </m.div>
-                  )}
-                </AnimatePresence>
+                          {item.avgPurchaseUsd != null && item.avgPurchaseUsd > 0 && (
+                            <span>
+                              Ortalama alış qiyməti:{" "}
+                              <span className="num text-black/70 dark:text-white/75">
+                                {priceCur === "usd"
+                                  ? formatUsd(item.avgPurchaseUsd)
+                                  : formatAzn(item.avgPurchaseUsd * USD_TO_AZN)}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                        <MomentumFactorRows
+                          row={momoRow}
+                          className="pb-1 pl-4 pr-2 pt-3 sm:pl-12"
+                        />
+                      </>
+                    ) : null}
+                  </div>
+                </div>
               )}
             </li>
           );
