@@ -6,7 +6,12 @@ import {
   monthlyDepositInterestAzn,
   type BankAccount,
 } from "@/lib/bank";
-import { getFundData } from "@/lib/sheets";
+import { getFundData, getHoldings } from "@/lib/sheets";
+import {
+  currentUsRegularSession,
+  getLiveFundDelta,
+} from "@/lib/extendedPortfolio";
+import { dayChangeReference, getPriceHistory } from "@/lib/priceHistory";
 import { getHolderMarketState } from "@/lib/holdings";
 import { requireUser } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -252,22 +257,54 @@ export default async function BankPage({
   }
 
   const name = displayNameOf(user.user_metadata);
-  const [sheetAccount, bonds, creditOffer, allAssetTxs, fund, marketState, baseQuotes] =
-    await Promise.all([
-      getBankAccountByName(name),
-      getMyBondHoldings(),
-      getMyCreditOffer(name),
-      getAssetTransactions(),
-      // İRF joins the vault podium (with its own not-a-deposit note); a
-      // sheet outage just leaves it off, never breaks the bank page.
-      getFundData().catch(() => null),
-      getHolderMarketState(name).catch(() => null),
-      // The purchasable set is static, so its quotes join the first round;
-      // only exotic held symbols (if any) need a follow-up fetch below.
-      getAssetQuotes(PURCHASABLE_ASSETS.map((a) => a.symbol)),
-    ]);
+  const [
+    sheetAccount,
+    bonds,
+    creditOffer,
+    allAssetTxs,
+    fund,
+    marketState,
+    baseQuotes,
+    fundHoldings,
+    navHistory,
+  ] = await Promise.all([
+    getBankAccountByName(name),
+    getMyBondHoldings(),
+    getMyCreditOffer(name),
+    getAssetTransactions(),
+    // İRF joins the vault podium (with its own not-a-deposit note); a
+    // sheet outage just leaves it off, never breaks the bank page.
+    getFundData().catch(() => null),
+    getHolderMarketState(name).catch(() => null),
+    // The purchasable set is static, so its quotes join the first round;
+    // only exotic held symbols (if any) need a follow-up fetch below.
+    getAssetQuotes(PURCHASABLE_ASSETS.map((a) => a.symbol)),
+    // The fund's stock book + NAV history: the podium's İRF value rides the
+    // same 24/7 fold as the dashboard trio.
+    getHoldings().catch(() => []),
+    getPriceHistory().catch(() => []),
+  ]);
+  // Same live pricing the dashboard shows: sheet value + the current
+  // session's delta, scaled to the holder's slice of the fund.
+  const liveDelta = await getLiveFundDelta(fundHoldings);
+  const irfShare =
+    fund && marketState && fund.totalUnits > 0
+      ? marketState.effectiveUnits / fund.totalUnits
+      : 0;
   const irfValueAzn =
-    fund && marketState ? fund.unitPrice * marketState.effectiveUnits : 0;
+    fund && marketState
+      ? fund.unitPrice * marketState.effectiveUnits +
+        liveDelta.deltaAzn * irfShare
+      : 0;
+  const unitPriceLiveAzn =
+    fund && fund.totalUnits > 0
+      ? fund.unitPrice + liveDelta.deltaAzn / fund.totalUnits
+      : (fund?.unitPrice ?? 0);
+  const navRef = dayChangeReference(navHistory, currentUsRegularSession());
+  const irfDayChangePct =
+    fund && navRef && navRef.price > 0
+      ? unitPriceLiveAzn / navRef.price - 1
+      : null;
 
   // The vault: the holder's ETF book (gold/silver/BTC/S&P bought through
   // İsmayıl), valued live. Deliberately NEVER added to the deposit figure —
@@ -305,8 +342,10 @@ export default async function BankPage({
       label: a.label,
       iconKey: a.key,
       dayChangePct:
-        q?.priceUsd != null && q?.prevCloseUsd != null && q.prevCloseUsd > 0
-          ? q.priceUsd / q.prevCloseUsd - 1
+        (q?.extPriceUsd ?? q?.priceUsd) != null &&
+        q?.prevCloseUsd != null &&
+        q.prevCloseUsd > 0
+          ? (q.extPriceUsd ?? q.priceUsd)! / q.prevCloseUsd - 1
           : null,
     };
   });
@@ -579,6 +618,8 @@ export default async function BankPage({
               positions={assetPositions}
               unowned={unownedAssets}
               irfValueAzn={irfValueAzn}
+              irfDayChangePct={irfDayChangePct}
+              sessionLive={liveDelta.mode != null}
             />
           </div>
         </MotionSection>

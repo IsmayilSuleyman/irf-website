@@ -6,6 +6,8 @@ import {
   type DailyClose,
 } from "@/lib/yahoo";
 import type { AssetTransaction } from "@/lib/sheets";
+import type { ExtendedMode } from "@/lib/marketHours";
+import { effectiveSessionMode, sessionPriceOf } from "@/lib/sessionPricing";
 import { parseSheetDateMs } from "@/lib/sheetDates";
 
 // The personal ETF desk: holders (everyone but İsmayıl) buy SPY/IBIT/GLDM/
@@ -23,6 +25,13 @@ export const PURCHASABLE_ASSETS = [
 export type AssetQuote = {
   priceUsd: number | null;
   prevCloseUsd: number | null;
+  /** The extended session's price, when one is on (overnight carries the
+   *  persisted after-market close) — the ETF book breathes 24/7 like the
+   *  İRF slice beside it. */
+  extPriceUsd: number | null;
+  /** Which extended window extPriceUsd came from; null during regular
+   *  hours or when the window carried no print for this symbol. */
+  sessionMode: ExtendedMode | null;
 };
 
 export type AssetPosition = {
@@ -34,12 +43,16 @@ export type AssetPosition = {
   units: number;
   avgBuyUsd: number | null;
   costBasisAzn: number;
+  /** The live price the position is valued at — the extended session's
+   *  print when one is on, the regular price otherwise. */
   priceUsd: number | null;
   valueAzn: number | null;
   dayChangePct: number | null;
   dayChangeAzn: number | null;
   totalPnlAzn: number | null;
   totalPnlPct: number | null;
+  /** The extended session behind priceUsd, if any — the session glyph. */
+  sessionMode: ExtendedMode | null;
 };
 
 // Same holder-name normalization the bazar uses to match sheet names.
@@ -50,22 +63,31 @@ const metaOf = (symbol: string) =>
   PURCHASABLE_ASSETS.find((a) => a.symbol === symbol) ?? null;
 
 // One shared 60s cache per symbol set (public market data; entries as
-// tuples because Maps don't survive the cache serialization).
+// tuples because Maps don't survive the cache serialization). v2: the
+// entries grew ext-session fields — a fresh key so a stale-shape cache
+// entry can't deserialize into the new reads.
 const getCachedAssetQuotes = unstable_cache(
   async (symbols: string[]): Promise<Array<[string, AssetQuote]>> => {
     const map = await getExtendedQuotes(symbols);
+    // Yahoo already sends the pre/post fields with every quote — the same
+    // window guard the İRF fold uses picks which one applies right now.
+    const mode = effectiveSessionMode([...map.values()]);
     return symbols.map((s) => {
       const q = map.get(s);
+      const extPriceUsd =
+        q != null && mode != null ? sessionPriceOf(q, mode) : null;
       return [
         s,
         {
           priceUsd: q?.regularMarketPrice ?? null,
           prevCloseUsd: q?.regularMarketPreviousClose ?? null,
+          extPriceUsd,
+          sessionMode: extPriceUsd != null ? mode : null,
         },
       ];
     });
   },
-  ["personal-asset-quotes"],
+  ["personal-asset-quotes-v2"],
   { revalidate: 60 },
 );
 
@@ -135,7 +157,10 @@ export function buildAssetPositions(
     if (a.units <= 1e-9) continue;
     const meta = metaOf(symbol);
     const q = quotes[symbol];
-    const price = q?.priceUsd ?? null;
+    // Session price first: outside regular hours the position is worth what
+    // the extended tape says, same as the İRF slice beside it. Day change
+    // keeps its "vs previous close" meaning either way.
+    const price = q?.extPriceUsd ?? q?.priceUsd ?? null;
     const prev = q?.prevCloseUsd ?? null;
     const avgBuyUsd = a.units > 0 ? a.costUsd / a.units : null;
     const costBasisAzn = a.paidAzn;
@@ -155,6 +180,7 @@ export function buildAssetPositions(
         price != null && prev != null
           ? a.units * (price - prev) * USD_TO_AZN
           : null,
+      sessionMode: q?.extPriceUsd != null ? (q.sessionMode ?? null) : null,
       totalPnlAzn: valueAzn != null ? valueAzn - costBasisAzn : null,
       totalPnlPct:
         valueAzn != null && costBasisAzn > 0

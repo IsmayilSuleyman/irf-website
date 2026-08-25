@@ -125,12 +125,19 @@ export function BankAssetsVault({
   positions,
   unowned = [],
   irfValueAzn = 0,
+  irfDayChangePct = null,
+  sessionLive = false,
 }: {
   positions: AssetPosition[];
   /** Purchasable assets the holder does NOT own — podium invitations. */
   unowned?: VaultInvite[];
   /** The holder's İRF pay value — podium item with its own not-a-deposit note. */
   irfValueAzn?: number;
+  /** İRF pay's live day change vs yesterday's recorded price. */
+  irfDayChangePct?: number | null;
+  /** An extended session's move is folded into the figures — the plaque
+   *  says "son bağlanışdan" instead of claiming "bu gün". */
+  sessionLive?: boolean;
 }) {
   // Order: what you own first, then İRF, then the invitations.
   const items: VaultItem[] = [
@@ -151,7 +158,7 @@ export function BankAssetsVault({
       symbol: null,
       iconKey: "irf",
       valueAzn: irfValueAzn,
-      dayChangePct: null,
+      dayChangePct: irfDayChangePct,
       totalPnlAzn: null,
       isIrf: true,
       owned: irfValueAzn > 0,
@@ -346,7 +353,8 @@ export function BankAssetsVault({
                   : "text-brand-red dark:text-red-400"
               }`}
             >
-              {fmtPct(active.dayChangePct)} bu gün
+              {fmtPct(active.dayChangePct)}{" "}
+              {sessionLive ? "son bağlanışdan" : "bu gün"}
             </span>
           ) : null}
           {active.totalPnlAzn != null && active.totalPnlAzn !== 0 ? (

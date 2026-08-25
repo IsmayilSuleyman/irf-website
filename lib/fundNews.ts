@@ -74,10 +74,13 @@ export async function getFundNews(): Promise<FundNews> {
       createdAt: String(r.created_at),
       dateLabel: bakuDateLabel(String(r.created_at)),
       ticker,
-      tickerPriceUsd: q?.priceUsd ?? null,
+      // Session price first — the chip breathes with the rest of the site.
+      tickerPriceUsd: q?.extPriceUsd ?? q?.priceUsd ?? null,
       tickerDayPct:
-        q?.priceUsd != null && q?.prevCloseUsd != null && q.prevCloseUsd > 0
-          ? q.priceUsd / q.prevCloseUsd - 1
+        (q?.extPriceUsd ?? q?.priceUsd) != null &&
+        q?.prevCloseUsd != null &&
+        q.prevCloseUsd > 0
+          ? (q.extPriceUsd ?? q.priceUsd)! / q.prevCloseUsd - 1
           : null,
     };
   });
