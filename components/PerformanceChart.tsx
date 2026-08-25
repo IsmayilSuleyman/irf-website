@@ -61,15 +61,36 @@ function tooltipDate(ms: number): string {
   return `${d.getUTCDate()} ${AZ_MONTHS_LONG[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
+// `fine` names the minute-snapshot tier the range prefers when the caller
+// passes one: 1G/1H exist ONLY with minute data (their pills hide without
+// it), while 1 AY upgrades to 30-minute texture when available and falls
+// back to the daily series otherwise.
 const RANGES = [
-  { key: "1m", label: "1 AY", days: 30 },
-  { key: "3m", label: "3 AY", days: 90 },
-  { key: "6m", label: "6 AY", days: 180 },
-  { key: "1y", label: "1 İL", days: 365 },
-  { key: "all", label: "BÜTÜN", days: null },
+  { key: "1g", label: "1G", days: 1, fine: "day" },
+  { key: "1h", label: "1H", days: 7, fine: "week" },
+  { key: "1m", label: "1 AY", days: 30, fine: "month" },
+  { key: "3m", label: "3 AY", days: 90, fine: null },
+  { key: "6m", label: "6 AY", days: 180, fine: null },
+  { key: "1y", label: "1 İL", days: 365, fine: null },
+  { key: "all", label: "BÜTÜN", days: null, fine: null },
 ] as const;
 
 type RangeKey = (typeof RANGES)[number]["key"];
+
+/** The three minute-snapshot windows, as chart point arrays. */
+export type FineTiers = {
+  day: Point[];
+  week: Point[];
+  month: Point[];
+};
+
+// Baku wall-clock (fixed UTC+4, manual math — no Intl in a client
+// component) for the fine ranges' tick and tooltip times.
+function bakuTime(ms: number): string {
+  const d = new Date(ms + 4 * 3_600_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
 
 const MODES = [
   { key: "value", label: "SAHİBLİK DƏYƏRİ" },
@@ -187,6 +208,8 @@ function AthDot({ cx, cy }: { cx?: number; cy?: number }) {
 export function PerformanceChart({
   data,
   priceData,
+  fineData,
+  finePrice,
   events,
   sessionMode = null,
   hero,
@@ -194,6 +217,11 @@ export function PerformanceChart({
 }: {
   data: Point[];
   priceData?: Point[];
+  /** Minute-snapshot tiers for the fine ranges (1G/1H, richer 1 AY) in
+   *  value mode; the pills hide when a tier is absent. */
+  fineData?: FineTiers;
+  /** Same, for price mode (the pay price's minute series). */
+  finePrice?: FineTiers;
   /** The holder's own buys/sells — rendered as ▲/▼ markers in value mode so
    *  contribution jumps never masquerade as market moves. */
   events?: ChartEvent[];
@@ -217,15 +245,37 @@ export function PerformanceChart({
   const [range, setRange] = useState<RangeKey>("all");
 
   const source = mode === "price" ? (priceData ?? []) : data;
+  const fineTiers = mode === "price" ? finePrice : fineData;
+  // Ranges whose pill actually renders: 1G/1H only exist with their
+  // minute tier; 1 AY always shows (it falls back to the daily series).
+  const visibleRanges = RANGES.filter(
+    (r) =>
+      r.fine == null ||
+      r.key === "1m" ||
+      (fineTiers?.[r.fine]?.length ?? 0) >= 2,
+  );
+  // A mode switch can hide the selected fine pill (e.g. 1G chosen in price
+  // mode, then value mode has no minute data) — fall back to BÜTÜN rather
+  // than plotting a range the pills no longer offer.
+  const activeRange = visibleRanges.some((r) => r.key === range)
+    ? range
+    : "all";
 
   const filtered = useMemo(() => {
-    if (!source || source.length === 0) return [];
-    const days = RANGES.find((r) => r.key === range)?.days ?? null;
+    const rangeDef = RANGES.find((r) => r.key === activeRange);
+    // A fine range prefers its minute tier; too-thin tiers fall back to
+    // the daily series (which the cutoff below may then empty — the
+    // chart's normal no-data state).
+    const fine =
+      rangeDef?.fine != null ? fineTiers?.[rangeDef.fine] : undefined;
+    const effSource = fine && fine.length >= 2 ? fine : source;
+    if (!effSource || effSource.length === 0) return [];
+    const days = rangeDef?.days ?? null;
     const cutoff = days == null ? null : Date.now() - days * 24 * 60 * 60 * 1000;
     const inWindow =
       cutoff == null
-        ? source
-        : source.filter((p) => {
+        ? effSource
+        : effSource.filter((p) => {
             if (!p.date) return true;
             const t = new Date(p.date).getTime();
             return Number.isFinite(t) && t >= cutoff;
@@ -238,7 +288,7 @@ export function PerformanceChart({
     let start = 0;
     while (start < inWindow.length && inWindow[start].value <= 0) start += 1;
     return start > 0 ? inWindow.slice(start) : inWindow;
-  }, [source, range, mode]);
+  }, [source, fineTiers, activeRange, mode]);
 
   const showInvested =
     mode === "value" && filtered.some((p) => p.invested != null);
@@ -259,12 +309,37 @@ export function PerformanceChart({
       .filter((p) => Number.isFinite(p.ts))
       .sort((a, b) => a.ts - b.ts);
 
+    // The NAV cron labels its row with the NEXT Baku day, whose date-only
+    // string parses to a ts a couple of hours in the FUTURE around the
+    // 21:30-00:00 UTC window — the live İndi point must still sort last,
+    // or the dashed tail lands mid-chart and the solid line breaks.
+    const liveIdx0 = base.findIndex((p) => p.live);
+    if (liveIdx0 >= 0) {
+      let maxOther = -Infinity;
+      for (const p of base) if (!p.live && p.ts > maxOther) maxOther = p.ts;
+      if (Number.isFinite(maxOther) && base[liveIdx0].ts <= maxOther) {
+        base[liveIdx0] = { ...base[liveIdx0], ts: maxOther + 60_000 };
+        base.sort((a, b) => a.ts - b.ts);
+      }
+    }
+
     const withCrossings: (Point & { ts: number })[] = [];
     for (let i = 0; i < base.length; i++) {
       const a = base[i];
       withCrossings.push(a);
       const b = base[i + 1];
-      if (!showInvested || !b || a.invested == null || b.invested == null) continue;
+      // No crossings into the live tail — a synthetic point there would
+      // render as SOLID line + band and could even mint the Zirvə ring
+      // from a provisional session print.
+      if (
+        !showInvested ||
+        !b ||
+        a.live ||
+        b.live ||
+        a.invested == null ||
+        b.invested == null
+      )
+        continue;
       const da = a.value - a.invested;
       const db = b.value - b.invested;
       if (da * db < 0) {
@@ -299,6 +374,12 @@ export function PerformanceChart({
 
   const last = timed.length > 0 ? timed[timed.length - 1] : null;
 
+  // Fine windows label by wall clock: under ~2 days the axis ticks are
+  // Baku times; under ~8 days the tooltip carries date + time.
+  const spanMs = timed.length > 1 ? timed[timed.length - 1].ts - timed[0].ts : 0;
+  const timeTicks = spanMs > 0 && spanMs <= 50 * 3_600_000;
+  const timeTooltip = spanMs > 0 && spanMs <= 8 * 86_400_000;
+
   // Whole-manat ticks collapse into "5 · 5 · 5" on a small book (a 5 ₼ ETF
   // position moving by qəpiks) — grow decimals as the visible span shrinks
   // so neighboring ticks stay distinct.
@@ -332,7 +413,9 @@ export function PerformanceChart({
   const markers = useMemo<Marker[]>(() => {
     if (mode !== "value" || !events || events.length === 0 || timed.length === 0)
       return [];
-    const plotted = timed.filter((p) => p.date != null);
+    // Markers never snap to the provisional İndi point — a same-day trade
+    // pins to the last recorded row, as before the live tail existed.
+    const plotted = timed.filter((p) => p.date != null && !p.live);
     if (plotted.length === 0) return [];
     const windowStart = plotted[0].ts;
     const windowEnd = plotted[plotted.length - 1].ts;
@@ -481,7 +564,11 @@ export function PerformanceChart({
         }}
       >
         <p className="text-[11px] text-black/50 dark:text-white/50">
-          {p.live ? "İndi — seans qiyməti" : tooltipDate(p.ts)}
+          {p.live
+            ? "İndi — seans qiyməti"
+            : timeTooltip
+              ? `${tooltipDate(p.ts)}, ${bakuTime(p.ts)}`
+              : tooltipDate(p.ts)}
         </p>
         <div className="mt-1.5 space-y-1">
           <p className="flex items-center justify-between gap-6">
@@ -662,7 +749,7 @@ export function PerformanceChart({
                 tickLine={false}
                 axisLine={false}
                 minTickGap={24}
-                tickFormatter={tickDate}
+                tickFormatter={timeTicks ? bakuTime : tickDate}
               />
               {/* Value labels float inside the RIGHT edge (mirror) so the
                   plot's left edge sits flush with the card's text — the
@@ -686,9 +773,12 @@ export function PerformanceChart({
                   ARRAY, never a fragment: recharts matches its direct
                   children by type and silently drops anything inside <>. */}
               {(mode === "price" || !showInvested) && (
+                // valueSolid, not value: the gradient ends at the last
+                // recorded point, matching the dashed live tail's
+                // provisional treatment.
                 <Area
                   type="monotone"
-                  dataKey="value"
+                  dataKey="valueSolid"
                   stroke="none"
                   fill="url(#pcPrice)"
                 />
@@ -818,15 +908,19 @@ export function PerformanceChart({
       {/* Range buttons below the plot — full-width tap targets on phones,
           inline on larger screens. */}
       <div className="mt-4 flex items-center gap-1.5 sm:gap-2">
-        <div className="grid flex-1 grid-cols-5 gap-1.5 sm:flex sm:flex-none sm:items-center sm:gap-2">
-          {RANGES.map((r) => (
+        <div
+          className={`grid flex-1 gap-1.5 sm:flex sm:flex-none sm:items-center sm:gap-2 ${
+            visibleRanges.length > 5 ? "grid-cols-7" : "grid-cols-5"
+          }`}
+        >
+          {visibleRanges.map((r) => (
             <button
               key={r.key}
               type="button"
               onClick={() => setRange(r.key)}
-              aria-pressed={range === r.key}
+              aria-pressed={activeRange === r.key}
               className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
-                range === r.key
+                activeRange === r.key
                   ? "border-brand-green bg-brand-green text-white shadow-sm"
                   : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
               }`}

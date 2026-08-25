@@ -57,6 +57,8 @@ import { ShareholdersList } from "@/components/ShareholdersList";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { PrivacyProvider } from "@/components/PrivacyProvider";
 import { LivePricingProvider } from "@/components/LivePricing";
+import { getMinuteSeries } from "@/lib/minuteSeries";
+import { FundValueChart } from "@/components/FundValueChartLazy";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { MarketCountdown } from "@/components/MarketCountdown";
 import { AutoRetry } from "@/components/AutoRetry";
@@ -240,6 +242,15 @@ export default async function DashboardPage({
     return state.available ? state : null;
   })();
 
+  // Minutely snapshot tiers for the fine chart ranges (1G/1H, richer 1 AY)
+  // and the fund view's value chart. null while the recorder is young —
+  // the charts then keep their daily-only ranges.
+  const minuteSeriesPromise = (async () => {
+    const sb = await createSupabaseServerClient();
+    if (!sb) return null;
+    return getMinuteSeries(sb, name ?? null);
+  })();
+
   const {
     extendedPortfolio,
     regularPortfolio,
@@ -248,6 +259,7 @@ export default async function DashboardPage({
     momentumWeeks,
   } = await extendedAndHistory;
   const rewardState = await rewardStatePromise;
+  const minuteSeries = await minuteSeriesPromise;
 
   // This period's ticket. Sector data rides along for the advised set's
   // diversification cap (sectors are a property of the instrument, so the
@@ -347,11 +359,8 @@ export default async function DashboardPage({
     effectiveUnits,
   );
   const periodChanges = computePeriodChanges(fund.unitPrice, priceHistory);
-  // Session-aware "yesterday's close" — see dayChangeReference's own note.
-  const previousPricePoint = dayChangeReference(
-    priceHistory,
-    currentUsRegularSession(),
-  );
+  // The last recorded close — see dayChangeReference's own note.
+  const previousPricePoint = dayChangeReference(priceHistory);
   // The İRF tile's day change: unit price vs the last recorded price point —
   // the same reference the personal day-change figure uses.
   const unitDayPct =
@@ -510,6 +519,17 @@ export default async function DashboardPage({
   const fundDayChange = hasFundDayData
     ? holdings.reduce((s, h) => s + (h.dayChangeUsd ?? 0), 0)
     : null;
+  // The fund's day figure under the two labels: during regular hours
+  // "bu gün" = Watchlist col F + the live delta; in extended windows
+  // "son bağlanışdan" means the session's own move — col F still carries
+  // the FINISHED session's full change (which the last-close reference
+  // already covers), so stacking both would span two closes in one label.
+  const fundDayLiveAzn = sessionNow
+    ? liveDeltaFundAzn !== 0
+      ? liveDeltaFundAzn
+      : null
+    : withExt(fundDayChange, liveDeltaFundAzn);
+  const fundDayLiveBase = sessionNow ? null : fundDayChange;
 
   // Personal ETF desk: the viewer's positions from the Aktivlər ledger,
   // valued at live ETF quotes (SPY/IBIT/GLDM/SIVR — what holders actually
@@ -644,13 +664,20 @@ export default async function DashboardPage({
 
   // The plotted line ends at the last recorded close while the headline
   // above breathes — a dashed "İndi" tail point reconciles them
-  // (Yahoo-style). Appended only when there is an actual live read; the
-  // chart excludes it from the Zirvə search.
+  // (Yahoo-style). Appended only when there is an actual live read AND the
+  // viewer still owns something — a fully-exited book's tail would plunge
+  // to zero, resurrecting exactly the trailing-zero artifact the series
+  // trim removes. The ETF slices are refreshed to their live values so the
+  // tooltip's İRF / Digər aktivlər decomposition doesn't press the book's
+  // whole move since the last close onto the İRF row.
   const hasLiveRead = extendedPortfolio != null || regularPortfolio != null;
   const nowIso = new Date().toISOString();
   const lastBook = bookChartData[bookChartData.length - 1];
+  const etfBasisNow = assetPositions.reduce((s, p) => s + p.costBasisAzn, 0);
   const bookChartLive =
-    hasLiveRead && lastBook != null
+    hasLiveRead &&
+    lastBook != null &&
+    (effectiveUnits > 0 || assetPositions.length > 0)
       ? [
           ...bookChartData,
           {
@@ -658,6 +685,18 @@ export default async function DashboardPage({
             label: "İndi",
             date: nowIso,
             value: bookValue + liveDeltaMineAzn,
+            other: etfValueNow,
+            otherInvested: etfBasisNow,
+            invested:
+              lastBook.invested != null
+                ? Math.max(
+                    0,
+                    lastBook.invested -
+                      ((lastBook as { otherInvested?: number }).otherInvested ??
+                        0) +
+                      etfBasisNow,
+                  )
+                : undefined,
             live: true,
           },
         ]
@@ -780,12 +819,12 @@ export default async function DashboardPage({
                 showGreeting={false}
                 holderName={holder.name}
                 value={fund.totalCapital + liveDeltaFundAzn}
-                dayChange={withExt(fundDayChange, liveDeltaFundAzn)}
+                dayChange={fundDayLiveAzn}
                 totalChange={fundTotalChange + liveDeltaFundAzn}
                 sessionMode={extendedPortfolio?.mode ?? null}
                 live={{
                   baseValue: fund.totalCapital,
-                  baseDay: fundDayChange,
+                  baseDay: fundDayLiveBase,
                   baseTotal: fundTotalChange,
                   scale: 1,
                 }}
@@ -816,7 +855,7 @@ export default async function DashboardPage({
               <DailySummaryCard
                 dateLabel={dateLabel}
                 valueAzn={fund.totalCapital + liveDeltaFundAzn}
-                dayAzn={withExt(fundDayChange, liveDeltaFundAzn)}
+                dayAzn={fundDayLiveAzn}
                 sessionMode={extendedPortfolio?.mode ?? null}
                 best={
                   bestMover
@@ -843,12 +882,49 @@ export default async function DashboardPage({
               />
             </div>
           </MotionSection>
-        ) : (
+        ) : null}
+        {fundView ? (
+          /* The fund's own value chart — the minutely snapshot series over
+             the last day / week / month, i.e. exactly what the hero showed
+             at every minute. */
+          <MotionSection delay={0.08} className="-mt-11">
+            <FundValueChart
+              tiers={
+                minuteSeries
+                  ? {
+                      day: minuteSeries.day.fund,
+                      week: minuteSeries.week.fund,
+                      month: minuteSeries.month.fund,
+                    }
+                  : { day: [], week: [], month: [] }
+              }
+            />
+          </MotionSection>
+        ) : null}
+        {fundView ? null : (
           <>
             <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-11">
               <PerformanceChart
                 data={bookChartLive}
                 priceData={priceChartLive}
+                fineData={
+                  minuteSeries
+                    ? {
+                        day: minuteSeries.day.mine,
+                        week: minuteSeries.week.mine,
+                        month: minuteSeries.month.mine,
+                      }
+                    : undefined
+                }
+                finePrice={
+                  minuteSeries
+                    ? {
+                        day: minuteSeries.day.price,
+                        week: minuteSeries.week.price,
+                        month: minuteSeries.month.price,
+                      }
+                    : undefined
+                }
                 sessionMode={extendedPortfolio?.mode ?? null}
                 events={chartEvents}
                 hero={

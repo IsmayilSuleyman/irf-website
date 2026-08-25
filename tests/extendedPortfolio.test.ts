@@ -22,8 +22,11 @@ describe("computeExtendedPortfolio", () => {
     // sheetValue + delta = shares × extPrice, identically.
     const sheetValueAzn = 10 * 100 * USD_TO_AZN;
     expect(sheetValueAzn + r!.deltaAzn).toBeCloseTo(10 * 105 * USD_TO_AZN, 10);
-    expect(r!.changePct).toBeCloseTo(105 / 100 - 1, 10);
-    expect(r!.perSymbol.NVDA.changePct).toBeCloseTo(0.05, 10);
+    // The PERCENTAGES measure against Yahoo's settled regular print — the
+    // sheet's catch-up lag must not step the badge % or the session
+    // history while the extended price never moved.
+    expect(r!.changePct).toBeCloseTo(105 / 104 - 1, 10);
+    expect(r!.perSymbol.NVDA.changePct).toBeCloseTo(105 / 104 - 1, 10);
   });
 
   it("rejects a pre/post window whose quote majority disagrees (stale cache)", () => {
