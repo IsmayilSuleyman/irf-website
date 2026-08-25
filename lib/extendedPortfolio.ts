@@ -260,6 +260,46 @@ export type RegularPortfolio = {
  * a last-good fallback so a transient Yahoo failure can't yank the fold
  * out of the headline for one render.
  */
+/**
+ * Pure math for the regular-session read: changePct vs previous close and
+ * deltaAzn vs the Sheet's own prices. Guarded by the batch's own majority
+ * marketState (early-close half days report CLOSED/POST while the clock
+ * still says "regular"). Exported for the live-pricing endpoint and tests.
+ */
+export function computeRegularPortfolio(
+  holdings: Holding[],
+  quotes: ExtendedQuote[],
+): RegularPortfolio | null {
+  const regularCount = quotes.filter((q) => q.marketState === "REGULAR").length;
+  if (regularCount < Math.max(1, Math.ceil(quotes.length / 2))) return null;
+
+  const bySymbol = new Map(quotes.map((q) => [q.symbol, q]));
+  let valuePrev = 0;
+  let valueNow = 0;
+  let valueSheet = 0;
+  let valueNowForSheet = 0;
+  let covered = 0;
+  for (const h of holdings) {
+    if (h.isCash || h.sharesHeld <= 0 || !isTickerSymbol(h.symbol)) continue;
+    const q = bySymbol.get(toYahooSymbol(h.symbol));
+    const prev = q?.regularMarketPreviousClose;
+    const now = q?.regularMarketPrice;
+    if (prev == null || now == null || prev <= 0) continue;
+    valuePrev += h.sharesHeld * prev;
+    valueNow += h.sharesHeld * now;
+    if (Number.isFinite(h.priceUsd) && h.priceUsd > 0) {
+      valueSheet += h.sharesHeld * h.priceUsd;
+      valueNowForSheet += h.sharesHeld * now;
+    }
+    covered += 1;
+  }
+  if (covered === 0 || valuePrev <= 0) return null;
+  return {
+    changePct: valueNow / valuePrev - 1,
+    deltaAzn: (valueNowForSheet - valueSheet) * USD_TO_AZN,
+  };
+}
+
 export async function getRegularPortfolio(
   holdings: Holding[],
 ): Promise<RegularPortfolio | null> {
@@ -270,39 +310,8 @@ export async function getRegularPortfolio(
 
   try {
     const quotes = await withTimeout(getCachedQuotes(symbols), 4000);
-
-    // Early-close half days: the clock says "regular" but Yahoo reports
-    // CLOSED/POST — skip (full holidays never reach here; the clock maps
-    // them to overnight).
-    const regularCount = quotes.filter((q) => q.marketState === "REGULAR").length;
-    if (regularCount < Math.max(1, Math.ceil(quotes.length / 2))) return null;
-
-    const bySymbol = new Map(quotes.map((q) => [q.symbol, q]));
-    let valuePrev = 0;
-    let valueNow = 0;
-    let valueSheet = 0;
-    let valueNowForSheet = 0;
-    let covered = 0;
-    for (const h of holdings) {
-      if (h.isCash || h.sharesHeld <= 0 || !isTickerSymbol(h.symbol)) continue;
-      const q = bySymbol.get(toYahooSymbol(h.symbol));
-      const prev = q?.regularMarketPreviousClose;
-      const now = q?.regularMarketPrice;
-      if (prev == null || now == null || prev <= 0) continue;
-      valuePrev += h.sharesHeld * prev;
-      valueNow += h.sharesHeld * now;
-      if (Number.isFinite(h.priceUsd) && h.priceUsd > 0) {
-        valueSheet += h.sharesHeld * h.priceUsd;
-        valueNowForSheet += h.sharesHeld * now;
-      }
-      covered += 1;
-    }
-    if (covered === 0 || valuePrev <= 0) return null;
-    const result: RegularPortfolio = {
-      changePct: valueNow / valuePrev - 1,
-      deltaAzn: (valueNowForSheet - valueSheet) * USD_TO_AZN,
-    };
-    lastGoodRegular = { portfolio: result, atMs: Date.now() };
+    const result = computeRegularPortfolio(holdings, quotes);
+    if (result) lastGoodRegular = { portfolio: result, atMs: Date.now() };
     return result;
   } catch (err) {
     console.error("[extended-portfolio] regular quote fetch failed:", err);
@@ -341,6 +350,48 @@ export type LiveFundDelta = {
   /** The extended session behind it; null during regular hours. */
   mode: ExtendedMode | null;
 };
+
+// The live-pricing endpoint's own quote cache: 5s instead of 60s, so the
+// polled headline figures tick near-real-time while every concurrent
+// viewer still shares ONE upstream Yahoo call per window.
+const getFastQuotes = unstable_cache(
+  async (symbols: string[]): Promise<ExtendedQuote[]> => {
+    const map = await getExtendedQuotes(symbols);
+    return [...map.values()];
+  },
+  ["live-pricing-quotes"],
+  { revalidate: 5 },
+);
+
+/**
+ * The 3-5s ticker's read: same fold as getLiveFundDelta, on the 5s quote
+ * cache, with no retries or last-good machinery — the client polls again
+ * in a few seconds anyway and keeps its previous value on failure.
+ */
+export async function getLiveFundDeltaFast(
+  holdings: Holding[],
+): Promise<(LiveFundDelta & { asOfMs: number | null }) | null> {
+  const symbols = holdingSymbols(holdings);
+  if (symbols.length === 0) return null;
+  try {
+    const quotes = await withTimeout(getFastQuotes(symbols), 4000);
+    const expected = currentUsSession();
+    if (expected) {
+      let ext = computeExtendedPortfolio(holdings, quotes, expected);
+      if (!ext && expected === "pre") {
+        ext = computeExtendedPortfolio(holdings, quotes, "overnight");
+      }
+      return ext
+        ? { deltaAzn: ext.deltaAzn, mode: ext.mode, asOfMs: ext.asOfMs }
+        : null;
+    }
+    const reg = computeRegularPortfolio(holdings, quotes);
+    return reg ? { deltaAzn: reg.deltaAzn, mode: null, asOfMs: null } : null;
+  } catch (err) {
+    console.error("[extended-portfolio] fast quote fetch failed:", err);
+    return null;
+  }
+}
 
 /**
  * The one-number version of the 24/7 fold, for pages that only need "how
