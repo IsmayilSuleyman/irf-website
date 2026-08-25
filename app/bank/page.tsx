@@ -300,7 +300,7 @@ export default async function BankPage({
     fund && fund.totalUnits > 0
       ? fund.unitPrice + liveDelta.deltaAzn / fund.totalUnits
       : (fund?.unitPrice ?? 0);
-  const navRef = dayChangeReference(navHistory, currentUsRegularSession());
+  const navRef = dayChangeReference(navHistory);
   const irfDayChangePct =
     fund && navRef && navRef.price > 0
       ? unitPriceLiveAzn / navRef.price - 1

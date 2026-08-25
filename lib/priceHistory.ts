@@ -46,23 +46,19 @@ export function findLatestPriceBeforeDate(
 }
 
 /**
- * The reference point every "bu gün" figure measures against. The
- * record-price cron fires at 00:00 Baku, so the row LABELED today already
- * holds yesterday's US close (written hours before the open): during the
- * regular session the strict-before lookup would measure against the close
- * of TWO sessions ago, so take the newest row instead. Outside regular
- * hours the strict-before reference is the intended one — the full last
- * session plus its after-hours ride on top of it.
+ * The reference point every "bu gün / son bağlanışdan" figure measures
+ * against: the NEWEST recorded row. The cron fires at 01:30 Baku — after
+ * the US close in both seasons — labeling the row with the new Baku day
+ * and storing the just-settled close, so the newest row IS the last
+ * regular close everywhere: during the session that's yesterday's close
+ * ("bu gün"), and in pre/overnight windows it's the latest close, so the
+ * session figures agree with the badge beside them instead of silently
+ * reaching two closes back. The only soft spot is the 00:00–01:30 Baku
+ * stretch before the cron lands, where no fresher row exists yet and the
+ * figure briefly spans the finished session too — it self-heals at 01:30.
  */
-export function dayChangeReference(
-  history: NavPoint[],
-  inRegularSession: boolean,
-  now = new Date(),
-): NavPoint | null {
-  if (history.length === 0) return null;
-  return inRegularSession
-    ? history[history.length - 1]
-    : findLatestPriceBeforeDate(history, now);
+export function dayChangeReference(history: NavPoint[]): NavPoint | null {
+  return history.length > 0 ? history[history.length - 1] : null;
 }
 
 /**

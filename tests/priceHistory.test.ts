@@ -17,26 +17,17 @@ const history: NavPoint[] = [
 ];
 
 describe("dayChangeReference", () => {
-  const tuesdaySession = new Date("2026-08-25T15:00:00Z"); // during Tue's US session
-
-  it("uses the newest row during the regular session (it holds yesterday's close)", () => {
-    const ref = dayChangeReference(history, true, tuesdaySession);
+  it("always uses the newest row — it holds the last regular close", () => {
+    // During Tuesday's session that's yesterday's (Monday's) close for
+    // "bu gün"; in pre/overnight windows it's the latest close, matching
+    // the badge's "son bağlanışdan" semantics.
+    const ref = dayChangeReference(history);
     expect(ref?.recordedAt).toBe("2026-08-25");
     expect(ref?.price).toBe(24.82);
   });
 
-  it("keeps the strict-before reference outside regular hours", () => {
-    // Post/overnight after Tuesday's close: "bu gün" = Tuesday's full
-    // session + its after-hours ride, measured against Monday's close —
-    // which sits in the row LABELED Tuesday.
-    const ref = dayChangeReference(history, false, tuesdaySession);
-    expect(ref?.recordedAt).toBe("2026-08-24");
-    expect(ref?.price).toBe(25.28);
-  });
-
   it("handles an empty history", () => {
-    expect(dayChangeReference([], true)).toBeNull();
-    expect(dayChangeReference([], false)).toBeNull();
+    expect(dayChangeReference([])).toBeNull();
   });
 });
 

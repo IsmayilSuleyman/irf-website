@@ -110,8 +110,15 @@ export function computeExtendedPortfolio(
   const useField = expected === "pre" ? "preMarketPrice" : "postMarketPrice";
   const timeField = expected === "pre" ? "preMarketTimeMs" : "postMarketTimeMs";
 
+  // Two bases, deliberately different: the ₼ delta measures against the
+  // SHEET price so sheet + delta is a real valuation, while the displayed
+  // and recorded PERCENTAGES measure against Yahoo's settled regular print
+  // — otherwise GOOGLEFINANCE's post-close catch-up would step the badge %
+  // and the session-history chart while the extended price never moved.
   let valueBase = 0;
   let valueExt = 0;
+  let pctBaseSum = 0;
+  let pctExtSum = 0;
   let coveredCount = 0;
   let asOfMs: number | null = null;
   const perSymbol: Record<string, ExtendedSymbolQuote> = {};
@@ -120,15 +127,21 @@ export function computeExtendedPortfolio(
     const base = h.priceUsd;
     if (!Number.isFinite(base) || base <= 0) continue;
     const ext = q?.[useField];
+    const pctBase =
+      q?.regularMarketPrice != null && q.regularMarketPrice > 0
+        ? q.regularMarketPrice
+        : base;
     valueBase += h.sharesHeld * base;
     valueExt += h.sharesHeld * (ext ?? base);
+    pctBaseSum += h.sharesHeld * pctBase;
+    pctExtSum += h.sharesHeld * (ext ?? pctBase);
     if (ext != null) {
       coveredCount += 1;
       const t = q?.[timeField];
       if (t != null && (asOfMs == null || t > asOfMs)) asOfMs = t;
       perSymbol[h.symbol.trim().toUpperCase()] = {
         priceUsd: ext,
-        changePct: ext / base - 1,
+        changePct: ext / pctBase - 1,
         deltaAzn: h.sharesHeld * (ext - base) * USD_TO_AZN,
       };
     }
@@ -137,7 +150,8 @@ export function computeExtendedPortfolio(
 
   return {
     mode: expected,
-    changePct: valueExt / valueBase - 1,
+    changePct:
+      pctBaseSum > 0 ? pctExtSum / pctBaseSum - 1 : valueExt / valueBase - 1,
     deltaAzn: (valueExt - valueBase) * USD_TO_AZN,
     coveredCount,
     totalCount: stocks.length,
@@ -310,18 +324,38 @@ export async function getRegularPortfolio(
 
   try {
     const quotes = await withTimeout(getCachedQuotes(symbols), 4000);
-    const result = computeRegularPortfolio(holdings, quotes);
-    if (result) lastGoodRegular = { portfolio: result, atMs: Date.now() };
-    return result;
+    let result = computeRegularPortfolio(holdings, quotes);
+    if (!result) {
+      // 09:30 boundary: the cached batch may still say PRE/CLOSED for the
+      // first cache window of the session — same uncached retry as the
+      // extended path, so the open has no guaranteed dead minute.
+      try {
+        const fresh = await withTimeout(
+          getExtendedQuotes(symbols).then((m) => [...m.values()]),
+          3000,
+        );
+        result = computeRegularPortfolio(holdings, fresh);
+      } catch {
+        // fall through to lastGood below
+      }
+    }
+    if (result) {
+      lastGoodRegular = { portfolio: result, atMs: Date.now() };
+      return result;
+    }
+    return lastGoodRegularFresh();
   } catch (err) {
     console.error("[extended-portfolio] regular quote fetch failed:", err);
     // Serve the last good read for a few minutes rather than dropping the
     // fold (and visibly lurching the headline) over one bad fetch.
-    if (lastGoodRegular && Date.now() - lastGoodRegular.atMs < 10 * 60_000) {
-      return lastGoodRegular.portfolio;
-    }
-    return null;
+    return lastGoodRegularFresh();
   }
+}
+
+function lastGoodRegularFresh(): RegularPortfolio | null {
+  return lastGoodRegular && Date.now() - lastGoodRegular.atMs < 10 * 60_000
+    ? lastGoodRegular.portfolio
+    : null;
 }
 
 // Last good results, per instance — the lastGoodSnapshot recipe from
@@ -332,16 +366,25 @@ let lastGoodRegular: { portfolio: RegularPortfolio; atMs: number } | null = null
 let lastGoodExtended: { portfolio: ExtendedPortfolio; atMs: number } | null =
   null;
 
-/** How stale a saved extended fold may be served, by mode: pre/post move
- *  live so 10 minutes; overnight is frozen at the after-market close
- *  anyway, so anything within a long weekend is the same number. */
+/** How stale a saved extended fold may be served: the cap keys off the
+ *  SAVED fold's mode (an overnight fold is frozen at the after-market
+ *  close, so the long cap applies to it wherever it is served); the mode
+ *  match accepts the windows' natural neighbors — a pre window rides an
+ *  overnight fold (the 04:00 fallback saves as "overnight"), and an
+ *  overnight window rides a just-ended post fold (numerically the same
+ *  close). Without these, one Yahoo timeout at a session boundary would
+ *  blank six headline surfaces at once. */
 function lastGoodExtendedFresh(expected: ExtendedMode): ExtendedPortfolio | null {
   if (!lastGoodExtended) return null;
+  const saved = lastGoodExtended.portfolio;
+  const modeOk =
+    saved.mode === expected ||
+    (expected === "pre" && saved.mode === "overnight") ||
+    (expected === "overnight" && saved.mode === "post");
+  if (!modeOk) return null;
   const age = Date.now() - lastGoodExtended.atMs;
-  const cap = expected === "overnight" ? 3 * 24 * 3_600_000 : 10 * 60_000;
-  return lastGoodExtended.portfolio.mode === expected && age < cap
-    ? lastGoodExtended.portfolio
-    : null;
+  const cap = saved.mode === "overnight" ? 3 * 24 * 3_600_000 : 10 * 60_000;
+  return age < cap ? saved : null;
 }
 
 export type LiveFundDelta = {
@@ -377,10 +420,13 @@ export async function getLiveFundDeltaFast(
     const quotes = await withTimeout(getFastQuotes(symbols), 4000);
     const expected = currentUsSession();
     if (expected) {
-      let ext = computeExtendedPortfolio(holdings, quotes, expected);
-      if (!ext && expected === "pre") {
-        ext = computeExtendedPortfolio(holdings, quotes, "overnight");
-      }
+      // Same fallback chain as the full fold: a claimed window whose
+      // quotes aren't printing rides the persisted after-market close.
+      const ext =
+        computeExtendedPortfolio(holdings, quotes, expected) ??
+        (expected !== "overnight"
+          ? computeExtendedPortfolio(holdings, quotes, "overnight")
+          : null);
       return ext
         ? { deltaAzn: ext.deltaAzn, mode: ext.mode, asOfMs: ext.asOfMs }
         : null;
@@ -434,22 +480,32 @@ export async function getExtendedPortfolio(
     let result = computeExtendedPortfolio(holdings, quotes, expected);
 
     if (!result && expected !== "overnight") {
-      // The cached batch may predate the session (SWR after an idle gap) —
-      // one uncached retry with a tighter deadline settles whether the
-      // session is genuinely on.
-      try {
-        const fresh = await withTimeout(
-          getExtendedQuotes(symbols).then((m) => [...m.values()]),
-          3000,
-        );
-        result = computeExtendedPortfolio(holdings, fresh, expected);
-        if (!result && expected === "pre") {
-          // 04:00 boundary: the window is pre but no quote has flipped yet —
-          // the after-market close is still the freshest extended print.
-          result = computeExtendedPortfolio(holdings, fresh, "overnight");
+      // The window is claimed but the batch disagrees. When NO quote shows
+      // a live extended state, the session simply isn't printing (04:00
+      // boundary, or a half-day whose after-hours already ended) — the
+      // after-market close is the freshest extended print, and skipping
+      // the uncached retry keeps quiet windows from paying an extra Yahoo
+      // call every render.
+      const anyLive = quotes.some(
+        (q) => q.marketState === "PRE" || q.marketState === "POST",
+      );
+      if (!anyLive) {
+        result = computeExtendedPortfolio(holdings, quotes, "overnight");
+      }
+      if (!result) {
+        // Mixed/stale states (SWR after an idle gap): one uncached retry
+        // with a tighter deadline settles whether the session is on.
+        try {
+          const fresh = await withTimeout(
+            getExtendedQuotes(symbols).then((m) => [...m.values()]),
+            3000,
+          );
+          result =
+            computeExtendedPortfolio(holdings, fresh, expected) ??
+            computeExtendedPortfolio(holdings, fresh, "overnight");
+        } catch {
+          // fall through to lastGood below
         }
-      } catch {
-        // fall through to lastGood below
       }
     }
 
