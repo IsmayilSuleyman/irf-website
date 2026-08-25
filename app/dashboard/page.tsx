@@ -64,6 +64,7 @@ import { computeDebtProjections, computeDebtSchedule } from "@/lib/debtSchedule"
 import { after } from "next/server";
 import { refreshExtendedHours } from "@/lib/watchlistExtended";
 import {
+  currentUsRegularSession,
   getExtendedHistory,
   getExtendedPortfolio,
   getRegularHistory,
@@ -328,7 +329,15 @@ export default async function DashboardPage({
     effectiveUnits,
   );
   const periodChanges = computePeriodChanges(fund.unitPrice, priceHistory);
-  const previousPricePoint = findLatestPriceBeforeDate(priceHistory, new Date());
+  // The record-price cron fires at 00:00 Baku, so the row LABELED today
+  // already holds yesterday's US close (written 17.5h before the open).
+  // During the regular session the strict-before lookup would therefore
+  // measure "bu gün" against the close of TWO sessions ago — take the
+  // newest row instead. Outside regular hours the strict-before reference
+  // is the intended one: the full last session plus its after-hours ride.
+  const previousPricePoint = currentUsRegularSession()
+    ? (priceHistory[priceHistory.length - 1] ?? null)
+    : findLatestPriceBeforeDate(priceHistory, new Date());
   // The İRF tile's day change: unit price vs the last recorded price point —
   // the same reference the personal day-change figure uses.
   const unitDayPct =
