@@ -510,6 +510,23 @@ export type BankWideUpcomingInflow = {
   paid: boolean;
 };
 
+export type BankWideOverdueItem = {
+  name: string;
+  amountAzn: number;
+  date: string;
+  daysOverdue: number;
+  label: string | null;
+};
+
+/** Pass-through from bank_unsettled_totals — the Supabase ledgers the
+ *  sheet can't see. All zero when the RPC was unreachable. */
+export type BankUnsettledExtras = {
+  unsettledInterestAzn?: number;
+  unsettledRewardsAzn?: number;
+  settledInterestAzn?: number;
+  settledRewardsAzn?: number;
+};
+
 export type BankWideAggregate = {
   totalDepositsAzn: number;
   /** Cash raised from settled primary bond sales of active series. */
@@ -533,10 +550,25 @@ export type BankWideAggregate = {
   // counting only deposits still within their term.
   totalAccruedInterestAzn: number;
   totalMonthlyInterestAzn: number;
+  // The Supabase ledgers (daily interest + daily rewards), folded in via the
+  // caller so this stays a pure function. Zero when the RPC was unreachable.
+  unsettledInterestAzn: number;
+  unsettledRewardsAzn: number;
+  settledInterestAzn: number;
+  settledRewardsAzn: number;
+  /**
+   * Everything the bank owes its depositors if they all left: principal +
+   * pending term bonuses + the unsettled daily interest/reward ledger.
+   * The base of the guarantee card's coverage ratio.
+   */
+  depositObligationsAzn: number;
   depositors: BankWideDepositor[];
   borrowers: BankWideBorrower[];
   next30dPayouts: { totalAzn: number; items: BankWideUpcomingPayout[] };
   next30dInflow: { totalAzn: number; items: BankWideUpcomingInflow[] };
+  /** Unpaid installments whose date is already behind us — deliberately
+   *  surfaced, so the "Gecikmiş ödəniş: yoxdur" tile means something. */
+  overdue: { totalAzn: number; items: BankWideOverdueItem[] };
 };
 
 /**
@@ -610,6 +642,8 @@ export function computeBankWide(
   // The ETF paid-basis reserve (lib/personalAssets.computeAssetReserveAzn) —
   // carried for display only, deliberately outside the funding math.
   assetReserveAzn = 0,
+  // Supabase ledger sums (bank_unsettled_totals RPC) — fetched by the caller.
+  unsettled: BankUnsettledExtras = {},
 ): BankWideAggregate {
   // Anchor "today" at UTC midnight — diffs are then stable regardless of when
   // in the day the request hits.
@@ -627,6 +661,7 @@ export function computeBankWide(
   const borrowers: BankWideBorrower[] = [];
   const payouts: BankWideUpcomingPayout[] = [];
   const inflow: BankWideUpcomingInflow[] = [];
+  const overdueItems: BankWideOverdueItem[] = [];
 
   for (const acc of accounts) {
     totalDepositsAzn += acc.depositedAzn;
@@ -719,6 +754,19 @@ export function computeBankWide(
         if (!d) continue;
         const daysAway = daysBetween(todayUtc, d);
         const paid = isPaymentPaid(item.status);
+        // Unpaid + past-dated = overdue. Collected SEPARATELY from the
+        // 30-day expected inflow (it isn't expected anymore, it's late) —
+        // the old `daysAway >= 0` filter silently vanished these rows.
+        if (!paid && daysAway < 0) {
+          overdueItems.push({
+            name: acc.name,
+            amountAzn: item.amountAzn,
+            date: item.date,
+            daysOverdue: -daysAway,
+            label: item.label,
+          });
+          continue;
+        }
         const inWindow = paid
           ? daysAway >= -30 && daysAway <= 30
           : daysAway >= 0 && daysAway <= 30;
@@ -755,6 +803,17 @@ export function computeBankWide(
               label: null,
               paid: false,
             });
+          } else if (daysAway < 0 && daysAway >= -90) {
+            // Without a schedule the sheet's nextPaymentDate is the only
+            // signal; a past date on an open loan reads as late. Capped at
+            // 90 days so a long-forgotten stale cell doesn't scream forever.
+            overdueItems.push({
+              name: acc.name,
+              amountAzn: acc.monthlyPaymentAzn,
+              date: acc.nextPaymentDate,
+              daysOverdue: -daysAway,
+              label: null,
+            });
           }
         }
       }
@@ -765,6 +824,12 @@ export function computeBankWide(
   borrowers.sort((a, b) => b.outstandingLoanAzn - a.outstandingLoanAzn);
   payouts.sort((a, b) => a.daysAway - b.daysAway);
   inflow.sort((a, b) => a.daysAway - b.daysAway);
+  overdueItems.sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+  const unsettledInterestAzn = Math.max(0, unsettled.unsettledInterestAzn ?? 0);
+  const unsettledRewardsAzn = Math.max(0, unsettled.unsettledRewardsAzn ?? 0);
+  const settledInterestAzn = Math.max(0, unsettled.settledInterestAzn ?? 0);
+  const settledRewardsAzn = Math.max(0, unsettled.settledRewardsAzn ?? 0);
 
   const totalFundingAzn = totalDepositsAzn + bondFundingAzn;
   const netLiquidityAzn = totalFundingAzn - totalLoansAzn;
@@ -787,6 +852,15 @@ export function computeBankWide(
     totalPendingBonusAzn,
     totalAccruedInterestAzn,
     totalMonthlyInterestAzn,
+    unsettledInterestAzn,
+    unsettledRewardsAzn,
+    settledInterestAzn,
+    settledRewardsAzn,
+    depositObligationsAzn:
+      totalDepositsAzn +
+      totalPendingBonusAzn +
+      unsettledInterestAzn +
+      unsettledRewardsAzn,
     depositors,
     borrowers,
     next30dPayouts: {
@@ -797,6 +871,10 @@ export function computeBankWide(
       // Only unpaid installments count toward the expected total.
       totalAzn: inflow.reduce((s, p) => s + (p.paid ? 0 : p.amountAzn), 0),
       items: inflow,
+    },
+    overdue: {
+      totalAzn: overdueItems.reduce((s, p) => s + p.amountAzn, 0),
+      items: overdueItems,
     },
   };
 }

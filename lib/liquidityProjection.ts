@@ -55,6 +55,56 @@ function addMonthsIso(iso: string, months: number): string | null {
 // Loose ISO check: schedule cells can hold anything, only project real dates.
 const isIsoDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s.trim());
 
+export type BondObligations = {
+  /** Every future coupon payment across active series' settled units. */
+  couponsRemainingAzn: number;
+  /** Face-value redemptions still ahead. */
+  nominalAzn: number;
+  totalAzn: number;
+};
+
+/**
+ * Total remaining obligation of the bank's issued bonds. Walks the SAME
+ * coupon schedule computeLiquidityProjection projects (same month-clamped
+ * date math, same active-series input), so the Öhdəliklər strip and the
+ * projection chart can never disagree about what the bank owes.
+ */
+export function computeBondObligations(
+  bondSeries: BondFundingSeries[],
+  today: Date,
+): BondObligations {
+  const todayIso = toIsoUtc(today);
+  let couponsRemainingAzn = 0;
+  let nominalAzn = 0;
+
+  for (const s of bondSeries) {
+    if (s.settledUnits <= 0) continue;
+    if (!isIsoDate(s.issueDate) || !isIsoDate(s.maturityDate)) continue;
+
+    const couponAzn =
+      (s.settledUnits * s.faceValueAzn * s.couponRatePct * s.couponPeriodMonths) /
+      100 /
+      12;
+    if (couponAzn > 0 && s.couponPeriodMonths > 0) {
+      for (let n = 1; n <= 240; n += 1) {
+        const date = addMonthsIso(s.issueDate, n * s.couponPeriodMonths);
+        if (!date || date > s.maturityDate) break;
+        if (date < todayIso) continue;
+        couponsRemainingAzn += couponAzn;
+      }
+    }
+    if (s.maturityDate >= todayIso) {
+      nominalAzn += s.settledUnits * s.faceValueAzn;
+    }
+  }
+
+  return {
+    couponsRemainingAzn,
+    nominalAzn,
+    totalAzn: couponsRemainingAzn + nominalAzn,
+  };
+}
+
 export function computeLiquidityProjection(
   accounts: BankAccount[],
   bondSeries: BondFundingSeries[],

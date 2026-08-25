@@ -110,6 +110,51 @@ export async function getBankInterestState(
   return { available: true, unsettledAzn, totalAzn, creditedTodayAzn };
 }
 
+export type BankUnsettledTotals = {
+  /** false when the RPC was unreachable — the bank-wide view then simply
+   *  omits the ledger lines rather than showing zeros as truth. */
+  available: boolean;
+  interestUnsettledAzn: number;
+  interestSettledAzn: number;
+  rewardsUnsettledAzn: number;
+  rewardsSettledAzn: number;
+};
+
+const TOTALS_UNAVAILABLE: BankUnsettledTotals = {
+  available: false,
+  interestUnsettledAzn: 0,
+  interestSettledAzn: 0,
+  rewardsUnsettledAzn: 0,
+  rewardsSettledAzn: 0,
+};
+
+/**
+ * Bank-wide unsettled/settled sums of BOTH daily ledgers, visible to every
+ * signed-in holder via the aggregate-only bank_unsettled_totals RPC (the
+ * per-row RLS is own-or-admin, so raw reads can't produce these).
+ */
+export async function getBankUnsettledTotals(
+  supabase: SupabaseClient,
+): Promise<BankUnsettledTotals> {
+  const { data, error } = await supabase.rpc("bank_unsettled_totals");
+  if (error || !data || typeof data !== "object") {
+    if (error) console.error("[bank-interest] totals RPC failed:", error);
+    return TOTALS_UNAVAILABLE;
+  }
+  const row = data as Record<string, unknown>;
+  const num = (key: string) => {
+    const n = Number(row[key]);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  return {
+    available: true,
+    interestUnsettledAzn: num("interest_unsettled"),
+    interestSettledAzn: num("interest_settled"),
+    rewardsUnsettledAzn: num("rewards_unsettled"),
+    rewardsSettledAzn: num("rewards_settled"),
+  };
+}
+
 export type BankInterestHolderTotal = {
   name: string;
   totalAzn: number;
