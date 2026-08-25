@@ -4,6 +4,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceArea,
   ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
@@ -108,6 +109,11 @@ export function LiquidityProjectionChart({
   const last = data[data.length - 1];
   const min = Math.min(...data.map((p) => p.valueAzn));
   const dipsNegative = min < 0;
+  // The walk's lowest point — "can the bank cover its worst day?" is THE
+  // question this chart answers, so the pinch gets its own marker (unless
+  // it coincides with the terminal dot, which already marks that spot).
+  const minPoint = data.reduce((a, b) => (b.valueAzn < a.valueAzn ? b : a));
+  const markMin = minPoint.ts !== last.ts;
 
   return (
     <div className="h-64 sm:h-72">
@@ -143,7 +149,17 @@ export function LiquidityProjectionChart({
           />
           <Tooltip content={<EventTooltip />} />
           {dipsNegative && (
-            <ReferenceLine y={0} stroke={LATE_RED} strokeDasharray="4 4" strokeOpacity={0.6} />
+            <>
+              {/* The danger zone reads as a zone, not just a dashed line. */}
+              <ReferenceArea
+                y1={min}
+                y2={0}
+                fill={LATE_RED}
+                fillOpacity={0.06}
+                stroke="none"
+              />
+              <ReferenceLine y={0} stroke={LATE_RED} strokeDasharray="4 4" strokeOpacity={0.6} />
+            </>
           )}
           <Area
             type="stepAfter"
@@ -154,6 +170,22 @@ export function LiquidityProjectionChart({
             dot={{ r: 3, fill: BANK_BLUE, strokeWidth: 0 }}
             activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }}
           />
+          {markMin && (
+            <ReferenceDot
+              x={minPoint.ts}
+              y={minPoint.valueAzn}
+              r={4}
+              fill={minPoint.valueAzn < 0 ? LATE_RED : "#b45309"}
+              stroke="#fff"
+              strokeWidth={2}
+              label={{
+                value: "ən dar nöqtə",
+                position: "top",
+                fontSize: 10,
+                fill: minPoint.valueAzn < 0 ? LATE_RED : "#b45309",
+              }}
+            />
+          )}
           <ReferenceDot
             x={last.ts}
             y={last.valueAzn}

@@ -12,7 +12,7 @@ import {
   getLiveFundDelta,
 } from "@/lib/extendedPortfolio";
 import { dayChangeReference, getPriceHistory } from "@/lib/priceHistory";
-import { getHolderMarketState } from "@/lib/holdings";
+import { FUND_PRINCIPAL_NAME, getHolderMarketState } from "@/lib/holdings";
 import { requireUser } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
@@ -22,7 +22,12 @@ import {
   getBondFundingBreakdown,
   getMyBondHoldings,
 } from "@/lib/bonds";
-import { computeLiquidityProjection } from "@/lib/liquidityProjection";
+import {
+  computeBondObligations,
+  computeLiquidityProjection,
+} from "@/lib/liquidityProjection";
+import { computeBankHealth, computeDepositCoverage } from "@/lib/bankHealth";
+import { getBankDailySeries } from "@/lib/bankSnapshots";
 import { getAssetTransactions } from "@/lib/sheets";
 import {
   PURCHASABLE_ASSETS,
@@ -49,8 +54,10 @@ import {
   accrueAndGetBankInterest,
   getBankInterestState,
   getBankInterestTotals,
+  getBankUnsettledTotals,
   type BankInterestHolderTotal,
   type BankInterestState,
+  type BankUnsettledTotals,
 } from "@/lib/bankInterest";
 import { CreditOfferBanner } from "@/components/CreditOfferBanner";
 import { CreditOfferPanel } from "@/components/CreditOfferPanel";
@@ -212,27 +219,85 @@ export default async function BankPage({
   const dateLabel = formatBakuDate(new Date());
 
   if (bankView) {
-    const [accounts, bondFundingAzn, bondBreakdown, assetTxs] =
-      await Promise.all([
-        getBankAccounts(),
-        getBondFundingAzn(),
-        getBondFundingBreakdown(),
-        getAssetTransactions(),
-      ]);
+    const now = new Date();
+    const supabase = await createSupabaseServerClient();
+    const totalsUnavailable: BankUnsettledTotals = {
+      available: false,
+      interestUnsettledAzn: 0,
+      interestSettledAzn: 0,
+      rewardsUnsettledAzn: 0,
+      rewardsSettledAzn: 0,
+    };
+    const [
+      accounts,
+      bondFundingAzn,
+      bondBreakdown,
+      assetTxs,
+      unsettledTotals,
+      trend,
+      fund,
+      fundHoldings,
+      principalState,
+    ] = await Promise.all([
+      getBankAccounts(),
+      getBondFundingAzn(),
+      getBondFundingBreakdown(),
+      getAssetTransactions(),
+      supabase ? getBankUnsettledTotals(supabase) : Promise.resolve(totalsUnavailable),
+      supabase ? getBankDailySeries(supabase) : Promise.resolve(null),
+      getFundData().catch(() => null),
+      getHoldings().catch(() => []),
+      // İsmayıl's live İRF stake backs the guarantee card's coverage
+      // ratio; a Sheets outage degrades to a liquidity-only floor.
+      getHolderMarketState(FUND_PRINCIPAL_NAME).catch(() => null),
+    ]);
+    const liveDelta = await getLiveFundDelta(fundHoldings);
     const aggregate = computeBankWide(
       accounts,
-      new Date(),
+      now,
       bondFundingAzn,
       // ETF paid-basis reserve — displayed as its own untouchable line,
       // never part of lendable funding.
       computeAssetReserveAzn(assetTxs),
+      {
+        unsettledInterestAzn: unsettledTotals.interestUnsettledAzn,
+        unsettledRewardsAzn: unsettledTotals.rewardsUnsettledAzn,
+        settledInterestAzn: unsettledTotals.interestSettledAzn,
+        settledRewardsAzn: unsettledTotals.rewardsSettledAzn,
+      },
     );
     const projection = computeLiquidityProjection(
       accounts,
       bondBreakdown,
       aggregate.netLiquidityAzn,
-      new Date(),
+      now,
     );
+    const bondObligations = computeBondObligations(bondBreakdown, now);
+    // The same live-valuation recipe the personal İRF tile uses.
+    const principalStakeAzn =
+      fund && principalState && fund.totalUnits > 0
+        ? fund.unitPrice * principalState.effectiveUnits +
+          liveDelta.deltaAzn * (principalState.effectiveUnits / fund.totalUnits)
+        : null;
+    const coverage = computeDepositCoverage({
+      depositObligationsAzn: aggregate.depositObligationsAzn,
+      netLiquidityAzn: aggregate.netLiquidityAzn,
+      principalStakeAzn,
+    });
+    const projectionMinAzn =
+      projection.length >= 2
+        ? Math.min(...projection.map((p) => p.valueAzn))
+        : null;
+    const health = computeBankHealth({
+      liquidityPct: aggregate.liquidityPct,
+      overdueCount: aggregate.overdue.items.length,
+      overdueTotalAzn: aggregate.overdue.totalAzn,
+      projectionMinAzn,
+      coverage,
+    });
+    // Baku is fixed UTC+4 — manual math, no Intl (hydration rule).
+    const baku = new Date(now.getTime() + 4 * 3_600_000);
+    const updatedLabel = `Məlumat: bu gün ${String(baku.getUTCHours()).padStart(2, "0")}:${String(baku.getUTCMinutes()).padStart(2, "0")} (Bakı)`;
     return (
       <main className="min-h-screen bg-bank-section">
         <BankHeader dateLabel={dateLabel} />
@@ -249,7 +314,16 @@ export default async function BankPage({
             </div>
           </MotionSection>
           <MotionSection delay={0.04}>
-            <BankWideView aggregate={aggregate} projection={projection} />
+            <BankWideView
+              aggregate={aggregate}
+              projection={projection}
+              bondObligations={bondObligations}
+              coverage={coverage}
+              health={health}
+              trend={trend}
+              unsettledAvailable={unsettledTotals.available}
+              updatedLabel={updatedLabel}
+            />
           </MotionSection>
         </section>
       </main>
