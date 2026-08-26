@@ -158,6 +158,48 @@ export async function GET(req: Request) {
     }
   }
 
+  // Personal debt reminders ride the same daily run: one RPC reconciles
+  // every user's bell (their own kind, so the bank sync above can't touch
+  // these) and hands back web-push payloads for newly-due entries.
+  let personalActive = 0;
+  let personalDeleted = 0;
+  let personalPushed = 0;
+  if (!dryRun) {
+    const { data: pd, error: pdError } = await supabase.rpc(
+      "sync_personal_debt_reminders",
+      { p_secret: secret },
+    );
+    if (pdError) {
+      errors.push(`personal-debts: ${pdError.message}`);
+    } else {
+      const res = (pd ?? {}) as {
+        active?: number;
+        deleted?: number;
+        pushes?: Array<{
+          subs?: StoredSub[];
+          title?: string;
+          body?: string;
+          unread?: number;
+        }>;
+      };
+      personalActive = res.active ?? 0;
+      personalDeleted = res.deleted ?? 0;
+      for (const push of res.pushes ?? []) {
+        if (!push.subs || push.subs.length === 0 || !push.title || !push.body) {
+          continue;
+        }
+        personalPushed += 1;
+        await sendPushAll(push.subs, {
+          title: push.title,
+          body: push.body,
+          url: "/bank#xatirlatmalar",
+          unread: push.unread,
+          tag: "irf-personal-debt",
+        });
+      }
+    }
+  }
+
   return NextResponse.json({
     ok: errors.length === 0,
     today: todayISO,
@@ -167,6 +209,9 @@ export async function GET(req: Request) {
     deleted,
     skipped,
     pushed,
+    personalActive,
+    personalDeleted,
+    personalPushed,
     errors,
     ...(dryRun ? { dryRun: true, preview } : {}),
   });
