@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatAzn } from "@/lib/portfolio";
 import type { PersonalDebt } from "@/lib/personalDebts";
+import type { BankPaymentScheduleItem } from "@/lib/bank";
+import { CreditPanel } from "@/components/CreditPanel";
 import {
   deletePersonalDebt,
   savePersonalDebt,
@@ -42,6 +44,41 @@ function shortDate(iso: string): string {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : iso;
 }
 
+// Month-clamped ISO date arithmetic (Mar 31 − 1 ay → Feb 28/29), matching
+// the Postgres interval math the paid-RPC uses.
+function addMonthsIso(iso: string, months: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return iso;
+  const first = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1 + months, 1));
+  const daysIn = new Date(
+    Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  return new Date(
+    Date.UTC(
+      first.getUTCFullYear(),
+      first.getUTCMonth(),
+      Math.min(Number(m[3]), daysIn),
+    ),
+  )
+    .toISOString()
+    .slice(0, 10);
+}
+
+// Synthesize the CreditPanel schedule from a plan debt: the stored due date
+// anchors the NEXT unpaid installment (or the last one, once closed), and
+// the rest fan out monthly around it.
+function planSchedule(d: PersonalDebt): BankPaymentScheduleItem[] {
+  const total = d.installmentsTotal ?? 0;
+  const paid = Math.min(d.installmentsPaid, total);
+  const anchor = d.paidAt ? total - 1 : paid;
+  return Array.from({ length: total }, (_, i) => ({
+    date: addMonthsIso(d.dueDate, i - anchor),
+    amountAzn: d.amountAzn,
+    label: `Taksit ${i + 1}/${total}`,
+    status: i < paid ? "Ödənildi" : null,
+  }));
+}
+
 function duePill(days: number | null): { text: string; cls: string } {
   if (days == null) return { text: "—", cls: "bg-black/5 text-black/45 dark:bg-white/10 dark:text-white/50" };
   if (days < 0)
@@ -76,6 +113,9 @@ export function PersonalDebtsCard({
   const [dueDate, setDueDate] = useState("");
   const [remindDays, setRemindDays] = useState(3);
   const [recurring, setRecurring] = useState(false);
+  const [installments, setInstallments] = useState("");
+  // Which plan debt has its CreditPanel-style schedule open.
+  const [scheduleOpenId, setScheduleOpenId] = useState<string | null>(null);
 
   const open = debts.filter((d) => !d.paidAt);
   const settled = debts.filter((d) => d.paidAt);
@@ -83,6 +123,7 @@ export function PersonalDebtsCard({
   const submit = () => {
     setError(null);
     const amt = amount.trim() === "" ? null : Number(amount.replace(",", "."));
+    const inst = installments.trim() === "" ? null : Number(installments);
     startTransition(async () => {
       const res = await savePersonalDebt({
         title,
@@ -90,6 +131,7 @@ export function PersonalDebtsCard({
         dueDate,
         remindDaysBefore: remindDays,
         recurringMonthly: recurring,
+        installments: inst,
       });
       if (!res.ok) {
         setError(res.error);
@@ -100,6 +142,7 @@ export function PersonalDebtsCard({
       setDueDate("");
       setRemindDays(3);
       setRecurring(false);
+      setInstallments("");
       setFormOpen(false);
       router.refresh();
     });
@@ -210,12 +253,33 @@ export function PersonalDebtsCard({
                   ))}
                 </select>
               </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-medium text-black/45 dark:text-white/50">
+                  Taksit sayı (istəyə bağlı)
+                </span>
+                <input
+                  value={installments}
+                  onChange={(e) => setInstallments(e.target.value)}
+                  inputMode="numeric"
+                  placeholder="məs. 6"
+                  className={`num ${inputCls}`}
+                />
+                <span className="mt-1 block text-[10px] leading-[1.4] text-black/40 dark:text-white/45">
+                  aylıq taksit planı — məbləğ bir taksitin ödənişidir, cədvəl
+                  görünüşü açılır
+                </span>
+              </label>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <label className="flex cursor-pointer items-center gap-2 text-[13px] text-black/70 dark:text-white/75">
+              <label
+                className={`flex cursor-pointer items-center gap-2 text-[13px] text-black/70 dark:text-white/75 ${
+                  installments.trim() !== "" ? "opacity-40" : ""
+                }`}
+              >
                 <input
                   type="checkbox"
-                  checked={recurring}
+                  checked={recurring && installments.trim() === ""}
+                  disabled={installments.trim() !== ""}
                   onChange={(e) => setRecurring(e.target.checked)}
                   className="h-4 w-4 accent-[#2f61d8]"
                 />
@@ -249,62 +313,116 @@ export function PersonalDebtsCard({
           {open.map((d) => {
             const days = daysUntil(d.dueDate, todayIso);
             const pill = duePill(days);
+            const isPlan = d.installmentsTotal != null;
+            const scheduleOpen = scheduleOpenId === d.id;
             return (
-              <div key={d.id} className="flex items-center gap-3 px-5 py-3 sm:px-6">
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink dark:text-white/90">
-                    {d.title}
-                    {d.recurringMonthly ? (
-                      <span
-                        title="hər ay təkrarlanır"
-                        aria-label="hər ay təkrarlanır"
-                        className="text-[11px] text-black/40 dark:text-white/45"
-                      >
-                        ↻
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="mt-0.5 truncate text-[11px] text-black/45 dark:text-white/50">
-                    {shortDate(d.dueDate)}
-                    {d.note ? ` · ${d.note}` : ""}
-                  </p>
-                </div>
-                <span
-                  className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pill.cls}`}
-                >
-                  {pill.text}
-                </span>
-                {d.amountAzn != null ? (
-                  <p className="num hidden shrink-0 text-sm font-semibold tabular-nums text-ink dark:text-white/90 sm:block">
-                    {formatAzn(d.amountAzn)}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => act(() => setPersonalDebtPaid(d.id, true))}
-                  title={
-                    d.recurringMonthly
-                      ? "Ödədim — növbəti aya keçir"
-                      : "Ödədim — bağlanır"
-                  }
-                  className="shrink-0 rounded-lg bg-brand-green-mist px-2.5 py-1 text-[11px] font-semibold text-brand-green-deep transition hover:bg-brand-green/25 disabled:opacity-50 dark:bg-brand-green/15 dark:text-emerald-400"
-                >
-                  Ödədim
-                </button>
-                <button
-                  type="button"
-                  disabled={pending}
-                  aria-label={`${d.title} — sil`}
-                  onClick={() => {
-                    if (window.confirm(`«${d.title}» silinsin?`)) {
-                      act(() => deletePersonalDebt(d.id));
+              <div key={d.id}>
+                <div className="flex items-center gap-3 px-5 py-3 sm:px-6">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink dark:text-white/90">
+                      {d.title}
+                      {d.recurringMonthly ? (
+                        <span
+                          title="hər ay təkrarlanır"
+                          aria-label="hər ay təkrarlanır"
+                          className="text-[11px] text-black/40 dark:text-white/45"
+                        >
+                          ↻
+                        </span>
+                      ) : null}
+                      {isPlan ? (
+                        <span className="num shrink-0 rounded-md bg-bank-blue-soft px-1.5 py-px text-[10px] font-semibold text-bank-blue dark:bg-bank-blue/20 dark:text-blue-400">
+                          taksit {d.installmentsPaid}/{d.installmentsTotal}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-black/45 dark:text-white/50">
+                      {shortDate(d.dueDate)}
+                      {d.note ? ` · ${d.note}` : ""}
+                    </p>
+                  </div>
+                  <span
+                    className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pill.cls}`}
+                  >
+                    {pill.text}
+                  </span>
+                  {d.amountAzn != null ? (
+                    <p className="num hidden shrink-0 text-sm font-semibold tabular-nums text-ink dark:text-white/90 sm:block">
+                      {formatAzn(d.amountAzn)}
+                    </p>
+                  ) : null}
+                  {isPlan ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setScheduleOpenId((k) => (k === d.id ? null : d.id))
+                      }
+                      aria-expanded={scheduleOpen}
+                      className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold transition ${
+                        scheduleOpen
+                          ? "border-transparent bg-bank-blue-soft text-bank-blue dark:bg-bank-blue/20 dark:text-blue-400"
+                          : "border-black/10 text-black/45 hover:text-bank-blue dark:border-white/15 dark:text-white/50 dark:hover:text-blue-400"
+                      }`}
+                    >
+                      Cədvəl {scheduleOpen ? "▴" : "▾"}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => act(() => setPersonalDebtPaid(d.id, true))}
+                    title={
+                      isPlan
+                        ? "Ödədim — bir taksit sayılır"
+                        : d.recurringMonthly
+                          ? "Ödədim — növbəti aya keçir"
+                          : "Ödədim — bağlanır"
                     }
-                  }}
-                  className="shrink-0 rounded-lg px-1.5 py-1 text-[13px] text-black/35 transition hover:text-status-late dark:text-white/40 dark:hover:text-rose-400"
-                >
-                  ✕
-                </button>
+                    className="shrink-0 rounded-lg bg-brand-green-mist px-2.5 py-1 text-[11px] font-semibold text-brand-green-deep transition hover:bg-brand-green/25 disabled:opacity-50 dark:bg-brand-green/15 dark:text-emerald-400"
+                  >
+                    Ödədim
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    aria-label={`${d.title} — sil`}
+                    onClick={() => {
+                      if (window.confirm(`«${d.title}» silinsin?`)) {
+                        act(() => deletePersonalDebt(d.id));
+                      }
+                    }}
+                    className="shrink-0 rounded-lg px-1.5 py-1 text-[13px] text-black/35 transition hover:text-status-late dark:text-white/40 dark:hover:text-rose-400"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {/* The CreditPanel-style schedule view for installment
+                    plans — the exact loan panel, reused with the debt's
+                    own name. Native grid-rows collapse. */}
+                {isPlan ? (
+                  <div
+                    aria-hidden={!scheduleOpen}
+                    className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${
+                      scheduleOpen
+                        ? "grid-rows-[1fr] opacity-100"
+                        : "grid-rows-[0fr] opacity-0"
+                    }`}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <div className="px-3 pb-4 pt-1 sm:px-4">
+                        <CreditPanel
+                          title={d.title}
+                          outstandingAzn={
+                            ((d.installmentsTotal ?? 0) - d.installmentsPaid) *
+                            (d.amountAzn ?? 0)
+                          }
+                          monthlyPaymentAzn={d.amountAzn}
+                          schedule={planSchedule(d)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             );
           })}

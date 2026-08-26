@@ -24,6 +24,8 @@ export async function savePersonalDebt(input: {
   note?: string | null;
   remindDaysBefore?: number;
   recurringMonthly?: boolean;
+  /** 2-120 = finite monthly installment plan; amount becomes per-taksit. */
+  installments?: number | null;
 }): Promise<PersonalDebtActionResult> {
   const title = input.title?.trim() ?? "";
   if (title.length === 0 || title.length > 80) {
@@ -39,6 +41,16 @@ export async function savePersonalDebt(input: {
   if (amount != null && (amount <= 0 || amount > 1_000_000)) {
     return FAIL("Məbləğ düzgün deyil.");
   }
+  const installments =
+    input.installments == null || !Number.isFinite(input.installments)
+      ? null
+      : Math.round(input.installments);
+  if (installments != null && (installments < 2 || installments > 120)) {
+    return FAIL("Taksit sayı 2-120 aralığında olmalıdır.");
+  }
+  if (installments != null && amount == null) {
+    return FAIL("Taksit planı üçün aylıq məbləğ tələb olunur.");
+  }
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return FAIL("Supabase konfiqurasiya olunmayıb.");
@@ -49,6 +61,7 @@ export async function savePersonalDebt(input: {
     p_note: input.note?.trim() || null,
     p_remind_days: Math.min(Math.max(Math.round(input.remindDaysBefore ?? 3), 0), 30),
     p_recurring: Boolean(input.recurringMonthly),
+    p_installments: installments,
     p_id: input.id || null,
   });
   if (error) {
