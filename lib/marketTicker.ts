@@ -3,7 +3,9 @@ import {
   getDailyCloses,
   getExtendedQuotes,
   getIntradaySpark,
+  toYahooSymbol,
 } from "@/lib/yahoo";
+import { getHoldings } from "@/lib/sheets";
 import type { ExtendedMode } from "@/lib/marketHours";
 import { effectiveSessionMode, sessionPriceOf } from "@/lib/sessionPricing";
 
@@ -17,6 +19,10 @@ export type HistoryPoint = { t: string; c: number };
 export type TickerQuote = {
   key: string;
   label: string;
+  /** Company name (holdings tiles) — shown in the expand panel header. */
+  name?: string;
+  /** Watchlist sector (holdings tiles) — picks the tile icon. */
+  sector?: string | null;
   /** Last traded price, USD. */
   price: number;
   /**
@@ -141,11 +147,131 @@ const getCachedTicker = unstable_cache(
   { revalidate: 60 },
 );
 
+// === İRF holdings tiles ===
+// Every fund position as its own tile row under the benchmark basket.
+// Quotes ride ONE batched call on a 60s cache; the intraday sparks are a
+// chart call per symbol, so they sit behind a separate 5-minute cache —
+// 15-minute-interval data loses nothing and Yahoo isn't hammered with
+// ~17 chart requests every single minute.
+
+const getCachedHoldingSparks = unstable_cache(
+  async (symbolsKey: string): Promise<Record<string, number[]>> => {
+    const symbols = symbolsKey.split(",").filter(Boolean);
+    const sparks = await Promise.all(
+      symbols.map((s) => getIntradaySpark(s).catch(() => [] as number[])),
+    );
+    const out: Record<string, number[]> = {};
+    symbols.forEach((s, i) => {
+      out[s] = sparks[i] ?? [];
+    });
+    return out;
+  },
+  ["holdings-ticker-sparks-v1"],
+  { revalidate: 300 },
+);
+
+const getCachedHoldingsTicker = unstable_cache(
+  async (payload: string): Promise<TickerQuote[]> => {
+    const list = JSON.parse(payload) as {
+      s: string;
+      n: string;
+      sec: string | null;
+    }[];
+    if (list.length === 0) return [];
+    const [quotes, sparks] = await Promise.all([
+      getExtendedQuotes(list.map((x) => x.s)),
+      getCachedHoldingSparks(list.map((x) => x.s).join(",")),
+    ]);
+    // Real equities/ETFs print their own pre/post quotes — no ETF proxy
+    // here; the majority state across the book decides whether a window
+    // is actually live (the same rule the portfolio fold uses).
+    const mode = effectiveSessionMode([...quotes.values()]);
+    const out: TickerQuote[] = [];
+    for (const x of list) {
+      const q = quotes.get(toYahooSymbol(x.s));
+      const price = q?.regularMarketPrice;
+      if (q == null || price == null || price <= 0) continue;
+      let livePrice = price;
+      let sessionMode: ExtendedMode | null = null;
+      if (mode != null) {
+        const ext = sessionPriceOf(q, mode);
+        if (ext != null) {
+          livePrice = ext;
+          sessionMode = mode;
+        }
+      }
+      const prev = q.regularMarketPreviousClose;
+      out.push({
+        key: `h-${x.s.toLowerCase()}`,
+        label: x.s,
+        name: x.n,
+        sector: x.sec,
+        price: livePrice,
+        changePct: prev != null && prev > 0 ? livePrice / prev - 1 : null,
+        spark: sparks[x.s] ?? [],
+        sessionMode,
+      });
+    }
+    return out;
+  },
+  ["holdings-ticker-quotes-v1"],
+  { revalidate: 60 },
+);
+
+/**
+ * One tile per fund holding (cash rows excluded), keyed `h-<ticker>`.
+ * Reads the sheet's cached holdings itself so the dashboard can fetch it
+ * in the same parallel pass as everything else; failures degrade to an
+ * empty list — the benchmark row renders either way.
+ */
+export async function getHoldingsTicker(): Promise<TickerQuote[]> {
+  try {
+    const holdings = await getHoldings();
+    const list = holdings
+      .filter((h) => !h.isCash && h.symbol.trim() !== "" && h.sharesHeld > 0)
+      .map((h) => ({
+        s: h.symbol.trim().toUpperCase(),
+        n: h.name,
+        sec: h.sector,
+      }));
+    if (list.length === 0) return [];
+    return await Promise.race([
+      getCachedHoldingsTicker(JSON.stringify(list)),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("holdings ticker timeout")), 4000),
+      ),
+    ]);
+  } catch (err) {
+    console.error("[market-ticker] holdings ticker failed:", err);
+    return [];
+  }
+}
+
 /**
  * The panel's 5-year dated history for one instrument key, served by
  * /api/ticker-history when a tile expands. Unknown keys yield [].
+ * `h-<ticker>` keys serve fund holdings — validated against the CURRENT
+ * sheet book, so the endpoint never becomes an open Yahoo proxy.
  */
 export async function getTickerHistory(key: string): Promise<HistoryPoint[]> {
+  if (key.startsWith("h-")) {
+    const ticker = key.slice(2).trim().toUpperCase();
+    if (!ticker) return [];
+    try {
+      const holdings = await getHoldings();
+      const held = holdings.some(
+        (h) =>
+          !h.isCash &&
+          h.symbol.trim().toUpperCase() === ticker &&
+          h.sharesHeld > 0,
+      );
+      if (!held) return [];
+      return await getCached5y(ticker);
+    } catch (err) {
+      console.error(`[market-ticker] holding history failed for ${key}:`, err);
+      return [];
+    }
+  }
   const inst = INSTRUMENTS.find((i) => i.key === key);
   if (!inst) return [];
   try {
