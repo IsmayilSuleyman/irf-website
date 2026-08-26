@@ -317,8 +317,11 @@ export function PersonalDebtsCard({
             const scheduleOpen = scheduleOpenId === d.id;
             return (
               <div key={d.id}>
-                <div className="flex items-center gap-3 px-5 py-3 sm:px-6">
-                  <div className="min-w-0 flex-1">
+                {/* Phones stack the row: identity line on top, pills +
+                    actions on their own line beneath (the single-line grid
+                    left ~20px for the title). One line again from sm up. */}
+                <div className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-6">
+                  <div className="min-w-0 sm:flex-1">
                     <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ink dark:text-white/90">
                       {d.title}
                       {d.recurringMonthly ? (
@@ -341,60 +344,64 @@ export function PersonalDebtsCard({
                       {d.note ? ` · ${d.note}` : ""}
                     </p>
                   </div>
-                  <span
-                    className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pill.cls}`}
-                  >
-                    {pill.text}
-                  </span>
-                  {d.amountAzn != null ? (
-                    <p className="num hidden shrink-0 text-sm font-semibold tabular-nums text-ink dark:text-white/90 sm:block">
-                      {formatAzn(d.amountAzn)}
-                    </p>
-                  ) : null}
-                  {isPlan ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setScheduleOpenId((k) => (k === d.id ? null : d.id))
-                      }
-                      aria-expanded={scheduleOpen}
-                      className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold transition ${
-                        scheduleOpen
-                          ? "border-transparent bg-bank-blue-soft text-bank-blue dark:bg-bank-blue/20 dark:text-blue-400"
-                          : "border-black/10 text-black/45 hover:text-bank-blue dark:border-white/15 dark:text-white/50 dark:hover:text-blue-400"
-                      }`}
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <span
+                      className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pill.cls}`}
                     >
-                      Cədvəl {scheduleOpen ? "▴" : "▾"}
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => act(() => setPersonalDebtPaid(d.id, true))}
-                    title={
-                      isPlan
-                        ? "Ödədim — bir taksit sayılır"
-                        : d.recurringMonthly
-                          ? "Ödədim — növbəti aya keçir"
-                          : "Ödədim — bağlanır"
-                    }
-                    className="shrink-0 rounded-lg bg-brand-green-mist px-2.5 py-1 text-[11px] font-semibold text-brand-green-deep transition hover:bg-brand-green/25 disabled:opacity-50 dark:bg-brand-green/15 dark:text-emerald-400"
-                  >
-                    Ödədim
-                  </button>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    aria-label={`${d.title} — sil`}
-                    onClick={() => {
-                      if (window.confirm(`«${d.title}» silinsin?`)) {
-                        act(() => deletePersonalDebt(d.id));
-                      }
-                    }}
-                    className="shrink-0 rounded-lg px-1.5 py-1 text-[13px] text-black/35 transition hover:text-status-late dark:text-white/40 dark:hover:text-rose-400"
-                  >
-                    ✕
-                  </button>
+                      {pill.text}
+                    </span>
+                    {d.amountAzn != null ? (
+                      <p className="num shrink-0 text-sm font-semibold tabular-nums text-ink dark:text-white/90">
+                        {formatAzn(d.amountAzn)}
+                      </p>
+                    ) : null}
+                    <span className="ml-auto flex items-center gap-2 sm:ml-0 sm:gap-3">
+                      {isPlan ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setScheduleOpenId((k) => (k === d.id ? null : d.id))
+                          }
+                          aria-expanded={scheduleOpen}
+                          className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold transition ${
+                            scheduleOpen
+                              ? "border-transparent bg-bank-blue-soft text-bank-blue dark:bg-bank-blue/20 dark:text-blue-400"
+                              : "border-black/10 text-black/45 hover:text-bank-blue dark:border-white/15 dark:text-white/50 dark:hover:text-blue-400"
+                          }`}
+                        >
+                          Cədvəl {scheduleOpen ? "▴" : "▾"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => act(() => setPersonalDebtPaid(d.id, true))}
+                        title={
+                          isPlan
+                            ? "Ödədim — bir taksit sayılır"
+                            : d.recurringMonthly
+                              ? "Ödədim — növbəti aya keçir"
+                              : "Ödədim — bağlanır"
+                        }
+                        className="shrink-0 rounded-lg bg-brand-green-mist px-2.5 py-1 text-[11px] font-semibold text-brand-green-deep transition hover:bg-brand-green/25 disabled:opacity-50 dark:bg-brand-green/15 dark:text-emerald-400"
+                      >
+                        Ödədim
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        aria-label={`${d.title} — sil`}
+                        onClick={() => {
+                          if (window.confirm(`«${d.title}» silinsin?`)) {
+                            act(() => deletePersonalDebt(d.id));
+                          }
+                        }}
+                        className="shrink-0 rounded-lg px-1.5 py-1 text-[13px] text-black/35 transition hover:text-status-late dark:text-white/40 dark:hover:text-rose-400"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  </div>
                 </div>
                 {/* The CreditPanel-style schedule view for installment
                     plans — the exact loan panel, reused with the debt's
@@ -427,8 +434,11 @@ export function PersonalDebtsCard({
             );
           })}
           {settled.map((d) => (
-            <div key={d.id} className="flex items-center gap-3 px-5 py-3 opacity-70 sm:px-6">
-              <div className="min-w-0 flex-1">
+            <div
+              key={d.id}
+              className="flex flex-col gap-2 px-5 py-3 opacity-70 sm:flex-row sm:items-center sm:gap-3 sm:px-6"
+            >
+              <div className="min-w-0 sm:flex-1">
                 <p className="truncate text-sm font-medium text-black/55 dark:text-white/60">
                   {d.title}
                 </p>
@@ -436,23 +446,25 @@ export function PersonalDebtsCard({
                   {shortDate(d.dueDate)}
                 </p>
               </div>
-              <span className="inline-flex shrink-0 rounded-full bg-brand-green-mist px-2.5 py-0.5 text-[11px] font-semibold text-status-paid dark:bg-brand-green/15 dark:text-emerald-400">
-                Ödənilib
-              </span>
-              {d.amountAzn != null ? (
-                <p className="num hidden shrink-0 text-sm font-semibold tabular-nums text-black/45 dark:text-white/50 sm:block">
-                  {formatAzn(d.amountAzn)}
-                </p>
-              ) : null}
-              <button
-                type="button"
-                disabled={pending}
-                aria-label={`${d.title} — sil`}
-                onClick={() => act(() => deletePersonalDebt(d.id))}
-                className="shrink-0 rounded-lg px-1.5 py-1 text-[13px] text-black/35 transition hover:text-status-late dark:text-white/40 dark:hover:text-rose-400"
-              >
-                ✕
-              </button>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <span className="inline-flex shrink-0 rounded-full bg-brand-green-mist px-2.5 py-0.5 text-[11px] font-semibold text-status-paid dark:bg-brand-green/15 dark:text-emerald-400">
+                  Ödənilib
+                </span>
+                {d.amountAzn != null ? (
+                  <p className="num shrink-0 text-sm font-semibold tabular-nums text-black/45 dark:text-white/50">
+                    {formatAzn(d.amountAzn)}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={pending}
+                  aria-label={`${d.title} — sil`}
+                  onClick={() => act(() => deletePersonalDebt(d.id))}
+                  className="ml-auto shrink-0 rounded-lg px-1.5 py-1 text-[13px] text-black/35 transition hover:text-status-late dark:text-white/40 dark:hover:text-rose-400 sm:ml-0"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           ))}
         </div>
