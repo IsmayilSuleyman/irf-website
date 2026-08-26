@@ -710,7 +710,9 @@ export function PerformanceChart({
         </div>
       </div>
       {mode === "price" ? priceHero : hero}
-      <div className="relative h-72">
+      {/* Shorter plot on phones — h-72 ate most of the viewport there;
+          desktop keeps the full height. */}
+      <div className="relative h-52 sm:h-72">
         {/* Phones: the pill rides top-LEFT — the mirrored value labels own
             the right edge now. */}
         {timed.length > 0 && (
@@ -905,21 +907,20 @@ export function PerformanceChart({
           </span>
         </div>
       ) : null}
-      {/* Range buttons below the plot — full-width tap targets on phones,
-          inline on larger screens. */}
+      {/* Range buttons below the plot. Compact FIXED-width pills in a
+          scrollable flex row on phones — the old equal-column grid divided
+          the screen by 7 and visibly crushed the labels; shrink-0 +
+          nowrap means a pill can never render narrower than its text, and
+          a too-narrow screen scrolls the row instead. */}
       <div className="mt-4 flex items-center gap-1.5 sm:gap-2">
-        <div
-          className={`grid flex-1 gap-1.5 sm:flex sm:flex-none sm:items-center sm:gap-2 ${
-            visibleRanges.length > 5 ? "grid-cols-7" : "grid-cols-5"
-          }`}
-        >
+        <div className="no-scrollbar flex flex-1 items-center gap-1 overflow-x-auto sm:flex-none sm:gap-2">
           {visibleRanges.map((r) => (
             <button
               key={r.key}
               type="button"
               onClick={() => setRange(r.key)}
               aria-pressed={activeRange === r.key}
-              className={`rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-medium tracking-[0.06em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
+              className={`shrink-0 whitespace-nowrap rounded-lg border px-2 py-1 text-center text-[10px] font-medium tracking-[0.05em] transition sm:px-3 sm:text-[11px] sm:tracking-[0.08em] ${
                 activeRange === r.key
                   ? "border-brand-green bg-brand-green text-white shadow-sm"
                   : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
