@@ -9,6 +9,7 @@ import {
 } from "@/lib/portfolio";
 import { Masked } from "@/components/Masked";
 import { ASSET_ICONS } from "@/components/assetIcons";
+import { SectorIcon } from "@/components/SectorIcon";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
 import { useLivePricing } from "@/components/LivePricing";
 import type { ExtendedMode as ExtendedModeKey } from "@/lib/marketHours";
@@ -245,6 +246,7 @@ export function MarketTickerStrip({
   statusRow,
   assets,
   showBuyHint = true,
+  holdingQuotes,
 }: {
   quotes: TickerQuote[];
   /** The fund's own tile: unit price in AZN + its day change + price history
@@ -268,6 +270,9 @@ export function MarketTickerStrip({
   assets?: Record<string, TileAsset>;
   /** false for İsmayıl — he is the counterparty, not a buyer. */
   showBuyHint?: boolean;
+  /** One tile per fund holding (`h-<ticker>` keys), its own row under the
+   *  benchmarks. Expanding one shows the 5-year history panel. */
+  holdingQuotes?: TickerQuote[];
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [histRange, setHistRange] = useState<HistRangeKey>("5y");
@@ -310,13 +315,22 @@ export function MarketTickerStrip({
   }, [openKey, histories]);
   const open = openKey != null ? assets?.[openKey] : undefined;
   const openInfo = openKey != null ? INFO_TILES[openKey] : undefined;
-  const openQuote = quotes.find((q) => q.key === openKey);
-  const openLabel = openQuote?.label ?? "";
+  const openQuote =
+    quotes.find((q) => q.key === openKey) ??
+    holdingQuotes?.find((q) => q.key === openKey);
+  // Holding tiles title the panel with the company name; the ticker takes
+  // the symbol slot beside it.
+  const openIsHolding = openKey?.startsWith("h-") ?? false;
+  const openLabel = (openIsHolding ? openQuote?.name : null) ?? openQuote?.label ?? "";
   // Info tiles fall back to the tile quote itself for the panel header.
-  const panelSymbol = open?.symbol ?? openInfo?.symbol ?? "";
+  const panelSymbol =
+    open?.symbol ??
+    openInfo?.symbol ??
+    (openIsHolding ? (openQuote?.label ?? "") : "");
   const panelPriceUsd = open?.priceUsd ?? openQuote?.price ?? null;
   const panelDayPct = open?.dayChangePct ?? openQuote?.changePct ?? null;
-  const showPanel = open != null || openInfo != null;
+  const showPanel =
+    open != null || openInfo != null || (openIsHolding && openQuote != null);
 
   return (
     // relative z-20: the card's backdrop-filter creates a stacking context,
@@ -372,6 +386,50 @@ export function MarketTickerStrip({
           sparkId="irf"
         />
       </div>
+
+      {/* The fund's own book, one tile per holding — its own labeled row so
+          the benchmarks stay a fixed, scannable basket. Tapping a tile
+          expands the shared history panel below. */}
+      {holdingQuotes && holdingQuotes.length > 0 ? (
+        <>
+          <div className="px-0.5 pt-1 text-[10px] uppercase tracking-[0.16em] text-brand-green/70 sm:text-[11px]">
+            İRF aktivləri
+          </div>
+          <div className="no-scrollbar flex gap-2 overflow-x-auto">
+            {holdingQuotes.map((q) => (
+              <Tile
+                key={q.key}
+                label={q.label}
+                price={`${formatGrouped(q.price, 2)}$`}
+                changePct={q.changePct}
+                icon={
+                  <span
+                    aria-hidden
+                    className="inline-flex shrink-0 text-black/45 dark:text-white/55"
+                  >
+                    <SectorIcon sector={q.sector ?? ""} className="h-3.5 w-3.5" />
+                  </span>
+                }
+                sessionIcon={
+                  q.sessionMode ? (
+                    <span
+                      className={`inline-flex shrink-0 ${EXTENDED_META[q.sessionMode].iconTint}`}
+                      title={EXTENDED_META[q.sessionMode].label}
+                    >
+                      {EXTENDED_META[q.sessionMode].icon}
+                    </span>
+                  ) : undefined
+                }
+                spark={q.spark}
+                sparkId={q.key}
+                expandable
+                selected={openKey === q.key}
+                onClick={() => setOpenKey((k) => (k === q.key ? null : q.key))}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
       {/* Unfold animation; mode="wait" + key means switching tiles collapses
           the old panel before the next one slides open. */}
       <AnimatePresence initial={false} mode="wait">

@@ -37,7 +37,7 @@ import { PortfolioPie } from "@/components/PortfolioPieLazy";
 import { DebtPanel } from "@/components/DebtPanelLazy";
 import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
-import { getMarketTicker } from "@/lib/marketTicker";
+import { getHoldingsTicker, getMarketTicker } from "@/lib/marketTicker";
 import { isTickerSymbol } from "@/lib/yahoo";
 import { FundNewsCard } from "@/components/FundNewsCard";
 import { getFundNews } from "@/lib/fundNews";
@@ -132,7 +132,7 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, fundNews, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, marketTicker, assetTxs] =
+  const [holder, fund, priceHistory, transactions, holdings, fundNews, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, marketTicker, holdingsTicker, assetTxs] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -148,6 +148,9 @@ export default async function DashboardPage({
       getPurchaseCadence(),
       getMarketSignals(),
       getMarketTicker(),
+      // Reads the same cached sheet holdings itself, so it parallelizes
+      // cleanly here instead of waiting on the getHoldings() result.
+      getHoldingsTicker(),
       getAssetTransactions(),
     ]);
   const canEditStrategy = isAdmin;
@@ -776,6 +779,7 @@ export default async function DashboardPage({
                status chips sit under the fund figure instead. */
             <MarketTickerStrip
               quotes={marketTicker}
+              holdingQuotes={holdingsTicker}
               irf={{
                 priceAzn: unitPriceLiveAzn,
                 changePct: unitDayPctLive,
