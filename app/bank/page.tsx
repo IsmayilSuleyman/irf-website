@@ -69,6 +69,8 @@ import {
 } from "@/lib/creditOffers";
 import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 import { BroadcastPanel } from "@/components/BroadcastPanel";
+import { PersonalDebtsCard } from "@/components/PersonalDebtsCard";
+import { getMyPersonalDebts } from "@/lib/personalDebts";
 
 export const dynamic = "force-dynamic";
 
@@ -123,6 +125,17 @@ function QuickActions({
           },
         ]
       : []),
+    {
+      href: "#xatirlatmalar",
+      label: "Xatırlatmalar",
+      desc: "Digər borclarının xatırlatması",
+      icon: (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6" />
+          <path d="M10.3 19a2 2 0 0 0 3.4 0" />
+        </svg>
+      ),
+    },
     {
       href: "/bonds",
       label: "İstiqrazlar",
@@ -445,7 +458,7 @@ export default async function BankPage({
   // only READ leftover unsettled interest, never accrue) and, admin only,
   // both settlement totals. Everything degrades to "no card" when the
   // migrations aren't applied yet.
-  const [rewardState, rewardTotals, interestState, interestTotals] = supabase
+  const [rewardState, rewardTotals, interestState, interestTotals, personalDebts] = supabase
     ? await Promise.all([
         getDailyRewardState(supabase, user.id),
         isAdmin
@@ -464,13 +477,20 @@ export default async function BankPage({
         isAdmin
           ? getBankInterestTotals(supabase)
           : Promise.resolve([] as BankInterestHolderTotal[]),
+        getMyPersonalDebts(supabase),
       ])
     : [
         null,
         [] as DailyRewardHolderTotal[],
         null,
         [] as BankInterestHolderTotal[],
+        null,
       ];
+  // Baku is fixed UTC+4 — the card gets today's ISO from the server so the
+  // relative-day pills hydrate identically.
+  const bakuTodayIso = new Date(Date.now() + 4 * 3_600_000)
+    .toISOString()
+    .slice(0, 10);
 
   // Admin cabinet + credit-offer inputs in ONE parallel round after the
   // isAdmin answer — every fetch is 60s-cached, but a cold cache used to pay
@@ -708,6 +728,17 @@ export default async function BankPage({
                 monthlyPaymentAzn={account.monthlyPaymentAzn}
                 schedule={account.paymentSchedule}
               />
+            </div>
+          </MotionSection>
+        ) : null}
+
+        {/* ── Personal debt reminders — the holder's own list, outside
+            İsmayılBank. Renders whenever the table is reachable (empty
+            state invites the first entry). ── */}
+        {personalDebts != null ? (
+          <MotionSection delay={0.12}>
+            <div className="mt-10">
+              <PersonalDebtsCard debts={personalDebts} todayIso={bakuTodayIso} />
             </div>
           </MotionSection>
         ) : null}
