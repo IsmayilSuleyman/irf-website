@@ -338,7 +338,7 @@ export function MarketTickerStrip({
     // whole card keeps them above the chart card below (header stays z-40).
     <div className="relative z-20 flex flex-col gap-2.5 rounded-2xl border border-black/10 bg-white/40 p-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 sm:p-3">
       <div className="px-0.5 pt-0.5 text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
-        Əsas indekslər və aktivlər
+        Əsas indekslər və fond aktivləri
       </div>
       <div className="no-scrollbar flex gap-2 overflow-x-auto">
         {quotes.map((q) => (
@@ -385,51 +385,42 @@ export function MarketTickerStrip({
           spark={irf.spark}
           sparkId="irf"
         />
+        {/* The fund's own book, one tile per holding, flowing in the SAME
+            row after the İRF tile — İsmayıl's call: one continuous strip,
+            not a second labeled band. Tapping a tile expands the shared
+            history panel below. */}
+        {holdingQuotes?.map((q) => (
+          <Tile
+            key={q.key}
+            label={q.label}
+            price={`${formatGrouped(q.price, 2)}$`}
+            changePct={q.changePct}
+            icon={
+              <span
+                aria-hidden
+                className="inline-flex shrink-0 text-black/45 dark:text-white/55"
+              >
+                <SectorIcon sector={q.sector ?? ""} className="h-3.5 w-3.5" />
+              </span>
+            }
+            sessionIcon={
+              q.sessionMode ? (
+                <span
+                  className={`inline-flex shrink-0 ${EXTENDED_META[q.sessionMode].iconTint}`}
+                  title={EXTENDED_META[q.sessionMode].label}
+                >
+                  {EXTENDED_META[q.sessionMode].icon}
+                </span>
+              ) : undefined
+            }
+            spark={q.spark}
+            sparkId={q.key}
+            expandable
+            selected={openKey === q.key}
+            onClick={() => setOpenKey((k) => (k === q.key ? null : q.key))}
+          />
+        ))}
       </div>
-
-      {/* The fund's own book, one tile per holding — its own labeled row so
-          the benchmarks stay a fixed, scannable basket. Tapping a tile
-          expands the shared history panel below. */}
-      {holdingQuotes && holdingQuotes.length > 0 ? (
-        <>
-          <div className="px-0.5 pt-1 text-[10px] uppercase tracking-[0.16em] text-brand-green/70 sm:text-[11px]">
-            İRF aktivləri
-          </div>
-          <div className="no-scrollbar flex gap-2 overflow-x-auto">
-            {holdingQuotes.map((q) => (
-              <Tile
-                key={q.key}
-                label={q.label}
-                price={`${formatGrouped(q.price, 2)}$`}
-                changePct={q.changePct}
-                icon={
-                  <span
-                    aria-hidden
-                    className="inline-flex shrink-0 text-black/45 dark:text-white/55"
-                  >
-                    <SectorIcon sector={q.sector ?? ""} className="h-3.5 w-3.5" />
-                  </span>
-                }
-                sessionIcon={
-                  q.sessionMode ? (
-                    <span
-                      className={`inline-flex shrink-0 ${EXTENDED_META[q.sessionMode].iconTint}`}
-                      title={EXTENDED_META[q.sessionMode].label}
-                    >
-                      {EXTENDED_META[q.sessionMode].icon}
-                    </span>
-                  ) : undefined
-                }
-                spark={q.spark}
-                sparkId={q.key}
-                expandable
-                selected={openKey === q.key}
-                onClick={() => setOpenKey((k) => (k === q.key ? null : q.key))}
-              />
-            ))}
-          </div>
-        </>
-      ) : null}
       {/* Unfold animation; mode="wait" + key means switching tiles collapses
           the old panel before the next one slides open. */}
       <AnimatePresence initial={false} mode="wait">
