@@ -710,7 +710,9 @@ export function PerformanceChart({
         </div>
       </div>
       {mode === "price" ? priceHero : hero}
-      <div className="relative h-72">
+      {/* Shorter plot on phones — h-72 ate most of the viewport there;
+          desktop keeps the full height. */}
+      <div className="relative h-52 sm:h-72">
         {/* Phones: the pill rides top-LEFT — the mirrored value labels own
             the right edge now. */}
         {timed.length > 0 && (
