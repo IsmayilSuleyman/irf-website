@@ -1,6 +1,6 @@
-import { simplifyText, type BankPaymentScheduleItem } from "@/lib/bank";
+import { simplifyText } from "@/lib/bankShared";
+import type { BankPaymentScheduleItem } from "@/lib/bank";
 import { formatGrouped } from "@/lib/portfolio";
-import { formatBakuDate } from "@/lib/user";
 
 // The /bank credit section as ONE story instead of three floating tiles and
 // a flat table: how much is left (hero), what happens next (highlighted next
@@ -15,9 +15,26 @@ function formatAmount(value: number): string {
   return formatGrouped(value, hasFraction ? 2 : 0);
 }
 
+// Hand-rolled "1 sentyabr 2026" — NOT Intl: the panel now also renders
+// inside the client personal-debts card, and Intl's az-AZ locale is
+// missing from Node's ICU (SSR printed "2026 M09 1" and hydration
+// mismatched against the browser's proper output).
+const AZ_MONTHS = [
+  "yanvar", "fevral", "mart", "aprel", "may", "iyun",
+  "iyul", "avqust", "sentyabr", "oktyabr", "noyabr", "dekabr",
+];
+
 function formatDateLabel(value: string): string {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+  if (iso) {
+    const month = AZ_MONTHS[Number(iso[2]) - 1];
+    if (month) return `${Number(iso[3])} ${month} ${iso[1]}`;
+  }
   const parsed = new Date(value);
-  return Number.isNaN(parsed.valueOf()) ? value : formatBakuDate(parsed);
+  if (Number.isNaN(parsed.valueOf())) return value;
+  // Shift to Baku (fixed UTC+4) before reading calendar parts.
+  const baku = new Date(parsed.getTime() + 4 * 3_600_000);
+  return `${baku.getUTCDate()} ${AZ_MONTHS[baku.getUTCMonth()]} ${baku.getUTCFullYear()}`;
 }
 
 function isPaidStatus(status: string | null | undefined): boolean {
@@ -47,10 +64,14 @@ export function CreditPanel({
   outstandingAzn,
   monthlyPaymentAzn,
   schedule,
+  title = "İsmayılBank ilə olan kreditim",
 }: {
   outstandingAzn: number;
   monthlyPaymentAzn: number | null;
   schedule: BankPaymentScheduleItem[];
+  /** Header eyebrow — personal installment debts reuse this panel with
+   *  their own name. */
+  title?: string;
 }) {
   const now = new Date();
   const firstUnpaidIdx = schedule.findIndex((p) => !isPaidStatus(p.status));
@@ -88,7 +109,7 @@ export function CreditPanel({
       <div className="p-6 sm:p-7">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50">
-            İsmayılBank ilə olan kreditim
+            {title}
           </p>
           {settled ? (
             <span className="rounded-full bg-brand-green-mist dark:bg-brand-green/15 px-2.5 py-0.5 text-[11px] font-semibold text-status-paid dark:text-emerald-400">

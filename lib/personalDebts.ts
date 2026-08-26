@@ -14,6 +14,9 @@ export type PersonalDebt = {
   note: string | null;
   remindDaysBefore: number;
   recurringMonthly: boolean;
+  /** Set = finite monthly installment plan; amountAzn is per installment. */
+  installmentsTotal: number | null;
+  installmentsPaid: number;
   paidAt: string | null;
 };
 
@@ -25,7 +28,7 @@ export async function getMyPersonalDebts(
   const { data, error } = await supabase
     .from("personal_debts")
     .select(
-      "id, title, amount_azn, due_date, note, remind_days_before, recurring_monthly, paid_at",
+      "id, title, amount_azn, due_date, note, remind_days_before, recurring_monthly, installments_total, installments_paid, paid_at",
     )
     .order("due_date", { ascending: true })
     .limit(100);
@@ -41,6 +44,9 @@ export async function getMyPersonalDebts(
     note: r.note == null ? null : String(r.note),
     remindDaysBefore: Number(r.remind_days_before ?? 3),
     recurringMonthly: Boolean(r.recurring_monthly),
+    installmentsTotal:
+      r.installments_total == null ? null : Number(r.installments_total),
+    installmentsPaid: Number(r.installments_paid ?? 0),
     paidAt: r.paid_at == null ? null : String(r.paid_at),
   }));
   return [...rows.filter((r) => !r.paidAt), ...rows.filter((r) => r.paidAt)];

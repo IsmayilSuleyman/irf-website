@@ -1,6 +1,7 @@
 import { auth as googleAuth, sheets as sheetsApi } from "@googleapis/sheets";
 import { unstable_cache } from "next/cache";
 import { formatAzn } from "@/lib/portfolio";
+import { simplifyText } from "@/lib/bankShared";
 
 export type BankPaymentScheduleItem = {
   amountAzn: number | null;
@@ -40,16 +41,10 @@ function normalize(value: string): string {
   return value.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
 }
 
-export function simplifyText(value: string): string {
-  return value
-    .replace(/[\u018F\u0259]/g, "e")
-    .replace(/[\u0049\u0130\u0131\u0069]/g, "i")
-    .replace(/[\u00D6\u00F6]/g, "o")
-    .replace(/[\u00DC\u00FC]/g, "u")
-    .replace(/[\u011E\u011F]/g, "g")
-    .replace(/[\u015E\u015F]/g, "s")
-    .replace(/[\u00C7\u00E7]/g, "c");
-}
+// Moved to lib/bankShared so client components (CreditPanel rendered from
+// the personal-debts card) can use it without dragging googleapis along;
+// re-exported here so server-side imports keep working unchanged.
+export { simplifyText } from "@/lib/bankShared";
 
 // A schedule installment counts as paid only when its status exactly matches one
 // of Ismayil's paid words ("Odenildi" / "Odenilmisdir" / "Odendi" / "Odenmis",
