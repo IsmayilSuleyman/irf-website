@@ -10,10 +10,17 @@ import {
   formatUsd,
 } from "@/lib/portfolio";
 import { ASSET_ICONS } from "@/components/assetIcons";
-import { RowSpark } from "@/components/RowSpark";
+import { ABOVE_SPARK, RowSpark } from "@/components/RowSpark";
+import { SparkRangeToggle } from "@/components/SparkRangeToggle";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
 import type { ExtendedMode } from "@/lib/marketHours";
 import type { AssetPosition } from "@/lib/personalAssets";
+import {
+  availableSparkRanges,
+  initialSparkRange,
+  type RowSparkSet,
+  type SparkRange,
+} from "@/lib/sparkRanges";
 
 // "Aktivlərim" — the holder's whole personal book: İRF pays and the ETF
 // positions from the Aktivlər ledger, ranked by value. The row anatomy
@@ -32,8 +39,9 @@ export type IrfHoldingSummary = {
   /** The viewer's own ₼ day delta (their slice, not the fund's). */
   dayChangeAzn: number | null;
   totalPnlAzn: number | null;
-  /** Six-month unit prices, for the row sparkline. */
-  spark?: number[];
+  /** Unit-price sparkline windows (minute snapshots for Günlük, the
+   *  recorded daily prices for Yarımillik / İllik). */
+  sparks?: RowSparkSet;
   /** The extended session folded into the figures right now, if any. */
   sessionMode?: ExtendedMode | null;
 };
@@ -57,8 +65,8 @@ type Row = {
   mayaAzn: number | null;
   /** Exact unit count — drill-down only. */
   units: number;
-  /** Six-month price series for the row-backdrop sparkline. */
-  spark?: number[];
+  /** Price series per window for the row-backdrop sparkline. */
+  sparks?: RowSparkSet;
   avgText: string | null;
   priceText: string | null;
   valueAzn: number;
@@ -199,8 +207,8 @@ export function AssetHoldingsCard({
   positions: AssetPosition[];
   /** The viewer's İRF pay position. */
   irf?: IrfHoldingSummary | null;
-  /** Six-month daily closes per ETF symbol, for the row sparklines. */
-  sparks?: Record<string, number[]>;
+  /** Sparkline windows per ETF symbol, for the row sparklines. */
+  sparks?: Record<string, RowSparkSet>;
   /** false for İsmayıl — the how-to-order note is not for the counterparty. */
   showBuyHint?: boolean;
 }) {
@@ -216,6 +224,19 @@ export function AssetHoldingsCard({
   );
   // Which rows have their detail drill-down open (AllocationList recipe).
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
+  // Which window every row's backdrop sparkline draws.
+  const [sparkRange, setSparkRange] = useState<SparkRange>(() =>
+    initialSparkRange([
+      irf?.sparks,
+      ...positions.map((p) => sparks?.[p.symbol]),
+    ]),
+  );
+  // Fresh sparklines fade in only once the viewer has switched windows.
+  const [sparkSwitched, setSparkSwitched] = useState(false);
+  const pickSparkRange = (r: SparkRange) => {
+    setSparkRange(r);
+    setSparkSwitched(true);
+  };
 
   const rows: Row[] = [
     ...(irf
@@ -232,7 +253,7 @@ export function AssetHoldingsCard({
                   ? irf.avgBuyAzn * irf.units
                   : null,
             units: irf.units,
-            spark: irf.spark,
+            sparks: irf.sparks,
             avgText:
               irf.avgBuyAzn != null
                 ? `${formatGrouped(irf.avgBuyAzn, 2)}₼`
@@ -257,7 +278,7 @@ export function AssetHoldingsCard({
       name: p.label,
       mayaAzn: p.costBasisAzn,
       units: p.units,
-      spark: sparks?.[p.symbol],
+      sparks: sparks?.[p.symbol],
       avgText: p.avgBuyUsd != null ? `${formatGrouped(p.avgBuyUsd, 2)}$` : null,
       priceText: p.priceUsd != null ? formatUsd(p.priceUsd) : null,
       valueAzn: p.valueAzn ?? 0,
@@ -280,6 +301,9 @@ export function AssetHoldingsCard({
     (a, b) => yesterdayValueOf(b) - yesterdayValueOf(a),
   );
   const yesterdayRank = new Map(yesterdayRanked.map((r, i) => [r.key, i + 1]));
+
+  // The window picker shows once any row has any window to draw.
+  const hasSparks = availableSparkRanges(rows.map((r) => r.sparks)).length > 0;
 
   const toggle = (key: ColumnKey) =>
     setVisible((v) => ({ ...v, [key]: !v[key] }));
@@ -332,6 +356,16 @@ export function AssetHoldingsCard({
         })}
       </div>
 
+      {/* The sparkline window picker, pinned above the sparkline column
+          (phones: left, in flow) — Fond Portfeli's placement. */}
+      {hasSparks && (
+        <div className="relative -my-1.5 flex sm:min-h-[23px]">
+          <div className={ABOVE_SPARK}>
+            <SparkRangeToggle value={sparkRange} onChange={pickSparkRange} />
+          </div>
+        </div>
+      )}
+
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
         {rows.map((row, i) => {
           const rank = i + 1;
@@ -346,13 +380,26 @@ export function AssetHoldingsCard({
           const isOpen = !!openRows[row.key];
           const toggleOpen = () =>
             setOpenRows((m) => ({ ...m, [row.key]: !m[row.key] }));
+          const sparkSeries = row.sparks?.[sparkRange];
           return (
             <li key={row.key} className="flex flex-col py-3">
               <div className="relative flex items-start gap-2 sm:gap-3">
-                {/* Six-month movement as the row's backdrop — the tile
-                    treatment, so it costs no horizontal space. */}
-                {row.spark && row.spark.length > 1 ? (
-                  <RowSpark values={row.spark} id={`rowspark-${row.key}`} />
+                {/* The picked window's movement as the row's backdrop — the
+                    tile treatment, so it costs no horizontal space. Günlük
+                    tints like the day badge (vs the previous close); keyed
+                    by window so a switch remounts it (and fades it in). */}
+                {sparkSeries && sparkSeries.length > 1 ? (
+                  <RowSpark
+                    key={sparkRange}
+                    values={sparkSeries}
+                    id={`rowspark-${row.key}-${sparkRange}`}
+                    fadeIn={sparkSwitched}
+                    up={
+                      sparkRange === "day" && row.dayChangePct != null
+                        ? row.dayChangePct >= 0
+                        : null
+                    }
+                  />
                 ) : null}
                 <div
                   className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-2 sm:gap-2.5"

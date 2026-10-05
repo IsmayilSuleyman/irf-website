@@ -11,7 +11,8 @@ import {
   type Currency,
 } from "@/lib/portfolio";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
-import { RowSpark } from "@/components/RowSpark";
+import { ABOVE_SPARK, RowSpark } from "@/components/RowSpark";
+import { SparkRangeToggle } from "@/components/SparkRangeToggle";
 import { SectorIcon } from "@/components/SectorIcon";
 import {
   MomentumFactorRows,
@@ -19,6 +20,12 @@ import {
 } from "@/components/MomentumFactorTable";
 import type { ScoredItem } from "@/lib/momentum";
 import type { ExtendedMode, ExtendedSymbolQuote } from "@/lib/extendedPortfolio";
+import {
+  availableSparkRanges,
+  initialSparkRange,
+  type RowSparkSet,
+  type SparkRange,
+} from "@/lib/sparkRanges";
 
 type Item = {
   symbol?: string;
@@ -275,8 +282,8 @@ export function AllocationList({
    * rows with an entry expand into the factor table on tap.
    */
   momentum?: Record<string, ScoredItem>;
-  /** Six-month daily closes keyed by upper-cased ticker — row sparklines. */
-  sparks?: Record<string, number[]>;
+  /** Row sparkline windows keyed by upper-cased ticker. */
+  sparks?: Record<string, RowSparkSet>;
 }) {
   const [visible, setVisible] = useState<Record<ColumnKey, boolean>>({
     value: true,
@@ -307,6 +314,16 @@ export function AllocationList({
   const [sortOpen, setSortOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("value");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  // Which window every row's backdrop sparkline draws.
+  const [sparkRange, setSparkRange] = useState<SparkRange>(() =>
+    initialSparkRange(Object.values(sparks ?? {})),
+  );
+  // Fresh sparklines fade in only once the viewer has switched windows.
+  const [sparkSwitched, setSparkSwitched] = useState(false);
+  const pickSparkRange = (r: SparkRange) => {
+    setSparkRange(r);
+    setSparkSwitched(true);
+  };
 
   if (!items || items.length === 0) {
     return <div className="text-black/45 dark:text-white/50">Məlumat yoxdur.</div>;
@@ -372,6 +389,8 @@ export function AllocationList({
   });
   const activeSortLabel = sortChoices.find((c) => c.key === sortKey)?.label;
   const sortIsDefault = sortKey === "value" && sortDir === "desc";
+  // The window picker shows once any row has any window to draw.
+  const hasSparks = availableSparkRanges(Object.values(sparks ?? {})).length > 0;
 
   return (
     <div className="flex flex-col gap-3">
@@ -498,37 +517,49 @@ export function AllocationList({
         </div>
       </div>
 
-      {/* Per-column currency toggles, mirroring the rows' number grid so
-          each sits above the column it governs. Hidden with the column. */}
+      {/* The row over the list: the sparkline window picker pinned above
+          the sparkline column (phones: left, in flow — it wraps onto its
+          own line when the ₼/$ pair doesn't fit beside it), and the
+          per-column currency toggles mirroring the rows' number grid so
+          each sits above the column it governs. Each hides with what it
+          governs. */}
       {(() => {
         const valueColOn = visible.value || visible.totalChange;
         const priceColOn =
           visible.price ||
           visible.dayChange ||
           (extended != null && visible.extended);
-        if (!valueColOn && !priceColOn) return null;
+        const currencyOn = valueColOn || priceColOn;
+        if (!currencyOn && !hasSparks) return null;
         return (
-          <div className="-my-1 flex justify-end">
-            <div className="grid grid-cols-[auto_56px] items-center gap-x-2 sm:grid-cols-[auto_64px] sm:gap-x-4">
-              <div className="flex justify-end">
-                {valueColOn && (
-                  <CurrencyToggle
-                    value={valueCur}
-                    onChange={setValueCur}
-                    label="dəyər sütunu"
-                  />
-                )}
+          <div className="relative -my-1 flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5 sm:min-h-[23px]">
+            {hasSparks && (
+              <div className={`mr-auto sm:mr-0 ${ABOVE_SPARK}`}>
+                <SparkRangeToggle value={sparkRange} onChange={pickSparkRange} />
               </div>
-              <div className="flex justify-end">
-                {priceColOn && (
-                  <CurrencyToggle
-                    value={priceCur}
-                    onChange={setPriceCur}
-                    label="qiymət sütunu"
-                  />
-                )}
+            )}
+            {currencyOn && (
+              <div className="grid grid-cols-[auto_56px] items-center gap-x-2 sm:grid-cols-[auto_64px] sm:gap-x-4">
+                <div className="flex justify-end">
+                  {valueColOn && (
+                    <CurrencyToggle
+                      value={valueCur}
+                      onChange={setValueCur}
+                      label="dəyər sütunu"
+                    />
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  {priceColOn && (
+                    <CurrencyToggle
+                      value={priceCur}
+                      onChange={setPriceCur}
+                      label="qiymət sütunu"
+                    />
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         );
       })()}
@@ -555,6 +586,15 @@ export function AllocationList({
             extended != null && !item.isCash && extended.quotes[ticker] != null;
           const extQuote =
             hasExtQuote && visible.extended ? extended!.quotes[ticker] : null;
+          const sparkSeries = item.isCash
+            ? undefined
+            : sparks?.[ticker]?.[sparkRange];
+          // Günlük tints like the day badge (vs the previous close); the
+          // longer windows by their own first→last move.
+          const sparkUp =
+            sparkRange === "day" && item.dayChangePct != null
+              ? item.dayChangePct >= 0
+              : null;
           const momoRow = momentum?.[ticker] ?? null;
           const momoIsOpen = !!(momoRow && momoOpen[item.name]);
           const toggleMomo = () =>
@@ -604,12 +644,17 @@ export function AllocationList({
           return (
             <li key={item.name} className="flex flex-col py-3">
               <div className="relative flex items-start gap-2 sm:gap-3">
-              {/* Six-month movement as the row's backdrop — the tile
-                  treatment, so it costs no horizontal space. */}
-              {!item.isCash &&
-              sparks?.[ticker] &&
-              sparks[ticker].length > 1 ? (
-                <RowSpark values={sparks[ticker]} id={`fpspark-${ticker}`} />
+              {/* The picked window's movement as the row's backdrop — the
+                  tile treatment, so it costs no horizontal space. Keyed by
+                  window so a switch remounts it (and fades it in). */}
+              {sparkSeries && sparkSeries.length > 1 ? (
+                <RowSpark
+                  key={sparkRange}
+                  values={sparkSeries}
+                  id={`fpspark-${ticker}-${sparkRange}`}
+                  up={sparkUp}
+                  fadeIn={sparkSwitched}
+                />
               ) : null}
               {/* Identity: ticker over company name (+ percent of portfolio).
                   Rank + movement arrow + sector icon are vertically centered

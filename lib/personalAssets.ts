@@ -3,12 +3,19 @@ import { USD_TO_AZN } from "@/lib/portfolio";
 import {
   getDailyCloses,
   getExtendedQuotes,
+  getIntradaySpark,
   type DailyClose,
 } from "@/lib/yahoo";
 import type { AssetTransaction } from "@/lib/sheets";
 import type { ExtendedMode } from "@/lib/marketHours";
 import { effectiveSessionMode, sessionPriceOf } from "@/lib/sessionPricing";
 import { parseSheetDateMs } from "@/lib/sheetDates";
+import {
+  dailySparkWindows,
+  toSpark,
+  YEAR_DAYS,
+  type RowSparkSet,
+} from "@/lib/sparkRanges";
 
 // The personal ETF desk: holders (everyone but İsmayıl) buy SPY/IBIT/GLDM/
 // SIVR through İsmayıl — orders are agreed verbally, outside the app — and
@@ -258,23 +265,63 @@ const getCachedDailyCloses = unstable_cache(
   { revalidate: 3600 },
 );
 
+// The latest session's intraday curve per symbol, for the Günlük window —
+// 15-minute bars, so the ticker strip's 5-minute cadence loses nothing.
+// getIntradaySpark already degrades to [] on any failure.
+const getCachedIntradaySpark = unstable_cache(
+  async (symbol: string): Promise<number[]> => getIntradaySpark(symbol),
+  ["personal-asset-intraday-spark"],
+  { revalidate: 300 },
+);
+
+// Sparklines are decoration: a Yahoo call still hanging after this leaves
+// its window empty for this render (the cached fetch keeps running and
+// serves the next one) — the dashboard never waits on it, the same 4s the
+// quote and ticker fetches allow.
+const SPARK_TIMEOUT_MS = 4000;
+function orEmptyAfterTimeout<T>(p: Promise<T[]>): Promise<T[]> {
+  return Promise.race([
+    p,
+    new Promise<T[]>((resolve) =>
+      setTimeout(() => resolve([]), SPARK_TIMEOUT_MS),
+    ),
+  ]).catch(() => []);
+}
+
 /**
- * Six months of daily closes per symbol, for the Aktivlərim and Fond
- * Portfeli row sparklines. Rides the same 1h closes cache as the chart
- * overlay (days is part of the cache key); a failed symbol is just an
- * empty series.
+ * The Aktivlərim and Fond Portfeli row sparklines' three windows per
+ * symbol. One year of daily closes serves both Yarımillik and İllik; the
+ * Günlük curve comes from `intraday` when the caller already holds it
+ * (Fond Portfeli reuses the ticker strip's holdings sparks), else — or
+ * when that map lacks the symbol, e.g. the strip timed out — from its own
+ * 5-minute cache. A failed or slow symbol is just an empty window.
  */
 export async function getAssetRowSparks(
   symbols: string[],
-): Promise<Record<string, number[]>> {
+  intraday?: Record<string, number[]>,
+): Promise<Record<string, RowSparkSet>> {
   const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()))]
     .filter(Boolean)
     .sort();
+  const nowMs = Date.now();
   const entries = await Promise.all(
-    unique.map(
-      async (s) =>
-        [s, (await getCachedDailyCloses(s, 190)).map((c) => c.close)] as const,
-    ),
+    unique.map(async (s) => {
+      const known = intraday?.[s];
+      const [closes, day] = await Promise.all([
+        orEmptyAfterTimeout(getCachedDailyCloses(s, YEAR_DAYS + 7)),
+        known && known.length > 1
+          ? known
+          : orEmptyAfterTimeout(getCachedIntradaySpark(s)),
+      ]);
+      const set: RowSparkSet = {
+        day: toSpark(day),
+        ...dailySparkWindows(
+          closes.map((c) => ({ t: c.t, v: c.close })),
+          nowMs,
+        ),
+      };
+      return [s, set] as const;
+    }),
   );
   return Object.fromEntries(entries);
 }
