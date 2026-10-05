@@ -58,6 +58,11 @@ import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { PrivacyProvider } from "@/components/PrivacyProvider";
 import { LivePricingProvider } from "@/components/LivePricing";
 import { getMinuteSeries } from "@/lib/minuteSeries";
+import {
+  dailySparkWindows,
+  latestSessionSpark,
+  type RowSparkSet,
+} from "@/lib/sparkRanges";
 import { FundValueChart } from "@/components/FundValueChartLazy";
 import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { MarketCountdown } from "@/components/MarketCountdown";
@@ -542,20 +547,25 @@ export default async function DashboardPage({
   const assetQuotes = await assetQuotesPromise;
   const assetPositions = buildAssetPositions(holder.name, assetTxs, assetQuotes);
   // One parallel round for the remaining history series: the Aktivlərim row
-  // sparklines (six months of daily closes per held ETF), the fund view's
+  // sparklines (Günlük / Yarımillik / İllik per held ETF), the fund view's
   // per-holding Fond Portfeli sparklines, and the chart card's ETF value
   // overlay — previously three serial awaits.
   const [assetRowSparks, fondSparks, assetOverlay] = await Promise.all([
-    getAssetRowSparks(assetPositions.map((p) => p.symbol)),
-    // Fond Portfeli row sparklines — fund view only, one cached series per
-    // non-cash holding.
+    // Aktivlərim lives in the personal view only.
+    !fundView && assetPositions.length > 0
+      ? getAssetRowSparks(assetPositions.map((p) => p.symbol))
+      : Promise.resolve({} as Record<string, RowSparkSet>),
+    // Fond Portfeli row sparklines — fund view only, one cached year of
+    // closes per non-cash holding. The Günlük curves are the ticker
+    // strip's holdings sparks, already fetched above — no extra calls.
     fundView && holdings.length > 0
       ? getAssetRowSparks(
           holdings
             .filter((h) => !h.isCash && isTickerSymbol(h.symbol))
             .map((h) => h.symbol),
+          Object.fromEntries(holdingsTicker.map((q) => [q.label, q.spark])),
         )
-      : Promise.resolve({} as Record<string, number[]>),
+      : Promise.resolve({} as Record<string, RowSparkSet>),
     assetPositions.length > 0
       ? getAssetValueOverlay(
           holder.name,
@@ -564,12 +574,19 @@ export default async function DashboardPage({
         )
       : Promise.resolve(null),
   ]);
-  const irfRowSpark = priceHistory
-    .filter(
-      (p) =>
-        new Date(p.recordedAt).getTime() >= Date.now() - 186 * 86_400_000,
-    )
-    .map((p) => p.price);
+  // The İRF row's sparkline windows: Günlük is the latest session of the
+  // minutely pay-price snapshots (day tier, week tier when the last move is
+  // older — weekends, the overnight gap), the longer two the recorded
+  // daily prices.
+  const irfRowSparks: RowSparkSet = {
+    day: minuteSeries
+      ? latestSessionSpark([minuteSeries.day.price, minuteSeries.week.price])
+      : undefined,
+    ...dailySparkWindows(
+      priceHistory.map((p) => ({ t: p.recordedAt, v: p.price })),
+      Date.now(),
+    ),
+  };
   // Fund view: every holder's ETF book for the Digər Aktivlər Sahibləri
   // card (separate from Pay sahibləri — these sit outside the fund).
   const assetHolders = fundView
@@ -996,7 +1013,7 @@ export default async function DashboardPage({
                           dayChangePct: unitDayPctLive,
                           dayChangeAzn: withExt(dayChange, liveDeltaMineAzn),
                           totalPnlAzn: withExtPnl(holdingPnl, liveDeltaMineAzn),
-                          spark: irfRowSpark,
+                          sparks: irfRowSparks,
                           sessionMode: extendedPortfolio?.mode ?? null,
                         }
                       : null
