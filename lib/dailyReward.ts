@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { FlowLedgerRow } from "@/lib/bankFlows";
 
 // Günlük mükafat: the claims ledger lives in Supabase
 // (daily_reward_claims + the claim_daily_reward RPC — see the migration).
@@ -154,4 +155,28 @@ export async function getDailyRewardTotals(
     byName.set(name, entry);
   }
   return [...byName.values()].sort((a, b) => b.unsettledAzn - a.unsettledAzn);
+}
+
+/** Raw claim rows for the money-flow ledger (own, or all for the admin). */
+export async function getDailyRewardRows(
+  supabase: SupabaseClient,
+  limit = 5000,
+): Promise<FlowLedgerRow[]> {
+  const { data, error } = await supabase
+    .from("daily_reward_claims")
+    .select("holder_name, claim_date, amount_azn, settled_at")
+    .order("claim_date", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("[daily-reward] rows fetch failed:", error);
+    return [];
+  }
+  return (data ?? [])
+    .map((r) => ({
+      holderName: String(r.holder_name ?? ""),
+      date: String(r.claim_date),
+      amountAzn: Number(r.amount_azn),
+      settledAt: r.settled_at == null ? null : String(r.settled_at),
+    }))
+    .filter((r) => Number.isFinite(r.amountAzn));
 }

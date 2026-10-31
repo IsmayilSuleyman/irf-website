@@ -36,10 +36,14 @@ export function BankObligationsCard({
   aggregate,
   bondObligations,
   unsettledAvailable,
+  founderMode = false,
 }: {
   aggregate: BankWideAggregate;
   bondObligations: BondObligations;
   unsettledAvailable: boolean;
+  /** Təsisçi rejimi: the founder's own money is already split out of
+   *  every figure here — the card says so. */
+  founderMode?: boolean;
 }) {
   const a = aggregate;
   const totalAzn =
@@ -121,6 +125,12 @@ export function BankObligationsCard({
             artıq depozitorların balansına köçürülmüş qazanclar
           </p>
         </div>
+      ) : null}
+      {founderMode ? (
+        <p className="border-t border-black/10 dark:border-white/10 px-5 py-3 text-[11px] text-black/45 dark:text-white/50 sm:px-6">
+          Təsisçi rejimi: İsmayılın öz depoziti, öz istiqrazları və özünə
+          hesablanmış faiz bu siyahıda yoxdur — bank özünə borclu deyil.
+        </p>
       ) : null}
       {!unsettledAvailable ? (
         <p className="border-t border-black/10 dark:border-white/10 px-5 py-3 text-[11px] text-black/45 dark:text-white/50 sm:px-6">

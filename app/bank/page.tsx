@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  computeBankWide,
   getBankAccountByName,
   getBankAccounts,
   monthlyDepositInterestAzn,
@@ -17,24 +16,19 @@ import { requireUserWithScope } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { getBankProductTerms } from "@/lib/bankTerms";
-import {
-  getBondFundingAzn,
-  getBondFundingBreakdown,
-  getMyBondHoldings,
-} from "@/lib/bonds";
-import {
-  computeBondObligations,
-  computeLiquidityProjection,
-} from "@/lib/liquidityProjection";
-import { computeBankHealth } from "@/lib/bankHealth";
-import { getBankDailySeries } from "@/lib/bankSnapshots";
+import { getBondFundingAzn, getMyBondHoldings } from "@/lib/bonds";
 import { getAssetTransactions } from "@/lib/sheets";
 import {
   PURCHASABLE_ASSETS,
   buildAssetPositions,
-  computeAssetReserveAzn,
   getAssetQuotes,
 } from "@/lib/personalAssets";
+import { loadBankWideData } from "@/lib/bankWideData";
+import { getFounderMode } from "@/lib/founderMode";
+import { isSameHolder } from "@/lib/bankFounder";
+import { FUND_PRINCIPAL_NAME } from "@/lib/holdings";
+import { FounderHero } from "@/components/FounderHero";
+import { FounderModeCard } from "@/components/FounderModeCard";
 import { BankAssetsVault, type VaultInvite } from "@/components/BankAssetsVault";
 import { MotionSection } from "@/components/MotionSection";
 import { BankHeader } from "@/components/BankHeader";
@@ -54,10 +48,8 @@ import {
   accrueAndGetBankInterest,
   getBankInterestState,
   getBankInterestTotals,
-  getBankUnsettledTotals,
   type BankInterestHolderTotal,
   type BankInterestState,
-  type BankUnsettledTotals,
 } from "@/lib/bankInterest";
 import { CreditOfferBanner } from "@/components/CreditOfferBanner";
 import { CreditOfferPanel } from "@/components/CreditOfferPanel";
@@ -267,65 +259,19 @@ export default async function BankPage({
   // survives refreshes — mirrors FundViewToggle on /dashboard.
   const bankView = isFamily && sp?.view === "bank";
   const dateLabel = formatBakuDate(new Date());
+  // Admin (is_fund_admin): the cabinet, debt notices — and the full
+  // Supabase-side money-flow ledger (every holder's rows, not just own).
+  const isAdmin = supabase
+    ? (await supabase.rpc("is_fund_admin")).data === true
+    : false;
 
   if (bankView) {
     const now = new Date();
-    const totalsUnavailable: BankUnsettledTotals = {
-      available: false,
-      interestUnsettledAzn: 0,
-      interestSettledAzn: 0,
-      rewardsUnsettledAzn: 0,
-      rewardsSettledAzn: 0,
-    };
-    const [
-      accounts,
-      bondFundingAzn,
-      bondBreakdown,
-      assetTxs,
-      unsettledTotals,
-      trend,
-    ] = await Promise.all([
-      getBankAccounts(),
-      getBondFundingAzn(),
-      getBondFundingBreakdown(),
-      getAssetTransactions(),
-      supabase ? getBankUnsettledTotals(supabase) : Promise.resolve(totalsUnavailable),
-      supabase ? getBankDailySeries(supabase) : Promise.resolve(null),
-    ]);
-    const aggregate = computeBankWide(
-      accounts,
-      now,
-      bondFundingAzn,
-      // ETF paid-basis reserve — displayed as its own untouchable line,
-      // never part of lendable funding.
-      computeAssetReserveAzn(assetTxs),
-      {
-        unsettledInterestAzn: unsettledTotals.interestUnsettledAzn,
-        unsettledRewardsAzn: unsettledTotals.rewardsUnsettledAzn,
-        settledInterestAzn: unsettledTotals.interestSettledAzn,
-        settledRewardsAzn: unsettledTotals.rewardsSettledAzn,
-      },
-    );
-    const projection = computeLiquidityProjection(
-      accounts,
-      bondBreakdown,
-      aggregate.netLiquidityAzn,
-      now,
-    );
-    const bondObligations = computeBondObligations(bondBreakdown, now);
-    const projectionMinAzn =
-      projection.length >= 2
-        ? Math.min(...projection.map((p) => p.valueAzn))
-        : null;
-    const health = computeBankHealth({
-      liquidityPct: aggregate.liquidityPct,
-      overdueCount: aggregate.overdue.items.length,
-      overdueTotalAzn: aggregate.overdue.totalAzn,
-      projectionMinAzn,
-    });
+    const data = await loadBankWideData(supabase, isAdmin, now);
     // Baku is fixed UTC+4 — manual math, no Intl (hydration rule).
     const baku = new Date(now.getTime() + 4 * 3_600_000);
     const updatedLabel = `Məlumat: bu gün ${String(baku.getUTCHours()).padStart(2, "0")}:${String(baku.getUTCMinutes()).padStart(2, "0")} (Bakı)`;
+    const todayIso = baku.toISOString().slice(0, 10);
     return (
       <main className="min-h-screen bg-bank-section">
         <BankHeader dateLabel={dateLabel} isFamily={isFamily} />
@@ -343,13 +289,17 @@ export default async function BankPage({
           </MotionSection>
           <MotionSection delay={0.04}>
             <BankWideView
-              aggregate={aggregate}
-              projection={projection}
-              bondObligations={bondObligations}
-              health={health}
-              trend={trend}
-              unsettledAvailable={unsettledTotals.available}
+              aggregate={data.aggregate}
+              projection={data.projection}
+              bondObligations={data.bondObligations}
+              health={data.health}
+              trend={data.trend}
+              unsettledAvailable={data.unsettledAvailable}
               updatedLabel={updatedLabel}
+              flows={data.flows}
+              flowsPartial={data.flowsPartial}
+              founder={data.founder}
+              todayIso={todayIso}
             />
           </MotionSection>
         </section>
@@ -474,10 +424,12 @@ export default async function BankPage({
         }
       : undefined);
 
-  // Admin (is_fund_admin) can push on-demand "pay your debt" notices to borrowers.
-  const isAdmin = supabase
-    ? (await supabase.rpc("is_fund_admin")).data === true
-    : false;
+  // Təsisçi rejimi: when on, and this login IS the principal, the bank
+  // stops being his depositor's account — no daily interest accrues to the
+  // founder, and the founder hero replaces the balance hero below.
+  const founderMode = await getFounderMode();
+  const isFounderHere =
+    founderMode && isAdmin && account != null && isSameHolder(account.name, FUND_PRINCIPAL_NAME);
   // The Sheet row differentiates the two deposit products: filled term
   // cells (rate / müddət) mean a TERM deposit governed by its own contract
   // — no daily accrual; empty ones mean the on-demand deposit earning the
@@ -500,7 +452,7 @@ export default async function BankPage({
           ? getDailyRewardTotals(supabase)
           : Promise.resolve([] as DailyRewardHolderTotal[]),
         account
-          ? hasTermProduct
+          ? hasTermProduct || isFounderHere
             ? getBankInterestState(supabase, user.id)
             : accrueAndGetBankInterest(
                 supabase,
@@ -583,6 +535,11 @@ export default async function BankPage({
   }
 
   const productTerms = isAdmin ? sharedTerms : null;
+  // The founder's own hero needs the whole bank through the split — the
+  // same loader the bank-wide view runs.
+  const founderData = isFounderHere
+    ? await loadBankWideData(supabase, isAdmin, new Date())
+    : null;
   // The cabinet's access panel: every auth user with the external flag, plus
   // the share cap it quotes. Absent until the external_members migration runs.
   const [appUsersRaw, registrations] =
@@ -685,7 +642,8 @@ export default async function BankPage({
               overlay) so it can never collide with the quick-actions cards. */}
           <div className="flex items-center justify-between gap-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
-              XOŞ GƏLDİN, {account.name}
+              {isFounderHere ? "TƏSİSÇİ · " : "XOŞ GƏLDİN, "}
+              {account.name}
             </p>
             {isFamily ? (
               <>
@@ -738,6 +696,9 @@ export default async function BankPage({
             an answer to "what do I have here", where an absent hero is not. */}
         <MotionSection delay={0.04}>
           <div id="depozitlerim" className="mt-8 scroll-mt-6">
+            {founderData?.founder ? (
+              <FounderHero founder={founderData.founder} />
+            ) : (
             <BalanceHero
               depositedAzn={account.depositedAzn}
               rewardAzn={rewardAzn}
@@ -753,6 +714,7 @@ export default async function BankPage({
               bondIssues={bonds.holdings.length}
               bondMonthlyAzn={bonds.monthlyCouponAzn}
             />
+            )}
           </div>
         </MotionSection>
 
@@ -835,6 +797,7 @@ export default async function BankPage({
                 <span className="h-px flex-1 bg-black/10 dark:bg-white/10" />
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <FounderModeCard initialOn={founderMode} />
                 <DebtNoticePanel debtors={debtors} />
                 <BroadcastPanel recipients={recipientNames} />
                 {rewardTotals.length > 0 ? (

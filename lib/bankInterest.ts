@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // back-fills any missed days (bounded) and is idempotent per (user, day).
 
 import { DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT } from "@/lib/bankTermsData";
+import type { FlowLedgerRow } from "@/lib/bankFlows";
 
 export const INTEREST_EFFECTIVE_ANNUAL_PCT = DAILY_DEPOSIT_EFFECTIVE_ANNUAL_PCT;
 
@@ -205,4 +206,31 @@ export async function getBankInterestTotals(
     byName.set(name, entry);
   }
   return [...byName.values()].sort((a, b) => b.unsettledAzn - a.unsettledAzn);
+}
+
+/**
+ * Raw accrual rows for the money-flow ledger (own rows, or every row for
+ * the admin — see the RLS policy). Newest first, capped.
+ */
+export async function getBankInterestRows(
+  supabase: SupabaseClient,
+  limit = 5000,
+): Promise<FlowLedgerRow[]> {
+  const { data, error } = await supabase
+    .from("bank_interest_accruals")
+    .select("holder_name, accrual_date, amount_azn, settled_at")
+    .order("accrual_date", { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error("[bank-interest] rows fetch failed:", error);
+    return [];
+  }
+  return (data ?? [])
+    .map((r) => ({
+      holderName: String(r.holder_name ?? ""),
+      date: String(r.accrual_date),
+      amountAzn: Number(r.amount_azn),
+      settledAt: r.settled_at == null ? null : String(r.settled_at),
+    }))
+    .filter((r) => Number.isFinite(r.amountAzn));
 }

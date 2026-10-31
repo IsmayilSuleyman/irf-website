@@ -74,21 +74,38 @@ export function BankBalanceSheet({
   assetReserveAzn,
   loansAzn,
   netLiquidityAzn,
+  founderCapitalAzn = 0,
 }: {
   depositsAzn: number;
   bondFundingAzn: number;
   assetReserveAzn: number;
   loansAzn: number;
+  /** Free liquidity — in founder mode the caller passes the figure that
+   *  already counts the founder's capital as lendable. */
   netLiquidityAzn: number;
+  /** Təsisçi rejimi: the founder's own deposit + own bond money, shown as
+   *  its own source line rather than inside Depozitlər. */
+  founderCapitalAzn?: number;
 }) {
   // Both columns close on the same figure by construction:
-  // deposits + bonds + reserve  ≡  loans + (deposits + bonds − loans) + reserve.
-  const totalAzn = depositsAzn + bondFundingAzn + assetReserveAzn;
+  // deposits + bonds + capital + reserve
+  //   ≡ loans + (deposits + bonds + capital − loans) + reserve.
+  const totalAzn = depositsAzn + bondFundingAzn + founderCapitalAzn + assetReserveAzn;
 
   const sources: Row[] = [
+    ...(founderCapitalAzn > 0
+      ? [
+          {
+            label: "Təsisçi kapitalı",
+            hint: "İsmayılın öz vəsaiti — faiz hesablanmır, öhdəlik deyil",
+            amountAzn: founderCapitalAzn,
+            bar: "bg-bank-blue-deep dark:bg-blue-400",
+          },
+        ]
+      : []),
     {
       label: "Depozitlər",
-      hint: "iştirakçıların bankdakı əmanətləri",
+      hint: founderCapitalAzn > 0 ? "kənar iştirakçıların əmanətləri" : "iştirakçıların bankdakı əmanətləri",
       amountAzn: depositsAzn,
       bar: "bg-bank-blue",
     },
