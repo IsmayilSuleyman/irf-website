@@ -7,7 +7,14 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 import { Logo } from "@/components/Logo";
 
-export function BankHeader({ dateLabel }: { dateLabel: string }) {
+export function BankHeader({
+  dateLabel,
+  isFamily = true,
+}: {
+  dateLabel: string;
+  /** false for an external member: no İRF link, no portal — /bank is home. */
+  isFamily?: boolean;
+}) {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
   const canLogout = supabase != null;
@@ -33,6 +40,7 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-6">
         <div className="flex items-center gap-3">
           <IsmayilBankLogo size={28} />
+          {isFamily ? (
           <Link
             href="/dashboard"
             aria-label="İRF hesabına keç"
@@ -46,15 +54,18 @@ export function BankHeader({ dateLabel }: { dateLabel: string }) {
               Hesabına Keç
             </span>
           </Link>
+          ) : null}
         </div>
 
         <div className="flex items-center gap-5">
-          <Link
-            href="/portal"
-            className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50 transition hover:text-bank-blue dark:hover:text-blue-400 sm:inline"
-          >
-            Portal
-          </Link>
+          {isFamily ? (
+            <Link
+              href="/portal"
+              className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50 transition hover:text-bank-blue dark:hover:text-blue-400 sm:inline"
+            >
+              Portal
+            </Link>
+          ) : null}
           <span className="hidden text-xs text-black/45 dark:text-white/50 sm:inline">{dateLabel}</span>
           <button
             onClick={onLogout}

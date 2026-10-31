@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/auth-guard";
+import { requireUserWithScope } from "@/lib/auth-guard";
 import { getMarketData } from "@/lib/market";
 import { bestQuotes } from "@/lib/priceMath";
 import { formatBakuDate } from "@/lib/user";
@@ -15,14 +15,17 @@ import { AdminSettlements } from "@/components/market/AdminSettlements";
 export const dynamic = "force-dynamic";
 
 export default async function MarketPage() {
-  await requireUser("/market");
+  // External members trade here too (capped in place_order); they only lose
+  // the links into the family portfolio.
+  const { scope } = await requireUserWithScope("/market");
+  const isFamily = scope === "family";
   const data = await getMarketData();
   const dateLabel = formatBakuDate(new Date());
 
   if (!data) {
     return (
-      <main className="px-6">
-        <Header dateLabel={dateLabel} />
+      <main className="px-6" data-access-scope={isFamily ? undefined : "external"}>
+        <Header dateLabel={dateLabel} isFamily={isFamily} />
         <div className="mx-auto max-w-5xl py-16 text-center text-sm text-black/55 dark:text-white/60">
           Bazar məlumatları yüklənmədi.
         </div>
@@ -39,8 +42,8 @@ export default async function MarketPage() {
   );
 
   return (
-    <main className="px-6 pb-24">
-      <Header dateLabel={dateLabel} />
+    <main className="px-6 pb-24" data-access-scope={isFamily ? undefined : "external"}>
+      <Header dateLabel={dateLabel} isFamily={isFamily} />
 
       <div className="mx-auto flex max-w-5xl flex-col gap-12">
         {/* Intro + price band */}

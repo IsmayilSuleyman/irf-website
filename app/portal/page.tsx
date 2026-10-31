@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { requireUser } from "@/lib/auth-guard";
+import { requireFamilyUser } from "@/lib/auth-guard";
 import { Logo } from "@/components/Logo";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 
@@ -29,7 +29,7 @@ function PortalOption({
 }
 
 export default async function PortalPage() {
-  await requireUser();
+  await requireFamilyUser();
 
   return (
     <main className="min-h-screen overflow-hidden px-3 py-3 sm:px-4 sm:py-4">

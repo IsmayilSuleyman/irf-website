@@ -6,7 +6,10 @@ import { usePathname } from "next/navigation";
 // Bottom tab bar shown on phones (hidden ≥sm) for the authenticated app
 // area, mirroring native banking apps. Rendered once in the root layout;
 // hides itself on public pages (welcome/login/portal) where the header
-// links already cover navigation.
+// links already cover navigation. An external member (lib/access.ts) has no
+// Portfel: the gated pages mark themselves with data-access-scope="external"
+// and globals.css hides that one tab via :has() — the layout itself never
+// reads the session (that would put a token refresh on every public page).
 
 export function isAppRoute(pathname: string): boolean {
   return ["/dashboard", "/market", "/bank", "/bonds", "/ismayilbank"].some((p) =>
@@ -77,7 +80,7 @@ export function MobileTabBar() {
       <div aria-hidden className="h-20 sm:hidden" />
       <nav
         aria-label="Əsas naviqasiya"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md dark:border-white/15 dark:bg-black/60 sm:hidden"
+        className="mobile-tab-bar fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md dark:border-white/15 dark:bg-black/60 sm:hidden"
       >
         <div className="mx-auto flex max-w-md items-stretch justify-around">
           {TABS.map((tab) => {

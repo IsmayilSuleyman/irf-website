@@ -27,7 +27,7 @@ import {
 import { getHolderMarketState } from "@/lib/holdings";
 import { parseSheetDateMs } from "@/lib/sheetDates";
 import { getMarketQuotes } from "@/lib/market";
-import { requireUser } from "@/lib/auth-guard";
+import { requireFamilyUser } from "@/lib/auth-guard";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { Header } from "@/components/Header";
 // Lazy client wrappers: the recharts-powered cards hydrate from their own
@@ -124,7 +124,7 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const user = await requireUser();
+  const user = await requireFamilyUser();
   const sp = await searchParams;
 
   // Push Yahoo pre/after-market quotes into the Watchlist tab after the
