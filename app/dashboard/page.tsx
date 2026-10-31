@@ -44,6 +44,8 @@ import { getFundNews } from "@/lib/fundNews";
 import { DailyRewardCard } from "@/components/DailyRewardCard";
 import { getDailyRewardState } from "@/lib/dailyReward";
 import { MotionSection } from "@/components/MotionSection";
+import { GoogleLinkBanner } from "@/components/GoogleLinkBanner";
+import { parseGoogleLinkStatus } from "@/lib/googleLink";
 import {
   getPurchaseCadence,
   getWeeklyBudgetAzn,
@@ -126,6 +128,10 @@ export default async function DashboardPage({
 }) {
   const user = await requireFamilyUser();
   const sp = await searchParams;
+  // "Link your Google account" banner (GoogleLinkBanner): only while this
+  // login has no Google identity; ?google= carries the callback's outcome.
+  const hasGoogle = (user.identities ?? []).some((i) => i.provider === "google");
+  const googleStatus = parseGoogleLinkStatus(sp.google);
 
   // Push Yahoo pre/after-market quotes into the Watchlist tab after the
   // response is sent (throttled inside; a failure never affects the page).
@@ -860,6 +866,12 @@ export default async function DashboardPage({
             />
           )}
         </MotionSection>
+
+        {!hasGoogle ? (
+          <MotionSection delay={0.03} className="-mt-10">
+            <GoogleLinkBanner returnTo="/dashboard" status={googleStatus} />
+          </MotionSection>
+        ) : null}
 
         {/* Personal view: the holding value lives inside the history chart
             card (Yahoo's portfolio-performance composition), with the

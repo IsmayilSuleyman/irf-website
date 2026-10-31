@@ -15,9 +15,10 @@ import { safeNextPath } from "@/lib/nextPath";
  *
  * Two callers share this route:
  *   - sign-in (LoginForm): failures land on /login?error=google|not_invited;
- *   - identity LINKING (GoogleLinkCard, `link=1`): the user is already
- *     signed in, so failures go back to /bank?google=error|exists instead
- *     of a login page the middleware would bounce them off anyway.
+ *   - identity LINKING (GoogleLinkBanner / GoogleLinkCard, `link=1`): the
+ *     user is already signed in, so failures go back to the page that
+ *     started it (?google=error|exists) instead of a login page the
+ *     middleware would bounce them off anyway.
  */
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
@@ -30,8 +31,10 @@ export async function GET(request: NextRequest) {
 
   const fail = (kind: "google" | "not_invited" | "exists") => {
     if (linking) {
+      // Back to the page the banner/card lives on (next = "/dashboard?google=linked").
+      const page = next.split("?")[0] || "/bank";
       return NextResponse.redirect(
-        `${base}/bank?google=${kind === "exists" ? "exists" : "error"}`,
+        `${base}${page}?google=${kind === "exists" ? "exists" : "error"}`,
       );
     }
     return NextResponse.redirect(`${base}/login?error=${kind}`);

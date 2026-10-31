@@ -3,23 +3,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  GOOGLE_LINK_TEXT,
+  startGoogleLink,
+  type GoogleLinkStatus,
+} from "@/lib/googleLink";
 
 /**
- * Self-service Google linking for an EXISTING, approved login. Once the
- * Google identity hangs on this auth user, "Google ilə daxil ol" resolves
- * straight to it — no /register, no admin step. Supabase's own identity
- * linking does the work (Authentication → Settings → "Allow manual
- * linking" must be ON); the pin_full_name trigger keeps the name, so the
- * Google profile cannot rename the holder.
+ * Status card on /bank for an approved login: which Google account is
+ * linked, with unlink. Linking itself is offered by GoogleLinkBanner at the
+ * top of /dashboard and /bank (see lib/googleLink.ts for the mechanics);
+ * this card still carries a link button for the "Hesab tapılmadı" branch,
+ * where no banner is shown.
  */
-export type GoogleLinkStatus = "linked" | "error" | "exists" | "disabled" | null;
-
-const STATUS_TEXT: Record<Exclude<GoogleLinkStatus, null>, string> = {
-  linked: "Google hesabı bağlandı — bundan sonra Google ilə birbaşa daxil ola bilərsiniz.",
-  error: "Google hesabı bağlanmadı. Yenidən cəhd edin.",
-  exists: "Bu Google hesabı artıq başqa girişə bağlıdır.",
-  disabled: "Google bağlama hələ aktiv deyil — admin Supabase-də manual linking-i açmalıdır.",
-};
+export type { GoogleLinkStatus };
 
 export function GoogleLinkCard({
   googleEmail,
@@ -36,31 +33,19 @@ export function GoogleLinkCard({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(
-    status ? STATUS_TEXT[status] : null,
+    status ? GOOGLE_LINK_TEXT[status] : null,
   );
   const [failed, setFailed] = useState(status != null && status !== "linked");
 
   const onLink = async () => {
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase) return;
     setBusy(true);
     setFailed(false);
     setMessage(null);
-    const callback = new URL("/auth/callback", window.location.origin);
-    callback.searchParams.set("next", "/bank?google=linked");
-    callback.searchParams.set("link", "1");
-    const { error } = await supabase.auth.linkIdentity({
-      provider: "google",
-      options: { redirectTo: callback.toString() },
-    });
+    const error = await startGoogleLink("/bank");
     if (error) {
       setBusy(false);
       setFailed(true);
-      setMessage(
-        /manual linking/i.test(error.message)
-          ? STATUS_TEXT.disabled
-          : STATUS_TEXT.error,
-      );
+      setMessage(error);
     }
     // Otherwise the browser is on its way to Google.
   };

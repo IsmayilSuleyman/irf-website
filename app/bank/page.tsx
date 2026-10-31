@@ -74,7 +74,9 @@ import { getMyPersonalDebts } from "@/lib/personalDebts";
 import { listAppUsers, listRegistrations } from "@/lib/access";
 import { AccessPanel } from "@/components/AccessPanel";
 import { RegistrationsPanel } from "@/components/RegistrationsPanel";
-import { GoogleLinkCard, type GoogleLinkStatus } from "@/components/GoogleLinkCard";
+import { GoogleLinkCard } from "@/components/GoogleLinkCard";
+import { GoogleLinkBanner } from "@/components/GoogleLinkBanner";
+import { parseGoogleLinkStatus } from "@/lib/googleLink";
 
 export const dynamic = "force-dynamic";
 
@@ -252,11 +254,7 @@ export default async function BankPage({
   const googleEmail =
     (googleIdentity?.identity_data?.email as string | undefined) ?? null;
   const canUnlinkGoogle = googleIdentity != null && identities.length > 1;
-  const googleParam = typeof sp.google === "string" ? sp.google : null;
-  const googleStatus: GoogleLinkStatus =
-    googleParam === "linked" || googleParam === "error" || googleParam === "exists"
-      ? googleParam
-      : null;
+  const googleStatus = parseGoogleLinkStatus(sp.google);
   const googleCard = (
     <GoogleLinkCard
       googleEmail={googleEmail}
@@ -714,6 +712,16 @@ export default async function BankPage({
           </MotionSection>
         ) : null}
 
+        {/* ── Google linking — same slot and shape as the offer above, for
+            every approved login without a Google identity yet. ── */}
+        {googleEmail == null ? (
+          <MotionSection delay={0.025}>
+            <div className="mt-6">
+              <GoogleLinkBanner returnTo="/bank" status={googleStatus} tone="bank" />
+            </div>
+          </MotionSection>
+        ) : null}
+
         <MotionSection delay={offerEligible && offerAzn > 0 ? 0.03 : 0.02}>
           <QuickActions
             hasDeposit={account.depositedAzn > 0}
@@ -811,9 +819,11 @@ export default async function BankPage({
           </MotionSection>
         ) : null}
 
-        <MotionSection delay={0.14}>
-          <div className="mt-10">{googleCard}</div>
-        </MotionSection>
+        {googleEmail != null || googleStatus === "linked" ? (
+          <MotionSection delay={0.14}>
+            <div className="mt-10">{googleCard}</div>
+          </MotionSection>
+        ) : null}
 
         {isAdmin ? (
           <MotionSection delay={0.16}>
