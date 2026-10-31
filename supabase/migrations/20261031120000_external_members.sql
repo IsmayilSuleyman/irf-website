@@ -10,10 +10,11 @@
 --   1. No family views: no /dashboard (holdings, the shareholder list by
 --      name), no bank-wide transparency view (every depositor and borrower
 --      by name). Enforced by the app (requireFamilyUser + /bank gating).
---   2. Share purchases are capped: an external holder may own at most
---      fund_config.external_cap_pct of total_units (2% by default; the
---      family-wide float cap of 10% — "İsmayıl keeps 90%" — still applies on
---      top). Enforced HERE, in place_order, so no client can route around it.
+--   2. Share purchases are capped: ALL external holders together may own
+--      at most fund_config.external_cap_pct of total_units (2% by default).
+--      The float cap of 10% — "İsmayıl keeps 90%" — still bounds family and
+--      externals combined, so a full external slice leaves the family 8%.
+--      Enforced HERE, in place_order, so no client can route around it.
 --
 -- Membership is a server-controlled registry keyed by auth.uid(), the same
 -- shape as admin_users: nothing client-writable (user_metadata, JWT claims)
@@ -158,29 +159,49 @@ $$;
 
 revoke all on function public.holder_committed_units(text) from public, anon, authenticated;
 
+-- What every external member holds or is about to hold, together. Holder
+-- names come from the registry's auth users (the same metadata place_order
+-- reads), folded through norm() so one person is never counted twice.
+create or replace function public.external_committed_units()
+returns numeric
+language sql stable security definer set search_path = public, pg_temp as $$
+  select coalesce(sum(public.holder_committed_units(h.holder_name)), 0)
+  from (
+    select min(n.holder_name) as holder_name
+    from (
+      select nullif(btrim(coalesce(
+               u.raw_user_meta_data ->> 'full_name',
+               u.raw_user_meta_data ->> 'name',
+               u.raw_user_meta_data ->> 'display_name', '')), '') as holder_name
+      from public.external_users e
+      join auth.users u on u.id = e.user_id
+    ) n
+    where n.holder_name is not null
+    group by public.norm(n.holder_name)
+  ) h
+$$;
+
+revoke all on function public.external_committed_units() from public, anon, authenticated;
+
 -- How many more units the CALLER may still buy: null for family (no cap),
--- otherwise external_cap_pct × total_units minus what he already has.
+-- otherwise external_cap_pct × total_units minus what ALL externals hold —
+-- the slice is shared, first come first served.
 create or replace function public.my_external_buy_capacity()
 returns numeric
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 declare
-  v_holder text;
-  v_total  numeric;
-  v_pct    numeric;
+  v_total numeric;
+  v_pct   numeric;
 begin
   if not public.is_external_user() then
     return null;
   end if;
-  v_holder := coalesce(
-    auth.jwt() -> 'user_metadata' ->> 'full_name',
-    auth.jwt() -> 'user_metadata' ->> 'name',
-    auth.jwt() -> 'user_metadata' ->> 'display_name');
   select total_units, external_cap_pct into v_total, v_pct
     from public.fund_config where id = 1;
-  if v_holder is null or v_total is null or v_total <= 0 then
+  if v_total is null or v_total <= 0 then
     return 0;
   end if;
-  return greatest(0, v_total * v_pct - public.holder_committed_units(v_holder));
+  return greatest(0, v_total * v_pct - public.external_committed_units());
 end;
 $$;
 
@@ -273,12 +294,13 @@ begin
       raise exception 'insufficient sellable units: requested %, available %', p_units, v_avail;
     end if;
   else
-    -- External members: total exposure (held + pending + open buys + this
-    -- order) may not exceed external_cap_pct of the fund.
+    -- External members: everything externals hold together (held + pending
+    -- + open buys) plus this order may not exceed external_cap_pct of the
+    -- fund. The slice is shared; whoever buys first uses it.
     v_ext_cap := public.my_external_buy_capacity();
     if v_ext_cap is not null and p_units > v_ext_cap then
       raise exception '%', format(
-        'Kənar üzv limiti: ümumi payların %s%%-i. Ala biləcəyiniz maksimum: %s pay',
+        'Kənar üzvlərin ümumi limiti: payların %s%%-i (hamısı birlikdə). Hazırda ala biləcəyiniz maksimum: %s pay',
         round(v_ext_pct * 100, 2), round(v_ext_cap, 6));
     end if;
   end if;

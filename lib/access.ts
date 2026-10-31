@@ -9,9 +9,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *   (first case: a groupmate with a loan). He gets the same products —
  *   deposit, credit, bonds, İRF shares — minus the family views: no
  *   /dashboard (holdings, the shareholder list by name) and no bank-wide
- *   view (every depositor and borrower by name). His share purchases are
- *   capped at fund_config.external_cap_pct of the fund, enforced in the
- *   place_order RPC.
+ *   view (every depositor and borrower by name). Share purchases of all
+ *   externals TOGETHER are capped at fund_config.external_cap_pct of the
+ *   fund (2%: with the 10% float cap that leaves the family 8%), enforced
+ *   in the place_order RPC.
  *
  * Membership lives in the server-controlled `external_users` table
  * (mirrors `admin_users`); nothing client-writable takes part. Read through

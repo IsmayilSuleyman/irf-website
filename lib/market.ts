@@ -20,10 +20,10 @@ export type MarketStatus = {
   is_admin: boolean;
   /** External member (lib/access.ts): share purchases are capped. */
   is_external: boolean;
-  /** fund_config.external_cap_pct — max share of total_units one external
-   *  holder may own (0.02 = 2%). */
+  /** fund_config.external_cap_pct — max share of total_units ALL external
+   *  holders may own together (0.02 = 2%). */
   external_cap_pct: number;
-  /** Units the CALLER may still buy under that cap; null for family. */
+  /** Units the CALLER may still buy under that shared cap; null for family. */
   external_buy_capacity: number | null;
   updated_at: string | null;
 };

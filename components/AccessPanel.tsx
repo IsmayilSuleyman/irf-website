@@ -8,7 +8,7 @@ import type { AppUser } from "@/lib/access";
 // İsmayıl's access panel: every login, with a switch between family and
 // external member. An external member (someone outside the family who
 // banks here) keeps the products — deposit, credit, bonds, İRF shares up
-// to the external cap — but never sees the family views: the İRF portfolio
+// to the cap all externals share — but never sees the family views: the İRF portfolio
 // and the bank-wide list of depositors and borrowers. Admin rows and
 // İsmayıl's own row are shown but locked; the RPC refuses them too.
 
@@ -26,8 +26,8 @@ export function AccessPanel({
 }: {
   users: AppUser[];
   selfId: string;
-  /** fund_config.external_cap_pct as a fraction (0.02 = 2%); null when the
-   *  market is not configured yet. */
+  /** fund_config.external_cap_pct as a fraction (0.02 = 2%) — the slice ALL
+   *  externals share; null when the market is not configured yet. */
   externalCapPct: number | null;
 }) {
   const router = useRouter();
@@ -45,7 +45,7 @@ export function AccessPanel({
     const next = !u.external;
     const label = u.displayName ?? u.email ?? u.userId;
     const question = next
-      ? `${label}: kənar üzv edilsin? İRF portfeli və ümumbank baxışı bağlanacaq; pay alışı ümumi payların ${capLabel}-i ilə məhdudlaşacaq.`
+      ? `${label}: kənar üzv edilsin? İRF portfeli və ümumbank baxışı bağlanacaq; pay alışı kənar üzvlərin ümumi ${capLabel} limitinə daxil olacaq.`
       : `${label}: ailə üzvü edilsin? İRF portfeli və bütün bölmələr açılacaq, pay limiti götürüləcək.`;
     if (!window.confirm(question)) return;
     setError(null);
@@ -74,8 +74,9 @@ export function AccessPanel({
       </div>
       <p className="mt-2 text-[11px] leading-5 text-black/45 dark:text-white/50">
         Kənar üzv depozit qoyur, kredit götürür, istiqraz və İRF payı alır —
-        amma İRF portfelini və ümumbank baxışını görmür, pay alışı isə ümumi
-        payların <span className="num">{capLabel}</span>-i ilə məhdudlaşır.
+        amma İRF portfelini və ümumbank baxışını görmür. Bütün kənar üzvlər
+        birlikdə ümumi payların ən çox <span className="num">{capLabel}</span>-ni
+        ala bilər (10% limitin qalanı ailəyə qalır).
         Girişin adı bank cədvəlindəki adla eyni olmalıdır.
       </p>
       <div className="mt-3 divide-y divide-black/5 dark:divide-white/10">

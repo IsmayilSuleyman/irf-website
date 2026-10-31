@@ -29,9 +29,10 @@ export function OrderTicket({
   const validP = Number.isFinite(p) && p > 0;
   const total = validU && validP ? u * p : 0;
   const fundSellActive = status.fund_sell_capacity > 0;
-  // External members: total exposure (held + pending + open buys) is capped
-  // at external_cap_pct of the fund. place_order enforces it; the ticket
-  // mirrors it so the limit is explained before the order is refused.
+  // External members: what ALL externals hold together (held + pending +
+  // open buys) is capped at external_cap_pct of the fund — a shared slice.
+  // place_order enforces it; the ticket mirrors it so the limit is explained
+  // before the order is refused.
   const externalCap = status.is_external ? status.external_buy_capacity : null;
   const externalCapLabel = `${String(Math.round(status.external_cap_pct * 10000) / 100).replace(".", ",")}%`;
   const overExternalCap =
@@ -54,7 +55,7 @@ export function OrderTicket({
   } else if (side === "sell" && validU && u > availableToSell) {
     hint = `Sata biləcəyiniz maksimum: ${formatUnits(availableToSell)} pay.`;
   } else if (overExternalCap) {
-    hint = `Kənar üzv limiti: ala biləcəyiniz maksimum ${formatUnits(externalCap)} pay (ümumi payların ${externalCapLabel}-i).`;
+    hint = `Kənar üzvlərin ümumi limiti: hazırda ala biləcəyiniz maksimum ${formatUnits(externalCap)} pay (bütün kənar üzvlər birlikdə payların ${externalCapLabel}-i).`;
   }
 
   const onSubmit = async (e: FormEvent) => {
@@ -162,8 +163,8 @@ export function OrderTicket({
 
         {externalCap != null && side === "buy" ? (
           <p className="text-[11px] leading-4 text-black/45 dark:text-white/50">
-            Kənar üzv limiti: ümumi payların {externalCapLabel}-i · hələ ala
-            biləcəyiniz: <span className="num">{formatUnits(externalCap)}</span> pay
+            Kənar üzvlər birlikdə payların {externalCapLabel}-i qədər ala bilər ·
+            hazırda qalan: <span className="num">{formatUnits(externalCap)}</span> pay
           </p>
         ) : null}
 
