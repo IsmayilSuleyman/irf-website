@@ -15,6 +15,9 @@ import { sparkPath } from "@/components/RowSpark";
 import { BankHealthBanner } from "@/components/BankHealthBanner";
 import { BankBalanceSheet } from "@/components/BankBalanceSheet";
 import { BankObligationsCard } from "@/components/BankObligationsCard";
+import { BankMoneyFlow, type FlowMap } from "@/components/BankMoneyFlow";
+import type { FlowEvent } from "@/lib/bankFlows";
+import type { FounderView } from "@/lib/bankFounder";
 
 // Ümumbank baxışı in the bank's card language (CreditPanel / BalanceHero),
 // ordered the way a depositor actually reads it: the VERDICT first (health
@@ -238,6 +241,7 @@ const QUICK_NAV = [
   { href: "#veziyyet", label: "Vəziyyət" },
   { href: "#likvidlik", label: "Likvidlik" },
   { href: "#balans", label: "Balans" },
+  { href: "#pul-axini", label: "Pul axını" },
   { href: "#ohdelikler", label: "Öhdəliklər" },
   { href: "#proqnoz", label: "Proqnoz" },
   { href: "#axinlar", label: "Axınlar" },
@@ -252,6 +256,10 @@ export function BankWideView({
   trend,
   unsettledAvailable,
   updatedLabel,
+  flows,
+  flowsPartial,
+  founder,
+  todayIso,
 }: {
   aggregate: BankWideAggregate;
   projection?: LiquidityProjectionPoint[];
@@ -260,15 +268,22 @@ export function BankWideView({
   trend: BankTrendSeries | null;
   unsettledAvailable: boolean;
   updatedLabel?: string;
+  /** The money-flow ledger (lib/bankFlows), newest first. */
+  flows: FlowEvent[];
+  flowsPartial: boolean;
+  /** Təsisçi rejimi: the founder's side of the split, or null when off. */
+  founder: FounderView | null;
+  /** Baku day, YYYY-MM-DD — the ledger's "bu gün". */
+  todayIso: string;
 }) {
   const {
     totalDepositsAzn,
     bondFundingAzn,
     assetReserveAzn,
     totalLoansAzn,
-    netLiquidityAzn,
-    liquidityPct,
-    loanShareOfFundingPct,
+    netLiquidityAzn: outsiderNetLiquidityAzn,
+    liquidityPct: outsiderLiquidityPct,
+    loanShareOfFundingPct: outsiderLoanSharePct,
     totalPendingBonusAzn,
     totalMonthlyInterestAzn,
     unsettledInterestAzn,
@@ -282,8 +297,48 @@ export function BankWideView({
     overdue,
   } = aggregate;
 
+  // Founder mode: the founder's capital is lendable money too, so the
+  // liquidity figures count it; the aggregate itself stays outsider-only.
+  const founderCapitalAzn = founder?.capitalAzn ?? 0;
+  const netLiquidityAzn = founder ? founder.freeLiquidityAzn : outsiderNetLiquidityAzn;
+  const fundingAllAzn = totalDepositsAzn + bondFundingAzn + founderCapitalAzn;
+  const liquidityPct = founder
+    ? fundingAllAzn > 0
+      ? (netLiquidityAzn / fundingAllAzn) * 100
+      : null
+    : outsiderLiquidityPct;
+  const loanShareOfFundingPct = founder
+    ? fundingAllAzn > 0
+      ? Math.min((totalLoansAzn / fundingAllAzn) * 100, 100)
+      : 0
+    : outsiderLoanSharePct;
   const liquidityPctLabel =
     liquidityPct == null ? "—" : `${formatGroupedTrim(liquidityPct, 0)}%`;
+
+  // The flow map's nodes — the balance sheet's two columns as ribbons.
+  const flowMap: FlowMap = {
+    sources: [
+      ...(founder
+        ? [{ key: "founder", label: "Təsisçi kapitalı", amountAzn: founderCapitalAzn, tone: "founder" as const }]
+        : []),
+      { key: "deposits", label: "Depozitlər", amountAzn: totalDepositsAzn, tone: "blue" },
+      { key: "bonds", label: "İstiqraz vəsaiti", amountAzn: bondFundingAzn, tone: "blue60" },
+      { key: "reserve", label: "Aktivlər ehtiyatı", amountAzn: assetReserveAzn, tone: "blue35" },
+    ],
+    uses: [
+      { key: "loans", label: "Verilmiş kreditlər", amountAzn: totalLoansAzn, tone: "late" },
+      { key: "free", label: "Azad likvidlik", amountAzn: netLiquidityAzn, tone: "green" },
+      { key: "reserve", label: "Toxunulmaz ehtiyat", amountAzn: assetReserveAzn, tone: "blue35" },
+    ],
+    totalAzn: fundingAllAzn + assetReserveAzn,
+    founder: founder
+      ? {
+          capitalAzn: founder.capitalAzn,
+          equityAzn: founder.equityAzn,
+          monthlyMarginAzn: founder.monthlyMarginAzn,
+        }
+      : null,
+  };
   const unsettledTotalAzn = unsettledInterestAzn + unsettledRewardsAzn;
   const settledTotalAzn = settledInterestAzn + settledRewardsAzn;
   const interestStripVisible =
@@ -325,6 +380,7 @@ export function BankWideView({
             Xalis likvidlik
           </p>
           <span className="text-[11px] font-medium text-black/45 dark:text-white/50">
+            {founder ? "təsisçi + " : ""}
             {depositors.length} depozitor · {borrowers.length} borc alan
           </span>
         </div>
@@ -359,11 +415,19 @@ export function BankWideView({
         </div>
 
         <div className="mt-5 flex flex-wrap gap-3">
+          {founder ? (
+            <StatTile
+              label="Təsisçi kapitalı"
+              value={`${formatAmount(founderCapitalAzn)} ₼`}
+              tone="text-bank-blue-deep dark:text-blue-400"
+              hint="İsmayılın öz vəsaiti — öhdəlik deyil"
+            />
+          ) : null}
           <StatTile
             label="Cəmi depozit"
             value={`${formatAmount(totalDepositsAzn)} ₼`}
-            hint="iştirakçıların əmanətləri"
-            spark={trend?.deposits}
+            hint={founder ? "kənar iştirakçıların əmanətləri" : "iştirakçıların əmanətləri"}
+            spark={founder ? undefined : trend?.deposits}
             sparkId="bank-trend-deposits"
           />
           {bondFundingAzn > 0 ? (
@@ -494,13 +558,18 @@ export function BankWideView({
         assetReserveAzn={assetReserveAzn}
         loansAzn={totalLoansAzn}
         netLiquidityAzn={netLiquidityAzn}
+        founderCapitalAzn={founderCapitalAzn}
       />
+
+      {/* ── Pul axını: the flow map, the period's channels, every movement. ── */}
+      <BankMoneyFlow events={flows} map={flowMap} partial={flowsPartial} todayIso={todayIso} />
 
       {/* ── Every standing promise, summed. ── */}
       <BankObligationsCard
         aggregate={aggregate}
         bondObligations={bondObligations}
         unsettledAvailable={unsettledAvailable}
+        founderMode={founder != null}
       />
 
       {/* ── Projected liquidity — cumulative walk over every known scheduled
@@ -675,8 +744,16 @@ export function BankWideView({
               {depositors.length}
             </span>
           }
-          empty="Hələ depozit yatıran yoxdur."
+          empty={founder ? undefined : "Hələ depozit yatıran yoxdur."}
         >
+          {founder ? (
+            <PersonRow
+              name={founder.name}
+              primary={formatAzn(founder.founderDepositAzn)}
+              secondary="kapital — faiz hesablanmır, öhdəlik deyil"
+              pill={{ text: "Təsisçi", tone: "info" }}
+            />
+          ) : null}
           {depositors.length > 0
             ? depositors.map((d, i) => {
                 // Empty term cells = the on-demand daily product (the same

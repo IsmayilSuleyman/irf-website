@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { FUND_PRINCIPAL_NAME } from "@/lib/holdings";
+import type { FlowBondPayment, FlowBondTrade } from "@/lib/bankFlows";
 
 // İsmayılBank bonds (istiqraz): server data layer for /bonds, modeled on
 // lib/market.ts. All reads run under the user's session so RLS scopes
@@ -399,5 +400,62 @@ export async function getBondMarketData(): Promise<BondMarketData | null> {
     myTrades,
     payments,
     adminPending,
+  };
+}
+
+/**
+ * Settled trades and recorded payments, shaped for the money-flow ledger.
+ * Runs under the caller's session: the per-row RLS is own-or-admin, so
+ * İsmayıl's render sees every row and a holder's render sees their own —
+ * the ledger says so when it is the partial view. Series names ride along
+ * (bond_series is readable by every signed-in holder).
+ */
+export async function getBondFlowRows(): Promise<{
+  trades: FlowBondTrade[];
+  payments: FlowBondPayment[];
+}> {
+  const empty = { trades: [], payments: [] };
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return empty;
+
+  const [seriesRes, tradesRes, paymentsRes] = await Promise.all([
+    supabase.from("bond_series").select("id, name"),
+    supabase
+      .from("bond_trades")
+      .select("id, series_id, buyer_name, seller_name, units, price, counterparty_kind, settled_at, created_at")
+      .eq("status", "settled"),
+    supabase
+      .from("bond_payments")
+      .select("id, series_id, payment_kind, due_date, holder_name, units, amount_azn, paid_at"),
+  ]);
+  if (seriesRes.error) console.error("[bonds] bond_series select failed:", seriesRes.error);
+  if (tradesRes.error) console.error("[bonds] bond_trades select failed:", tradesRes.error);
+  if (paymentsRes.error) console.error("[bonds] bond_payments select failed:", paymentsRes.error);
+
+  const names = new Map<string, string>();
+  for (const s of seriesRes.data ?? []) names.set(String(s.id), String(s.name));
+  const nameOf = (id: unknown) => names.get(String(id)) ?? "İstiqraz";
+
+  return {
+    trades: ((tradesRes.data ?? []) as Record<string, unknown>[]).map((t) => ({
+      id: String(t.id),
+      seriesName: nameOf(t.series_id),
+      buyerName: String(t.buyer_name ?? ""),
+      sellerName: String(t.seller_name ?? ""),
+      units: num(t.units),
+      price: num(t.price),
+      counterpartyKind: t.counterparty_kind === "p2p" ? "p2p" : "primary",
+      settledAt: String(t.settled_at ?? t.created_at ?? ""),
+    })),
+    payments: ((paymentsRes.data ?? []) as Record<string, unknown>[]).map((p) => ({
+      id: String(p.id),
+      seriesName: nameOf(p.series_id),
+      paymentKind: p.payment_kind === "principal" ? "principal" : "coupon",
+      dueDate: String(p.due_date ?? ""),
+      holderName: String(p.holder_name ?? ""),
+      units: num(p.units),
+      amountAzn: num(p.amount_azn),
+      paidAt: String(p.paid_at ?? ""),
+    })),
   };
 }
