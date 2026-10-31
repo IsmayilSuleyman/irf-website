@@ -57,7 +57,7 @@ import { ShareholdersList } from "@/components/ShareholdersList";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { PrivacyProvider } from "@/components/PrivacyProvider";
 import { LivePricingProvider } from "@/components/LivePricing";
-import { getMinuteSeries } from "@/lib/minuteSeries";
+import { getMinuteSeries, type MinutePoint } from "@/lib/minuteSeries";
 import {
   dailySparkWindows,
   latestSessionSpark,
@@ -721,6 +721,43 @@ export default async function DashboardPage({
           },
         ]
       : bookChartData;
+  // The fine ranges (1G / 1H / 1 AY) plot minute snapshots, which record
+  // only the total (and, once the RPC returns it, the ETF slice). Cost basis
+  // moves only on trades, so each minute borrows Maya dəyəri — and its ETF
+  // slice — from the latest daily book point at or before it (the live
+  // point's basis past the last close), giving the tooltip the same
+  // Dəyər / Maya dəyəri / Mənfəət rows on every range.
+  const basisPoints = bookChartLive
+    .filter((p) => p.invested != null)
+    .map((p) => ({
+      ts: new Date(p.date).getTime(),
+      live: (p as { live?: boolean }).live === true,
+      invested: p.invested as number,
+      otherInvested: (p as { otherInvested?: number }).otherInvested,
+    }))
+    .filter((p) => Number.isFinite(p.ts));
+  const recordedBasis = basisPoints.filter((p) => !p.live);
+  const liveBasis = basisPoints.find((p) => p.live);
+  const withBasis = (points: MinutePoint[]) =>
+    recordedBasis.length === 0
+      ? points
+      : points.map((m) => {
+          const t = new Date(m.date).getTime();
+          let i = recordedBasis.length - 1;
+          while (i > 0 && recordedBasis[i].ts > t) i -= 1;
+          const b =
+            i === recordedBasis.length - 1 && liveBasis && t > recordedBasis[i].ts
+              ? liveBasis
+              : recordedBasis[i];
+          return {
+            ...m,
+            invested: b.invested,
+            ...(m.other != null && b.otherInvested != null
+              ? { otherInvested: b.otherInvested }
+              : {}),
+          };
+        });
+
   const priceChartLive =
     hasLiveRead && priceChartData.length > 0
       ? [
@@ -931,9 +968,9 @@ export default async function DashboardPage({
                 fineData={
                   minuteSeries
                     ? {
-                        day: minuteSeries.day.mine,
-                        week: minuteSeries.week.mine,
-                        month: minuteSeries.month.mine,
+                        day: withBasis(minuteSeries.day.mine),
+                        week: withBasis(minuteSeries.week.mine),
+                        month: withBasis(minuteSeries.month.mine),
                       }
                     : undefined
                 }
