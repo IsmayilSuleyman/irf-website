@@ -15,28 +15,80 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *   in the place_order RPC.
  *
  * Membership lives in the server-controlled `external_users` table
- * (mirrors `admin_users`); nothing client-writable takes part. Read through
- * the `is_external_user` RPC so the decision is one definer call.
+ * (mirrors `admin_users`); nothing client-writable takes part.
  */
 export type AccessScope = "family" | "external";
 
 /**
- * Fails OPEN to "family": a transient RPC error must not strand the family
- * on /bank, and the migration may not be applied yet on a fresh branch
- * (then nobody is external anyway). The pages an external member is kept
- * off are family data, not secrets — the redirect is a courtesy wall; the
- * share cap, the one rule with money behind it, lives in the database.
+ * Whether the login is allowed in at all. "approved" means the auth user
+ * has a full_name — the one thing every holder lookup keys on, and which
+ * only İsmayıl (postgres) can write since the pin_full_name trigger. A
+ * fresh Google sign-in has no name: it is "unregistered" until the member
+ * fills in Ad + Soyad on /register, then "pending" until İsmayıl approves
+ * it in the cabinet (or links it to an existing profile, after which this
+ * placeholder login no longer exists).
  */
+export type AccessStatus = "approved" | "pending" | "unregistered";
+
+export type MyAccess = {
+  status: AccessStatus;
+  scope: AccessScope;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+const OPEN: MyAccess = {
+  status: "approved",
+  scope: "family",
+  email: null,
+  firstName: null,
+  lastName: null,
+};
+
+/**
+ * One definer RPC (`my_access`) answers both gates. Fails OPEN to
+ * approved/family: a transient RPC error must not strand the family on
+ * /register or /bank, and the migration may not be applied yet on a fresh
+ * branch. The pages a pending or external member is kept off are family
+ * data, not secrets — the redirect is a courtesy wall; the rules with money
+ * behind them (share cap, holder identity = full_name) live in the database,
+ * and a nameless login matches no holder anywhere.
+ */
+export async function getMyAccess(
+  supabase: SupabaseClient | null,
+): Promise<MyAccess> {
+  if (!supabase) return OPEN;
+  const { data, error } = await supabase.rpc("my_access");
+  if (error) {
+    console.error("[access] my_access failed:", error);
+    return OPEN;
+  }
+  const row = (data ?? {}) as {
+    status?: string;
+    external?: boolean;
+    email?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+  };
+  const status: AccessStatus =
+    row.status === "pending" || row.status === "unregistered"
+      ? row.status
+      : "approved";
+  return {
+    status,
+    scope: row.external === true ? "external" : "family",
+    email: row.email ?? null,
+    firstName: row.first_name ?? null,
+    lastName: row.last_name ?? null,
+  };
+}
+
+/** Scope only — see getMyAccess for the failure policy. */
 export async function getAccessScope(
   supabase: SupabaseClient | null,
 ): Promise<AccessScope> {
-  if (!supabase) return "family";
-  const { data, error } = await supabase.rpc("is_external_user");
-  if (error) {
-    console.error("[access] is_external_user failed:", error);
-    return "family";
-  }
-  return data === true ? "external" : "family";
+  return (await getMyAccess(supabase)).scope;
 }
 
 export type AppUser = {
@@ -75,5 +127,42 @@ export async function listAppUsers(
     external: r.external === true,
     createdAt: r.created_at,
     lastSignInAt: r.last_sign_in_at,
+  }));
+}
+
+export type Registration = {
+  userId: string;
+  email: string | null;
+  firstName: string;
+  lastName: string;
+  requestedAt: string;
+  /** "google", "email", or "email, google" — how the placeholder signed in. */
+  providers: string | null;
+};
+
+/** Admin only — every pending /register request, oldest first. */
+export async function listRegistrations(
+  supabase: SupabaseClient,
+): Promise<Registration[]> {
+  const { data, error } = await supabase.rpc("admin_list_registrations");
+  if (error) {
+    console.error("[access] admin_list_registrations failed:", error);
+    return [];
+  }
+  const rows = (data ?? []) as {
+    user_id: string;
+    email: string | null;
+    first_name: string;
+    last_name: string;
+    requested_at: string;
+    providers: string | null;
+  }[];
+  return rows.map((r) => ({
+    userId: r.user_id,
+    email: r.email,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    requestedAt: r.requested_at,
+    providers: r.providers,
   }));
 }

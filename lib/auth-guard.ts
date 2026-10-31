@@ -4,9 +4,11 @@ import {
   createSupabaseServerClient,
   getSupabaseServerUser,
 } from "@/lib/supabase/server";
-import { getAccessScope, type AccessScope } from "@/lib/access";
+import { getMyAccess, type AccessScope, type MyAccess } from "@/lib/access";
 
-export async function requireUser(loginRedirect?: string): Promise<User> {
+/** Signed-in user, or a redirect to /login. No approval check — /register
+ *  and the sign-out paths need exactly this. */
+export async function requireSignedIn(loginRedirect?: string): Promise<User> {
   const { reason, user } = await getSupabaseServerUser();
 
   if (reason === "missing_config") {
@@ -20,13 +22,32 @@ export async function requireUser(loginRedirect?: string): Promise<User> {
   return user;
 }
 
+/**
+ * Signed in AND approved. A login without a name (a fresh Google sign-in,
+ * or one still waiting for İsmayıl) is sent to /register; every app page
+ * goes through here, so that is the only page such a login can reach.
+ */
+export async function requireUserWithAccess(
+  loginRedirect?: string,
+): Promise<{ user: User; access: MyAccess }> {
+  const user = await requireSignedIn(loginRedirect);
+  const access = await getMyAccess(await createSupabaseServerClient());
+  if (access.status !== "approved") {
+    redirect("/register");
+  }
+  return { user, access };
+}
+
+export async function requireUser(loginRedirect?: string): Promise<User> {
+  return (await requireUserWithAccess(loginRedirect)).user;
+}
+
 /** requireUser plus the caller's access scope (see lib/access.ts). */
 export async function requireUserWithScope(
   loginRedirect?: string,
 ): Promise<{ user: User; scope: AccessScope }> {
-  const user = await requireUser(loginRedirect);
-  const scope = await getAccessScope(await createSupabaseServerClient());
-  return { user, scope };
+  const { user, access } = await requireUserWithAccess(loginRedirect);
+  return { user, scope: access.scope };
 }
 
 /**
