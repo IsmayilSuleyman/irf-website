@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { m } from "framer-motion";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/nextPath";
 
-function safeNextPath(raw: string | null): string {
-  if (raw && raw.startsWith("/") && !raw.startsWith("//")) {
-    return raw;
-  }
-
-  return "/portal";
-}
+/** Messages for the `?error=` the OAuth callback (app/auth/callback) sets. */
+const CALLBACK_ERRORS: Record<string, string> = {
+  not_invited:
+    "Bu Google hesabı üçün giriş açılmayıb. Giriş yalnız əvvəlcədən qeydə alınmış e-poçtlarla mümkündür.",
+  google: "Google ilə giriş alınmadı. Yenidən cəhd edin.",
+};
 
 export function LoginForm() {
   const router = useRouter();
@@ -21,10 +21,20 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const redirectTo =
     typeof window !== "undefined"
       ? safeNextPath(new URLSearchParams(window.location.search).get("next"))
       : "/portal";
+
+  // Surface the callback's error after hydration (window-only, so not in
+  // the initial render where server and client markup must match).
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("error");
+    if (code && CALLBACK_ERRORS[code]) {
+      setError(CALLBACK_ERRORS[code]);
+    }
+  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +61,35 @@ export function LoginForm() {
 
     router.push(redirectTo);
     router.refresh();
+  };
+
+  // Google: the browser goes to Google, then to Supabase, then back to our
+  // /auth/callback, which exchanges the code for a session and continues to
+  // `next`. Sign-ups are disabled in Supabase, so only a Gmail address that
+  // İsmayıl pre-created can finish this; everyone else lands back here with
+  // ?error=not_invited.
+  const onGoogle = async () => {
+    if (!supabase) {
+      setError("Supabase ayarlari Vercel-de tam qurasdirilmayib.");
+      return;
+    }
+
+    setGoogleLoading(true);
+    setError(null);
+
+    const callback = new URL("/auth/callback", window.location.origin);
+    callback.searchParams.set("next", redirectTo);
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: callback.toString() },
+    });
+
+    if (error) {
+      setGoogleLoading(false);
+      setError(CALLBACK_ERRORS.google);
+    }
+    // On success the browser is navigating away; keep the spinner.
   };
 
   return (
@@ -109,7 +148,7 @@ export function LoginForm() {
 
       <button
         type="submit"
-        disabled={loading || !isConfigured}
+        disabled={loading || googleLoading || !isConfigured}
         className="mt-4 rounded-xl bg-brand-green px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-white shadow-glass-green transition hover:-translate-y-0.5 hover:bg-brand-green-soft disabled:opacity-60 disabled:hover:translate-y-0"
       >
         {!isConfigured
@@ -118,6 +157,45 @@ export function LoginForm() {
             ? "Daxil olunur..."
             : "Daxil ol"}
       </button>
+
+      <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-black/35 dark:text-white/40">
+        <span className="h-px flex-1 bg-brand-green/20" aria-hidden />
+        və ya
+        <span className="h-px flex-1 bg-brand-green/20" aria-hidden />
+      </div>
+
+      <button
+        type="button"
+        onClick={onGoogle}
+        disabled={loading || googleLoading || !isConfigured}
+        className="flex items-center justify-center gap-3 rounded-xl border border-brand-green/20 bg-white/70 dark:bg-white/10 px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-black/70 dark:text-white/75 transition hover:-translate-y-0.5 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400 disabled:opacity-60 disabled:hover:translate-y-0"
+      >
+        <GoogleMark />
+        {googleLoading ? "Google-a yönləndirilir..." : "Google ilə daxil ol"}
+      </button>
     </m.form>
+  );
+}
+
+function GoogleMark() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" className="shrink-0">
+      <path
+        fill="#4285F4"
+        d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.87c2.27-2.09 3.55-5.17 3.55-8.87Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.94-2.91l-3.87-3a7.2 7.2 0 0 1-10.73-3.78H1.34v3.09A12 12 0 0 0 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.34 14.31a7.2 7.2 0 0 1 0-4.62V6.6H1.34a12 12 0 0 0 0 10.8l4-3.09Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43A11.6 11.6 0 0 0 12 0 12 12 0 0 0 1.34 6.6l4 3.09A7.17 7.17 0 0 1 12 4.75Z"
+      />
+    </svg>
   );
 }
