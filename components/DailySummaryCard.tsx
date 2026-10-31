@@ -20,7 +20,7 @@ const SESSION_GENITIVE: Record<ExtendedMode, string> = {
 // keep their signs — the day's "best" can be red on a down day. Every
 // figure comes from the same server data the hero shows, so the summary
 // can never disagree with the numbers around it. It wears the Fond news
-// banner's plate: black in both themes, green accents.
+// banner's plate: pale green in light mode, black in dark, green accents.
 
 const pctAbs = (p: number) =>
   `${(Math.abs(p) * 100).toFixed(2).replace(".", ",")}%`;
@@ -29,9 +29,9 @@ const pctSigned = (p: number) =>
   `${p >= 0 ? "+" : "−"}${pctAbs(p)}`;
 
 // Neutral colour for masked amounts — the dots must not leak the sign.
-const MASK_TONE = "text-white/40";
+const MASK_TONE = "text-black/35 dark:text-white/40";
 
-const tone = (n: number) => (n >= 0 ? "text-emerald-300" : "text-rose-300");
+const tone = (n: number) => (n >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300");
 
 export type DailySummaryMover = { symbol: string; pct: number };
 
@@ -76,19 +76,19 @@ export function DailySummaryCard({
   );
 
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-brand-green/25 bg-[linear-gradient(135deg,#0e1411,#18211b)] p-5 text-white sm:p-6">
+    <article className="relative overflow-hidden rounded-2xl border border-brand-green/25 bg-[linear-gradient(135deg,#f4fbf6,#e5f4ea)] p-5 text-black/85 dark:bg-[linear-gradient(135deg,#0e1411,#18211b)] dark:text-white sm:p-6">
       <div
         aria-hidden
-        className="absolute -right-10 -top-14 h-40 w-40 rounded-full bg-brand-green/15 blur-2xl"
+        className="absolute -right-10 -top-14 h-40 w-40 rounded-full bg-brand-green/10 blur-2xl dark:bg-brand-green/15"
       />
       <div className="relative">
-        <p className="num text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-400/90">
+        <p className="num text-[10px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400/90">
           Günün icmalı · {dateLabel}
         </p>
         <h3 className="mt-2 text-[clamp(1.15rem,2.6vw,1.45rem)] font-black tracking-[-0.03em]">
           {title}
         </h3>
-        <p className="mt-2.5 text-[13px] leading-6 text-white/85">
+        <p className="mt-2.5 text-[13px] leading-6 text-black/70 dark:text-white/85">
           {best ? (
             worst && worst.symbol !== best.symbol ? (
               <>
