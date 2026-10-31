@@ -1,14 +1,19 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { deleteFundNews, postFundNews } from "@/app/dashboard/news-actions";
+import {
+  deleteFundNews,
+  postFundNews,
+  updateFundNews,
+} from "@/app/dashboard/news-actions";
 import type { FundNews, FundNewsItem } from "@/lib/fundNews";
 
 // Fondumuz haqqında xəbərlər: dated posts from İsmayıl, each rendered as a
 // green fund-styled banner (the credit-offer banner's composition, in the
 // fund's colors). Fresh items — the last month — show in full; older ones
 // live in the collapsible archive below. İsmayıl gets a compose form with
-// an optional picture (uploaded to the public `news` bucket).
+// an optional picture (uploaded to the public `news` bucket), and can
+// rewrite a post in place for 7 days after publishing it.
 
 const fmtPct = (p: number) =>
   `${p >= 0 ? "+" : "−"}${(Math.abs(p) * 100).toFixed(2).replace(".", ",")}%`;
@@ -33,6 +38,162 @@ function TickerChip({ item }: { item: FundNewsItem }) {
   );
 }
 
+/** Browser upload to the public `news` bucket: the storage policy only
+ *  admits the fund admin, so a rejected upload is an auth answer, not a bug.
+ *  The supabase client loads lazily — only İsmayıl's upload path pays for
+ *  it, not every dashboard visitor's bundle. */
+async function uploadNewsImage(
+  file: File,
+): Promise<{ url: string } | { error: string }> {
+  const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return { error: "Supabase konfiqurasiya olunmayıb." };
+  const ext = (file.name.split(".").pop() || "img")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 5);
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage
+    .from("news")
+    .upload(path, file, { contentType: file.type || undefined });
+  if (error) return { error: `Şəkil yüklənmədi: ${error.message}` };
+  return { url: supabase.storage.from("news").getPublicUrl(path).data.publicUrl };
+}
+
+type NewsDraft = {
+  title: string;
+  body: string;
+  ticker: string;
+  /** undefined keeps the current picture, null removes it. */
+  imageUrl: string | null | undefined;
+};
+
+const fieldClass =
+  "w-full rounded-lg border border-black/10 bg-white/60 p-3 text-sm text-black/85 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30 dark:border-white/15 dark:bg-white/5 dark:text-white/90";
+
+/** The compose fields, shared by «Yeni xəbər» and the in-place edit. */
+function NewsForm({
+  initial,
+  submitLabel,
+  pendingLabel,
+  onSave,
+  onCancel,
+}: {
+  initial?: FundNewsItem;
+  submitLabel: string;
+  pendingLabel: string;
+  onSave: (draft: NewsDraft) => Promise<{ ok: boolean; error?: string }>;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [body, setBody] = useState(initial?.body ?? "");
+  const [ticker, setTicker] = useState(initial?.ticker ?? "");
+  const [removeImage, setRemoveImage] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [uploadPct, setUploadPct] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [pending, startTransition] = useTransition();
+
+  function onSubmit() {
+    setError(null);
+    startTransition(async () => {
+      // A new post without a file has no picture; an edit without a file
+      // keeps its current one unless «Şəkli sil» is ticked.
+      let imageUrl: string | null | undefined =
+        initial && !removeImage ? undefined : null;
+      const file = fileRef.current?.files?.[0];
+      if (file) {
+        setUploadPct("Şəkil yüklənir...");
+        const up = await uploadNewsImage(file);
+        setUploadPct(null);
+        if ("error" in up) {
+          setError(up.error);
+          return;
+        }
+        imageUrl = up.url;
+      }
+      const result = await onSave({ title, body, ticker, imageUrl });
+      if (!result.ok) setError(result.error ?? "Xəta baş verdi.");
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        maxLength={200}
+        placeholder="Başlıq"
+        disabled={pending}
+        className={`${fieldClass} font-semibold`}
+      />
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        rows={6}
+        maxLength={8000}
+        placeholder="Xəbərin mətni..."
+        disabled={pending}
+        className={`${fieldClass} resize-y`}
+      />
+      <input
+        value={ticker}
+        onChange={(e) => setTicker(e.target.value)}
+        maxLength={12}
+        placeholder="Ticker (istəyə bağlı — məs. SPY, BTC-USD, GC=F)"
+        disabled={pending}
+        className={`${fieldClass} num uppercase`}
+      />
+      <label className="flex flex-wrap items-center gap-2 text-[12px] text-black/55 dark:text-white/60">
+        {initial?.imageUrl ? "Yeni şəkil (istəyə bağlı):" : "Şəkil (istəyə bağlı):"}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          disabled={pending}
+          className="text-[12px] file:mr-2 file:rounded-md file:border-0 file:bg-brand-green/10 file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-brand-green dark:file:text-emerald-400"
+        />
+      </label>
+      {initial?.imageUrl ? (
+        <label className="flex items-center gap-2 text-[12px] text-black/55 dark:text-white/60">
+          <input
+            type="checkbox"
+            checked={removeImage}
+            onChange={(e) => setRemoveImage(e.target.checked)}
+            disabled={pending}
+            className="accent-brand-green"
+          />
+          Şəkli sil
+        </label>
+      ) : null}
+      {uploadPct ? (
+        <div className="text-xs text-black/50 dark:text-white/55">{uploadPct}</div>
+      ) : null}
+      {error ? (
+        <div className="text-xs text-brand-red dark:text-red-400">{error}</div>
+      ) : null}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={pending}
+          className="rounded-md px-3 py-1.5 text-xs text-black/55 transition-colors hover:text-black/85 disabled:opacity-50 dark:text-white/60 dark:hover:text-white/90"
+        >
+          Ləğv et
+        </button>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={pending || !title.trim() || !body.trim()}
+          className="rounded-md bg-brand-green px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-green-deep disabled:opacity-50"
+        >
+          {pending ? pendingLabel : submitLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function NewsBanner({
   item,
   canPost,
@@ -44,11 +205,13 @@ function NewsBanner({
   onDelete: (id: string) => void;
   deleting: boolean;
 }) {
+  const [editing, setEditing] = useState(false);
   return (
     // A pale-green plate in light mode, a black one in dark: the text keeps
     // full contrast either way, the fund speaks through the green accents —
-    // date, border, glow.
-    <article className="relative overflow-hidden rounded-2xl border border-brand-green/25 bg-[linear-gradient(135deg,#f4fbf6,#e5f4ea)] p-5 text-black/85 dark:bg-[linear-gradient(135deg,#0e1411,#18211b)] dark:text-white sm:p-6">
+    // date, border, glow. overflow-clip, not -hidden: a hidden box is still
+    // scrollable, and focusing the edit form would slide it onto the glow.
+    <article className="relative overflow-clip rounded-2xl border border-brand-green/25 bg-[linear-gradient(135deg,#f4fbf6,#e5f4ea)] p-5 text-black/85 dark:bg-[linear-gradient(135deg,#0e1411,#18211b)] dark:text-white sm:p-6">
       <div
         aria-hidden
         className="absolute -right-10 -top-14 h-40 w-40 rounded-full bg-brand-green/10 blur-2xl dark:bg-brand-green/15"
@@ -58,41 +221,68 @@ function NewsBanner({
           <p className="num text-[10px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400/90">
             {item.dateLabel}
           </p>
-          {canPost ? (
-            <button
-              type="button"
-              onClick={() => onDelete(item.id)}
-              disabled={deleting}
-              className="text-[10px] font-semibold uppercase tracking-[0.14em] text-black/45 transition hover:text-black disabled:opacity-50 dark:text-white/55 dark:hover:text-white"
-            >
-              Sil
-            </button>
-          ) : null}
-        </div>
-        {/* The picture floats as a compact square on the right: the title
-            wraps beside it, and the body reclaims the full card width as
-            soon as it clears the square (flow-root contains the float). */}
-        <div className="flow-root">
-          {item.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={item.imageUrl}
-              alt=""
-              className="float-right mb-2 ml-4 mt-2 h-24 w-24 rounded-xl border border-black/10 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.12)] dark:border-white/20 dark:shadow-[0_10px_28px_rgba(0,0,0,0.2)] sm:h-28 sm:w-28"
-            />
-          ) : null}
-          <h3 className="mt-2 text-[clamp(1.15rem,2.6vw,1.45rem)] font-black tracking-[-0.03em]">
-            {item.title}
-          </h3>
-          {item.ticker && item.tickerDayPct != null ? (
-            <div className="mt-2">
-              <TickerChip item={item} />
+          {canPost && !editing ? (
+            <div className="flex items-center gap-3">
+              {item.editable ? (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="text-[10px] font-semibold uppercase tracking-[0.14em] text-black/45 transition hover:text-black dark:text-white/55 dark:hover:text-white"
+                >
+                  Redaktə et
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => onDelete(item.id)}
+                disabled={deleting}
+                className="text-[10px] font-semibold uppercase tracking-[0.14em] text-black/45 transition hover:text-black disabled:opacity-50 dark:text-white/55 dark:hover:text-white"
+              >
+                Sil
+              </button>
             </div>
           ) : null}
-          <p className="mt-2.5 whitespace-pre-line text-[13px] leading-6 text-black/70 dark:text-white/85">
-            {item.body}
-          </p>
         </div>
+        {editing ? (
+          <div className="mt-3">
+            <NewsForm
+              initial={item}
+              submitLabel="Yadda saxla"
+              pendingLabel="Saxlanılır..."
+              onSave={async (draft) => {
+                const result = await updateFundNews(item.id, draft);
+                if (result.ok) setEditing(false);
+                return result;
+              }}
+              onCancel={() => setEditing(false)}
+            />
+          </div>
+        ) : (
+          // The picture floats as a compact square on the right: the title
+          // wraps beside it, and the body reclaims the full card width as
+          // soon as it clears the square (flow-root contains the float).
+          <div className="flow-root">
+            {item.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={item.imageUrl}
+                alt=""
+                className="float-right mb-2 ml-4 mt-2 h-24 w-24 rounded-xl border border-black/10 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.12)] dark:border-white/20 dark:shadow-[0_10px_28px_rgba(0,0,0,0.2)] sm:h-28 sm:w-28"
+              />
+            ) : null}
+            <h3 className="mt-2 text-[clamp(1.15rem,2.6vw,1.45rem)] font-black tracking-[-0.03em]">
+              {item.title}
+            </h3>
+            {item.ticker && item.tickerDayPct != null ? (
+              <div className="mt-2">
+                <TickerChip item={item} />
+              </div>
+            ) : null}
+            <p className="mt-2.5 whitespace-pre-line text-[13px] leading-6 text-black/70 dark:text-white/85">
+              {item.body}
+            </p>
+          </div>
+        )}
       </div>
     </article>
   );
@@ -106,62 +296,9 @@ export function FundNewsCard({
   canPost: boolean;
 }) {
   const [composing, setComposing] = useState(false);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [ticker, setTicker] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [uploadPct, setUploadPct] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  function onSubmit() {
-    setError(null);
-    startTransition(async () => {
-      let imageUrl: string | null = null;
-      const file = fileRef.current?.files?.[0];
-      if (file) {
-        // Upload from the browser: the storage policy only admits the fund
-        // admin, so a rejected upload is an auth answer, not a bug. The
-        // supabase client loads lazily — only İsmayıl's upload path pays
-        // for it, not every dashboard visitor's bundle.
-        const { createSupabaseBrowserClient } = await import(
-          "@/lib/supabase/client"
-        );
-        const supabase = createSupabaseBrowserClient();
-        if (!supabase) {
-          setError("Supabase konfiqurasiya olunmayıb.");
-          return;
-        }
-        setUploadPct("Şəkil yüklənir...");
-        const ext = (file.name.split(".").pop() || "img")
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, "")
-          .slice(0, 5);
-        const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("news")
-          .upload(path, file, { contentType: file.type || undefined });
-        setUploadPct(null);
-        if (upErr) {
-          setError(`Şəkil yüklənmədi: ${upErr.message}`);
-          return;
-        }
-        imageUrl = supabase.storage.from("news").getPublicUrl(path).data
-          .publicUrl;
-      }
-      const result = await postFundNews({ title, body, imageUrl, ticker });
-      if (!result.ok) {
-        setError(result.error ?? "Xəta baş verdi.");
-        return;
-      }
-      setTitle("");
-      setBody("");
-      setTicker("");
-      if (fileRef.current) fileRef.current.value = "";
-      setComposing(false);
-    });
-  }
 
   function onDelete(id: string) {
     if (!window.confirm("Bu xəbər silinsin?")) return;
@@ -193,70 +330,19 @@ export function FundNewsCard({
       </div>
 
       {composing ? (
-        <div className="flex flex-col gap-3">
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-            placeholder="Başlıq"
-            disabled={pending}
-            className="w-full rounded-lg border border-black/10 bg-white/60 p-3 text-sm font-semibold text-black/85 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30 dark:border-white/15 dark:bg-white/5 dark:text-white/90"
-          />
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={6}
-            maxLength={8000}
-            placeholder="Xəbərin mətni..."
-            disabled={pending}
-            className="w-full resize-y rounded-lg border border-black/10 bg-white/60 p-3 text-sm text-black/85 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30 dark:border-white/15 dark:bg-white/5 dark:text-white/90"
-          />
-          <input
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
-            maxLength={12}
-            placeholder="Ticker (istəyə bağlı — məs. SPY, BTC-USD, GC=F)"
-            disabled={pending}
-            className="num w-full rounded-lg border border-black/10 bg-white/60 p-3 text-sm uppercase text-black/85 outline-none focus:border-brand-green/50 focus:ring-1 focus:ring-brand-green/30 dark:border-white/15 dark:bg-white/5 dark:text-white/90"
-          />
-          <label className="flex flex-wrap items-center gap-2 text-[12px] text-black/55 dark:text-white/60">
-            Şəkil (istəyə bağlı):
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              disabled={pending}
-              className="text-[12px] file:mr-2 file:rounded-md file:border-0 file:bg-brand-green/10 file:px-3 file:py-1.5 file:text-[12px] file:font-medium file:text-brand-green dark:file:text-emerald-400"
-            />
-          </label>
-          {uploadPct ? (
-            <div className="text-xs text-black/50 dark:text-white/55">{uploadPct}</div>
-          ) : null}
-          {error ? (
-            <div className="text-xs text-brand-red dark:text-red-400">{error}</div>
-          ) : null}
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setComposing(false);
-                setError(null);
-              }}
-              disabled={pending}
-              className="rounded-md px-3 py-1.5 text-xs text-black/55 transition-colors hover:text-black/85 disabled:opacity-50 dark:text-white/60 dark:hover:text-white/90"
-            >
-              Ləğv et
-            </button>
-            <button
-              type="button"
-              onClick={onSubmit}
-              disabled={pending || !title.trim() || !body.trim()}
-              className="rounded-md bg-brand-green px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-green-deep disabled:opacity-50"
-            >
-              {pending ? "Dərc olunur..." : "Dərc et"}
-            </button>
-          </div>
-        </div>
+        <NewsForm
+          submitLabel="Dərc et"
+          pendingLabel="Dərc olunur..."
+          onSave={async (draft) => {
+            const result = await postFundNews({
+              ...draft,
+              imageUrl: draft.imageUrl ?? null,
+            });
+            if (result.ok) setComposing(false);
+            return result;
+          }}
+          onCancel={() => setComposing(false)}
+        />
       ) : null}
 
       {news.fresh.length > 0 ? (
@@ -281,8 +367,7 @@ export function FundNewsCard({
         </p>
       ) : null}
 
-      {!error && !composing && news.archive.length > 0 ? null : error &&
-        !composing ? (
+      {error && !composing ? (
         <div className="text-xs text-brand-red dark:text-red-400">{error}</div>
       ) : null}
 

@@ -18,6 +18,9 @@ export type FundNewsItem = {
   ticker: string | null;
   tickerPriceUsd: number | null;
   tickerDayPct: number | null;
+  /** Still inside the post-publication edit window (decided server-side so
+   *  the boundary can't flip between SSR and hydration). */
+  editable: boolean;
 };
 
 export type FundNews = {
@@ -40,6 +43,14 @@ function bakuDateLabel(iso: string): string {
 /** A month on the front page, the archive after. */
 const FRESH_WINDOW_MS = 31 * 86_400_000;
 
+/** İsmayıl can correct a post for a week after publishing it. */
+export const NEWS_EDIT_WINDOW_MS = 7 * 86_400_000;
+
+export function isNewsEditable(createdAt: string, now = Date.now()): boolean {
+  const ms = new Date(createdAt).getTime();
+  return Number.isFinite(ms) && now - ms < NEWS_EDIT_WINDOW_MS;
+}
+
 export async function getFundNews(): Promise<FundNews> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { fresh: [], archive: [] };
@@ -52,7 +63,8 @@ export async function getFundNews(): Promise<FundNews> {
     console.error("[fund-news] fetch failed:", error.message);
     return { fresh: [], archive: [] };
   }
-  const cutoff = Date.now() - FRESH_WINDOW_MS;
+  const now = Date.now();
+  const cutoff = now - FRESH_WINDOW_MS;
   // Pinned tickers get their live daily change in one quote round; a quote
   // outage just leaves the chips off.
   const tickers = [
@@ -82,6 +94,7 @@ export async function getFundNews(): Promise<FundNews> {
         q.prevCloseUsd > 0
           ? (q.extPriceUsd ?? q.priceUsd)! / q.prevCloseUsd - 1
           : null,
+      editable: isNewsEditable(String(r.created_at), now),
     };
   });
   return {
