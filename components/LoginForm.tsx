@@ -5,12 +5,17 @@ import { useRouter } from "next/navigation";
 import { m } from "framer-motion";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { safeNextPath } from "@/lib/nextPath";
+import { GoogleOneTap, type OneTapCredential } from "@/components/GoogleOneTap";
 
 /** Messages for the `?error=` the OAuth callback (app/auth/callback) sets. */
 const CALLBACK_ERRORS: Record<string, string> = {
   not_invited: "Bu Google hesabı ilə giriş hazırda bağlıdır.",
   google: "Google ilə giriş alınmadı. Yenidən cəhd edin.",
 };
+
+const NOT_CONFIGURED = "Supabase ayarları Vercel-də tam qurulmayıb.";
+
+const ONE_TAP_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || null;
 
 export function LoginForm() {
   const router = useRouter();
@@ -35,11 +40,16 @@ export function LoginForm() {
     }
   }, []);
 
+  const finish = () => {
+    router.push(redirectTo);
+    router.refresh();
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!supabase) {
-      setError("Supabase ayarlari Vercel-de tam qurasdirilmayib.");
+      setError(NOT_CONFIGURED);
       return;
     }
 
@@ -58,8 +68,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push(redirectTo);
-    router.refresh();
+    finish();
   };
 
   // Google: the browser goes to Google, then to Supabase, then back to our
@@ -69,7 +78,7 @@ export function LoginForm() {
   // and wait for İsmayıl's approval.
   const onGoogle = async () => {
     if (!supabase) {
-      setError("Supabase ayarlari Vercel-de tam qurasdirilmayib.");
+      setError(NOT_CONFIGURED);
       return;
     }
 
@@ -91,6 +100,25 @@ export function LoginForm() {
     // On success the browser is navigating away; keep the spinner.
   };
 
+  // One Tap hands us an ID token instead of a redirect; same account, same
+  // rules (a new user lands on /register), no page round-trip.
+  const onOneTap = async ({ token, nonce }: OneTapCredential) => {
+    if (!supabase) return;
+    setGoogleLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: "google",
+      token,
+      nonce,
+    });
+    if (error) {
+      setGoogleLoading(false);
+      setError(CALLBACK_ERRORS.google);
+      return;
+    }
+    finish();
+  };
+
   return (
     <m.form
       onSubmit={onSubmit}
@@ -99,11 +127,19 @@ export function LoginForm() {
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
       className="flex flex-col gap-5"
     >
+      {isConfigured && ONE_TAP_CLIENT_ID ? (
+        <GoogleOneTap clientId={ONE_TAP_CLIENT_ID} onCredential={onOneTap} />
+      ) : null}
+
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] uppercase tracking-[0.22em] text-black/45 dark:text-white/50">
-          E-poct
+        <label
+          htmlFor="login-email"
+          className="text-[10px] uppercase tracking-[0.22em] text-black/45 dark:text-white/50"
+        >
+          E-poçt
         </label>
         <input
+          id="login-email"
           type="email"
           required
           autoComplete="email"
@@ -115,10 +151,14 @@ export function LoginForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] uppercase tracking-[0.22em] text-black/45 dark:text-white/50">
-          Sifre
+        <label
+          htmlFor="login-password"
+          className="text-[10px] uppercase tracking-[0.22em] text-black/45 dark:text-white/50"
+        >
+          Şifrə
         </label>
         <input
+          id="login-password"
           type="password"
           required
           autoComplete="current-password"
@@ -131,15 +171,15 @@ export function LoginForm() {
 
       {!isConfigured ? (
         <div className="text-xs leading-5 text-black/55 dark:text-white/60">
-          Supabase ayarlari hazir deyil. Vercel-e
+          Supabase ayarları hazır deyil. Vercel-ə
           {" "}
           <code>NEXT_PUBLIC_SUPABASE_URL</code>
           {" "}
-          ve
+          və
           {" "}
           <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>
           {" "}
-          elave edilenden sonra giris aktiv olacaq.
+          əlavə ediləndən sonra giriş aktiv olacaq.
         </div>
       ) : null}
 
@@ -151,7 +191,7 @@ export function LoginForm() {
         className="mt-4 rounded-xl bg-brand-green px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-white shadow-glass-green transition hover:-translate-y-0.5 hover:bg-brand-green-soft disabled:opacity-60 disabled:hover:translate-y-0"
       >
         {!isConfigured
-          ? "Qurasdirma gozlenilir"
+          ? "Qurulma gözlənilir"
           : loading
             ? "Daxil olunur..."
             : "Daxil ol"}
@@ -170,11 +210,11 @@ export function LoginForm() {
         className="flex items-center justify-center gap-3 rounded-xl border border-brand-green/20 bg-white/70 dark:bg-white/10 px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-black/70 dark:text-white/75 transition hover:-translate-y-0.5 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400 disabled:opacity-60 disabled:hover:translate-y-0"
       >
         <GoogleMark />
-        {googleLoading ? "Google-a yönləndirilir..." : "Google ilə daxil ol"}
+        {googleLoading ? "Daxil olunur..." : "Google ilə daxil ol"}
       </button>
       <p className="text-center text-[11px] leading-5 text-black/45 dark:text-white/50">
-        İlk dəfə Google ilə girirsinizsə, ad-soyadınızı yazıb admin təsdiqini
-        gözləyəcəksiniz.
+        İlk Google girişində ad-soyadınız soruşulur və admin təsdiqi gözlənilir.
+        Hesabınız varsa, daxil olandan sonra Google hesabınızı bağlayın.
       </p>
     </m.form>
   );

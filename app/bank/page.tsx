@@ -74,6 +74,9 @@ import { getMyPersonalDebts } from "@/lib/personalDebts";
 import { listAppUsers, listRegistrations } from "@/lib/access";
 import { AccessPanel } from "@/components/AccessPanel";
 import { RegistrationsPanel } from "@/components/RegistrationsPanel";
+import { GoogleLinkCard } from "@/components/GoogleLinkCard";
+import { GoogleLinkBanner } from "@/components/GoogleLinkBanner";
+import { parseGoogleLinkStatus } from "@/lib/googleLink";
 
 export const dynamic = "force-dynamic";
 
@@ -244,6 +247,21 @@ export default async function BankPage({
   const sp = await searchParams;
   const supabase = await createSupabaseServerClient();
   const isFamily = scope === "family";
+  // Self-service Google linking (GoogleLinkCard): which identities hang on
+  // this login, and the outcome of the last /auth/callback round-trip.
+  const identities = user.identities ?? [];
+  const googleIdentity = identities.find((i) => i.provider === "google");
+  const googleEmail =
+    (googleIdentity?.identity_data?.email as string | undefined) ?? null;
+  const canUnlinkGoogle = googleIdentity != null && identities.length > 1;
+  const googleStatus = parseGoogleLinkStatus(sp.google);
+  const googleCard = (
+    <GoogleLinkCard
+      googleEmail={googleEmail}
+      canUnlink={canUnlinkGoogle}
+      status={googleStatus}
+    />
+  );
   // Bank-wide transparency view, available to every family login. Encoded in
   // the URL (?view=bank) so the server renders the right dataset and the state
   // survives refreshes — mirrors FundViewToggle on /dashboard.
@@ -631,6 +649,9 @@ export default async function BankPage({
               </Link>
             </div>
           </MotionSection>
+          <MotionSection delay={0.08}>
+            <div className="mt-10 text-left">{googleCard}</div>
+          </MotionSection>
         </section>
       </main>
     );
@@ -687,6 +708,16 @@ export default async function BankPage({
                 amountAzn={offerAzn}
                 minRatePct={offerMinRatePct}
               />
+            </div>
+          </MotionSection>
+        ) : null}
+
+        {/* ── Google linking — same slot and shape as the offer above, for
+            every approved login without a Google identity yet. ── */}
+        {googleEmail == null ? (
+          <MotionSection delay={0.025}>
+            <div className="mt-6">
+              <GoogleLinkBanner returnTo="/bank" status={googleStatus} tone="bank" />
             </div>
           </MotionSection>
         ) : null}
@@ -785,6 +816,12 @@ export default async function BankPage({
             <div className="mt-10">
               <PersonalDebtsCard debts={personalDebts} todayIso={bakuTodayIso} />
             </div>
+          </MotionSection>
+        ) : null}
+
+        {googleEmail != null || googleStatus === "linked" ? (
+          <MotionSection delay={0.14}>
+            <div className="mt-10">{googleCard}</div>
           </MotionSection>
         ) : null}
 
