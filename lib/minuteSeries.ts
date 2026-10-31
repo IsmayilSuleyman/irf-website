@@ -9,6 +9,9 @@ export type MinutePoint = {
   label: string;
   value: number;
   date: string;
+  /** The holder's ETF-book slice of `value` (mine series only; absent
+   *  until the get_minute_series migration that returns it is live). */
+  other?: number;
 };
 
 export type MinuteTier = {
@@ -39,6 +42,7 @@ type Row = {
   price: number | string | null;
   fund: number | string | null;
   holder_v: number | string | null;
+  holder_a?: number | string | null;
 };
 
 function toTier(rows: Row[]): MinuteTier {
@@ -52,7 +56,14 @@ function toTier(rows: Row[]): MinuteTier {
     const v = r.holder_v == null ? null : Number(r.holder_v);
     if (Number.isFinite(p)) price.push({ label: "", value: p, date });
     if (Number.isFinite(f)) fund.push({ label: "", value: f, date });
-    if (v != null && Number.isFinite(v)) mine.push({ label: "", value: v, date });
+    const a = r.holder_a == null ? null : Number(r.holder_a);
+    if (v != null && Number.isFinite(v)) {
+      mine.push(
+        a != null && Number.isFinite(a)
+          ? { label: "", value: v, date, other: a }
+          : { label: "", value: v, date },
+      );
+    }
   }
   return { price, fund, mine };
 }
