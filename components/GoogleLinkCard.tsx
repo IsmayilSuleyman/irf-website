@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   GOOGLE_LINK_TEXT,
+  linkGoogleWithIdToken,
   startGoogleLink,
   type GoogleLinkStatus,
 } from "@/lib/googleLink";
+import { GOOGLE_CLIENT_ID, GoogleIdentity } from "@/components/GoogleIdentity";
 
 /**
  * Status card on /bank for an approved login: which Google account is
@@ -48,6 +50,21 @@ export function GoogleLinkCard({
       setMessage(error);
     }
     // Otherwise the browser is on its way to Google.
+  };
+
+  const onIdToken = async (cred: { token: string; nonce: string }) => {
+    setBusy(true);
+    setFailed(false);
+    setMessage(null);
+    const error = await linkGoogleWithIdToken(cred);
+    setBusy(false);
+    if (error) {
+      setFailed(true);
+      setMessage(error);
+      return;
+    }
+    setMessage(GOOGLE_LINK_TEXT.linked);
+    router.refresh();
   };
 
   const onUnlink = async () => {
@@ -101,6 +118,10 @@ export function GoogleLinkCard({
               {busy ? "…" : "Ayır"}
             </button>
           ) : null
+        ) : GOOGLE_CLIENT_ID ? (
+          <div className={`w-[240px] max-w-full ${busy ? "pointer-events-none opacity-60" : ""}`}>
+            <GoogleIdentity clientId={GOOGLE_CLIENT_ID} onCredential={onIdToken} />
+          </div>
         ) : (
           <button
             type="button"

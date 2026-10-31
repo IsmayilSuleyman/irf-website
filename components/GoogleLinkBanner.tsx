@@ -1,17 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   GOOGLE_LINK_TEXT,
+  linkGoogleWithIdToken,
   startGoogleLink,
   type GoogleLinkStatus,
 } from "@/lib/googleLink";
+import { GOOGLE_CLIENT_ID, GoogleIdentity } from "@/components/GoogleIdentity";
 
 // "Link your Google account" banner, same shape as the İsmayılBank credit
 // offer: shown at the top of /dashboard and /bank to every approved login
 // that has no Google identity yet. "Sonra" hides it on this device
 // (localStorage, best effort); it is back as soon as the account still has
 // no Google identity on another device, and gone for good once linked.
+//
+// With a Google client ID the button is Google's own (ID token, no
+// redirect, consent screen names this site); otherwise the redirect flow.
 
 const DISMISS_KEY = "irf-google-link-dismissed";
 
@@ -35,8 +41,10 @@ export function GoogleLinkBanner({
   /** Fund green on /dashboard, bank blue on /bank. */
   tone?: "fund" | "bank";
 }) {
+  const router = useRouter();
   const [hidden, setHidden] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(
     status && status !== "linked" ? GOOGLE_LINK_TEXT[status] : null,
   );
@@ -49,7 +57,7 @@ export function GoogleLinkBanner({
 
   if (hidden) return null;
 
-  const onLink = async () => {
+  const onRedirectLink = async () => {
     setBusy(true);
     setError(null);
     const message = await startGoogleLink(returnTo);
@@ -57,6 +65,19 @@ export function GoogleLinkBanner({
       setBusy(false);
       setError(message);
     }
+  };
+
+  const onIdToken = async (cred: { token: string; nonce: string }) => {
+    setBusy(true);
+    setError(null);
+    const message = await linkGoogleWithIdToken(cred);
+    setBusy(false);
+    if (message) {
+      setError(message);
+      return;
+    }
+    setDone(true);
+    router.refresh();
   };
 
   const onLater = () => {
@@ -89,34 +110,45 @@ export function GoogleLinkBanner({
             Google ilə giriş
           </p>
           <h2 className="mt-2 text-[clamp(1.15rem,2.6vw,1.45rem)] font-black tracking-[-0.03em]">
-            Google hesabınızı bağlayın — bir kliklə daxil olun
+            {done
+              ? "Google hesabı bağlandı"
+              : "Google hesabınızı bağlayın — bir kliklə daxil olun"}
           </h2>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/80">
-            Bir dəfə bağlayın; sonra şifrəsiz, Google ilə birbaşa bu hesaba
-            girərsiniz. Adınız və tarixçəniz olduğu kimi qalır.
+            {done
+              ? GOOGLE_LINK_TEXT.linked
+              : "Bir dəfə bağlayın; sonra şifrəsiz, Google ilə birbaşa bu hesaba girərsiniz. Adınız və tarixçəniz olduğu kimi qalır."}
           </p>
           {error ? (
             <p className="mt-2 text-xs font-medium text-amber-200">{error}</p>
           ) : null}
         </div>
-        <div className="flex shrink-0 flex-col gap-2 sm:items-end">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onLink}
-            className={`inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] ${primaryText} shadow-sm transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0`}
-          >
-            <GoogleMark />
-            {busy ? "Google-a yönləndirilir…" : "Google hesabını bağla"}
-          </button>
-          <button
-            type="button"
-            onClick={onLater}
-            className="text-[11px] font-medium text-white/70 transition hover:text-white"
-          >
-            Sonra
-          </button>
-        </div>
+        {done ? null : (
+          <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+            {GOOGLE_CLIENT_ID ? (
+              <div className={`w-[260px] max-w-full ${busy ? "pointer-events-none opacity-60" : ""}`}>
+                <GoogleIdentity clientId={GOOGLE_CLIENT_ID} onCredential={onIdToken} />
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onRedirectLink}
+                className={`inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] ${primaryText} shadow-sm transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0`}
+              >
+                <GoogleMark />
+                {busy ? "Google-a yönləndirilir…" : "Google hesabını bağla"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onLater}
+              className="text-[11px] font-medium text-white/70 transition hover:text-white"
+            >
+              Sonra
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

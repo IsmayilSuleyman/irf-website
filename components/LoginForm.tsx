@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { m } from "framer-motion";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { safeNextPath } from "@/lib/nextPath";
-import { GoogleOneTap, type OneTapCredential } from "@/components/GoogleOneTap";
+import {
+  GOOGLE_CLIENT_ID,
+  GoogleIdentity,
+  type GoogleCredential,
+} from "@/components/GoogleIdentity";
 
 /** Messages for the `?error=` the OAuth callback (app/auth/callback) sets. */
 const CALLBACK_ERRORS: Record<string, string> = {
@@ -14,8 +18,6 @@ const CALLBACK_ERRORS: Record<string, string> = {
 };
 
 const NOT_CONFIGURED = "Supabase ayarları Vercel-də tam qurulmayıb.";
-
-const ONE_TAP_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim() || null;
 
 export function LoginForm() {
   const router = useRouter();
@@ -71,12 +73,32 @@ export function LoginForm() {
     finish();
   };
 
-  // Google: the browser goes to Google, then to Supabase, then back to our
-  // /auth/callback, which exchanges the code for a session and continues to
-  // `next`. A first-time Google login has no name (pin_full_name strips the
-  // provider's), so requireUser sends it to /register to type Ad + Soyad
-  // and wait for İsmayıl's approval.
-  const onGoogle = async () => {
+  // Google, preferred path: Google's own button / One Tap on this page hand
+  // us an ID token; Supabase verifies it and opens the session. No redirect
+  // through Supabase, so Google's consent screen names this site, not the
+  // Supabase project host. A first-time Google login has no name
+  // (pin_full_name strips the provider's), so requireUser sends it to
+  // /register to type Ad + Soyad and wait for İsmayıl's approval.
+  const onGoogleCredential = async ({ token, nonce }: GoogleCredential) => {
+    if (!supabase) return;
+    setGoogleLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: "google",
+      token,
+      nonce,
+    });
+    if (error) {
+      setGoogleLoading(false);
+      setError(CALLBACK_ERRORS.google);
+      return;
+    }
+    finish();
+  };
+
+  // Google, fallback without a client ID: the redirect round-trip through
+  // Supabase and back to /auth/callback.
+  const onGoogleRedirect = async () => {
     if (!supabase) {
       setError(NOT_CONFIGURED);
       return;
@@ -100,25 +122,6 @@ export function LoginForm() {
     // On success the browser is navigating away; keep the spinner.
   };
 
-  // One Tap hands us an ID token instead of a redirect; same account, same
-  // rules (a new user lands on /register), no page round-trip.
-  const onOneTap = async ({ token, nonce }: OneTapCredential) => {
-    if (!supabase) return;
-    setGoogleLoading(true);
-    setError(null);
-    const { error } = await supabase.auth.signInWithIdToken({
-      provider: "google",
-      token,
-      nonce,
-    });
-    if (error) {
-      setGoogleLoading(false);
-      setError(CALLBACK_ERRORS.google);
-      return;
-    }
-    finish();
-  };
-
   return (
     <m.form
       onSubmit={onSubmit}
@@ -127,10 +130,6 @@ export function LoginForm() {
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
       className="flex flex-col gap-5"
     >
-      {isConfigured && ONE_TAP_CLIENT_ID ? (
-        <GoogleOneTap clientId={ONE_TAP_CLIENT_ID} onCredential={onOneTap} />
-      ) : null}
-
       <div className="flex flex-col gap-2">
         <label
           htmlFor="login-email"
@@ -203,15 +202,31 @@ export function LoginForm() {
         <span className="h-px flex-1 bg-brand-green/20" aria-hidden />
       </div>
 
-      <button
-        type="button"
-        onClick={onGoogle}
-        disabled={loading || googleLoading || !isConfigured}
-        className="flex items-center justify-center gap-3 rounded-xl border border-brand-green/20 bg-white/70 dark:bg-white/10 px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-black/70 dark:text-white/75 transition hover:-translate-y-0.5 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400 disabled:opacity-60 disabled:hover:translate-y-0"
-      >
-        <GoogleMark />
-        {googleLoading ? "Daxil olunur..." : "Google ilə daxil ol"}
-      </button>
+      {isConfigured && GOOGLE_CLIENT_ID ? (
+        <div className={googleLoading ? "pointer-events-none opacity-60" : ""}>
+          <GoogleIdentity
+            clientId={GOOGLE_CLIENT_ID}
+            onCredential={onGoogleCredential}
+            oneTap
+            text="signin_with"
+          />
+          {googleLoading ? (
+            <p className="mt-2 text-center text-xs text-black/45 dark:text-white/50">
+              Daxil olunur...
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onGoogleRedirect}
+          disabled={loading || googleLoading || !isConfigured}
+          className="flex items-center justify-center gap-3 rounded-xl border border-brand-green/20 bg-white/70 dark:bg-white/10 px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-black/70 dark:text-white/75 transition hover:-translate-y-0.5 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400 disabled:opacity-60 disabled:hover:translate-y-0"
+        >
+          <GoogleMark />
+          {googleLoading ? "Daxil olunur..." : "Google ilə daxil ol"}
+        </button>
+      )}
       <p className="text-center text-[11px] leading-5 text-black/45 dark:text-white/50">
         İlk Google girişində ad-soyadınız soruşulur və admin təsdiqi gözlənilir.
         Hesabınız varsa, daxil olandan sonra Google hesabınızı bağlayın.
