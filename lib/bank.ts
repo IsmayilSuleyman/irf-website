@@ -1,7 +1,7 @@
 import { auth as googleAuth, sheets as sheetsApi } from "@googleapis/sheets";
 import { unstable_cache } from "next/cache";
 import { formatAzn } from "@/lib/portfolio";
-import { simplifyText } from "@/lib/bankShared";
+import { isPaymentPaid, simplifyText } from "@/lib/bankShared";
 
 export type BankPaymentScheduleItem = {
   amountAzn: number | null;
@@ -44,19 +44,8 @@ function normalize(value: string): string {
 // Moved to lib/bankShared so client components (CreditPanel rendered from
 // the personal-debts card) can use it without dragging googleapis along;
 // re-exported here so server-side imports keep working unchanged.
-export { simplifyText } from "@/lib/bankShared";
+export { isPaymentPaid, simplifyText } from "@/lib/bankShared";
 
-// A schedule installment counts as paid only when its status exactly matches one
-// of Ismayil's paid words ("Odenildi" / "Odenilmisdir" / "Odendi" / "Odenmis",
-// compared after simplifyText folds the diacritics). Deliberately stricter than
-// a substring check: an unpaid status such as "Odenilecek" also contains the
-// "oden" root, so a substring test would silently drop its reminder.
-const PAID_STATUS_TOKENS = new Set(["odenildi", "odenilmisdir", "odendi", "odenmis"]);
-
-export function isPaymentPaid(status: string | null | undefined): boolean {
-  const token = simplifyText(String(status ?? "")).trim().toLocaleLowerCase("en-US");
-  return PAID_STATUS_TOKENS.has(token);
-}
 
 const AZ_MONTHS = [
   "yanvar", "fevral", "mart", "aprel", "may", "iyun",

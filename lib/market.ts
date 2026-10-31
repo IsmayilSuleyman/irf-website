@@ -18,6 +18,13 @@ export type MarketStatus = {
   public_float_pct: number;
   fund_sell_capacity: number;
   is_admin: boolean;
+  /** External member (lib/access.ts): share purchases are capped. */
+  is_external: boolean;
+  /** fund_config.external_cap_pct — max share of total_units one external
+   *  holder may own (0.02 = 2%). */
+  external_cap_pct: number;
+  /** Units the CALLER may still buy under that cap; null for family. */
+  external_buy_capacity: number | null;
   updated_at: string | null;
 };
 
@@ -177,6 +184,12 @@ export async function getMarketData(): Promise<MarketData | null> {
     public_float_pct: num(rawStatus.public_float_pct),
     fund_sell_capacity: num(rawStatus.fund_sell_capacity),
     is_admin: Boolean(rawStatus.is_admin),
+    is_external: Boolean(rawStatus.is_external),
+    external_cap_pct: num(rawStatus.external_cap_pct),
+    external_buy_capacity:
+      rawStatus.external_buy_capacity == null
+        ? null
+        : num(rawStatus.external_buy_capacity),
     updated_at: (rawStatus.updated_at as string) ?? null,
   };
 

@@ -1,4 +1,4 @@
-import { simplifyText } from "@/lib/bankShared";
+import { isPaymentPaid } from "@/lib/bankShared";
 import type { BankPaymentScheduleItem } from "@/lib/bank";
 import { formatGrouped } from "@/lib/portfolio";
 
@@ -37,11 +37,6 @@ function formatDateLabel(value: string): string {
   return `${baku.getUTCDate()} ${AZ_MONTHS[baku.getUTCMonth()]} ${baku.getUTCFullYear()}`;
 }
 
-function isPaidStatus(status: string | null | undefined): boolean {
-  const n = simplifyText(String(status ?? "")).toLocaleLowerCase("en-US");
-  return n.includes("oden") || n.includes("paid");
-}
-
 // Whole days from "today" to the due date, both taken as Baku (fixed UTC+4)
 // calendar days so the countdown flips at Baku midnight, not UTC's. null for
 // unparseable dates.
@@ -74,9 +69,9 @@ export function CreditPanel({
   title?: string;
 }) {
   const now = new Date();
-  const firstUnpaidIdx = schedule.findIndex((p) => !isPaidStatus(p.status));
+  const firstUnpaidIdx = schedule.findIndex((p) => !isPaymentPaid(p.status));
   const rows: Row[] = schedule.map((item, i) => {
-    const paid = isPaidStatus(item.status);
+    const paid = isPaymentPaid(item.status);
     const isNext = i === firstUnpaidIdx;
     const d = daysUntil(item.date, now);
     return { item, paid, isNext, late: !paid && d != null && d < 0 };

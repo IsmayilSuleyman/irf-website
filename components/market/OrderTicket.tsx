@@ -29,6 +29,13 @@ export function OrderTicket({
   const validP = Number.isFinite(p) && p > 0;
   const total = validU && validP ? u * p : 0;
   const fundSellActive = status.fund_sell_capacity > 0;
+  // External members: total exposure (held + pending + open buys) is capped
+  // at external_cap_pct of the fund. place_order enforces it; the ticket
+  // mirrors it so the limit is explained before the order is refused.
+  const externalCap = status.is_external ? status.external_buy_capacity : null;
+  const externalCapLabel = `${String(Math.round(status.external_cap_pct * 10000) / 100).replace(".", ",")}%`;
+  const overExternalCap =
+    side === "buy" && externalCap != null && validU && u > externalCap;
 
   // Neither side makes sense below the Fund buyback (Satış): the Fund itself
   // bids that price, so a lower order could never fill. Sell offers are also
@@ -46,6 +53,8 @@ export function OrderTicket({
     hint = `Satış qiyməti ən çox ${price2(maxSell)} ola bilər (Fonddan alış qiymətinin 1.5 misli).`;
   } else if (side === "sell" && validU && u > availableToSell) {
     hint = `Sata biləcəyiniz maksimum: ${formatUnits(availableToSell)} pay.`;
+  } else if (overExternalCap) {
+    hint = `Kənar üzv limiti: ala biləcəyiniz maksimum ${formatUnits(externalCap)} pay (ümumi payların ${externalCapLabel}-i).`;
   }
 
   const onSubmit = async (e: FormEvent) => {
@@ -151,6 +160,13 @@ export function OrderTicket({
           )}
         </div>
 
+        {externalCap != null && side === "buy" ? (
+          <p className="text-[11px] leading-4 text-black/45 dark:text-white/50">
+            Kənar üzv limiti: ümumi payların {externalCapLabel}-i · hələ ala
+            biləcəyiniz: <span className="num">{formatUnits(externalCap)}</span> pay
+          </p>
+        ) : null}
+
         <div className="flex items-baseline justify-between border-t border-brand-green/20 pt-3 text-sm">
           <span className="text-black/55 dark:text-white/60">Cəmi (təxmini)</span>
           <span className="num font-bold text-black dark:text-white/90">{price2(total)}</span>
@@ -162,7 +178,7 @@ export function OrderTicket({
 
         <m.button
           type="submit"
-          disabled={loading || belowFloor || aboveCap}
+          disabled={loading || belowFloor || aboveCap || overExternalCap}
           whileTap={{ scale: 0.98 }}
           className={`mt-1 rounded-xl px-4 py-3 text-sm font-medium uppercase tracking-[0.18em] text-white transition hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0 ${
             side === "sell" ? "bg-brand-red" : "bg-brand-green"

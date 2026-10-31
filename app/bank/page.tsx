@@ -71,8 +71,21 @@ import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 import { BroadcastPanel } from "@/components/BroadcastPanel";
 import { PersonalDebtsCard } from "@/components/PersonalDebtsCard";
 import { getMyPersonalDebts } from "@/lib/personalDebts";
+import { getAccessScope, listAppUsers } from "@/lib/access";
+import { AccessPanel } from "@/components/AccessPanel";
 
 export const dynamic = "force-dynamic";
+
+/** fund_config.external_cap_pct via market_status — the access panel quotes
+ *  it; null until the market is configured (or the migration applied). */
+async function readExternalCapPct(
+  supabase: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>,
+): Promise<number | null> {
+  const { data } = await supabase.rpc("market_status");
+  const raw = (data as { external_cap_pct?: unknown } | null)?.external_cap_pct;
+  const v = Number(raw);
+  return raw != null && Number.isFinite(v) ? v : null;
+}
 
 // Bank-app style quick actions: the bank's products/venues one tap away.
 // Positioned right under the welcome line so primary navigation no longer
@@ -225,15 +238,19 @@ export default async function BankPage({
 }) {
   const user = await requireUser("/bank");
   const sp = await searchParams;
-  // Bank-wide transparency view, available to every signed-in user. Encoded in
+  const supabase = await createSupabaseServerClient();
+  // Family or external member (lib/access.ts): an external member banks
+  // here like anyone else but never sees the bank-wide view — every
+  // depositor and borrower by name — or the links into the İRF portfolio.
+  const isFamily = (await getAccessScope(supabase)) === "family";
+  // Bank-wide transparency view, available to every family login. Encoded in
   // the URL (?view=bank) so the server renders the right dataset and the state
   // survives refreshes — mirrors FundViewToggle on /dashboard.
-  const bankView = sp?.view === "bank";
+  const bankView = isFamily && sp?.view === "bank";
   const dateLabel = formatBakuDate(new Date());
 
   if (bankView) {
     const now = new Date();
-    const supabase = await createSupabaseServerClient();
     const totalsUnavailable: BankUnsettledTotals = {
       available: false,
       interestUnsettledAzn: 0,
@@ -292,7 +309,7 @@ export default async function BankPage({
     const updatedLabel = `Məlumat: bu gün ${String(baku.getUTCHours()).padStart(2, "0")}:${String(baku.getUTCMinutes()).padStart(2, "0")} (Bakı)`;
     return (
       <main className="min-h-screen bg-bank-section">
-        <BankHeader dateLabel={dateLabel} />
+        <BankHeader dateLabel={dateLabel} isFamily={isFamily} />
         <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
           <div className="hidden justify-end sm:-mb-6 sm:flex">
             <BankViewToggle active={bankView} />
@@ -439,7 +456,6 @@ export default async function BankPage({
       : undefined);
 
   // Admin (is_fund_admin) can push on-demand "pay your debt" notices to borrowers.
-  const supabase = await createSupabaseServerClient();
   const isAdmin = supabase
     ? (await supabase.rpc("is_fund_admin")).data === true
     : false;
@@ -548,6 +564,11 @@ export default async function BankPage({
   }
 
   const productTerms = isAdmin ? sharedTerms : null;
+  // The cabinet's access panel: every auth user with the external flag, plus
+  // the share cap it quotes. Absent until the external_members migration runs.
+  const appUsers = isAdmin && supabase ? await listAppUsers(supabase) : null;
+  const externalCapPct =
+    appUsers && supabase ? await readExternalCapPct(supabase) : null;
   const adminNetLiquidity = isAdmin
     ? adminAccounts.reduce((s, a) => s + a.depositedAzn - a.outstandingLoanAzn, 0) +
       sharedBondFundingAzn
@@ -562,11 +583,16 @@ export default async function BankPage({
 
   if (!account) {
     return (
-      <main className="min-h-screen bg-bank-section">
-        <BankHeader dateLabel={dateLabel} />
-        <div className="mx-auto flex max-w-5xl justify-end px-6 pt-6">
-          <BankViewToggle active={bankView} />
-        </div>
+      <main
+        className="min-h-screen bg-bank-section"
+        data-access-scope={isFamily ? undefined : "external"}
+      >
+        <BankHeader dateLabel={dateLabel} isFamily={isFamily} />
+        {isFamily ? (
+          <div className="mx-auto flex max-w-5xl justify-end px-6 pt-6">
+            <BankViewToggle active={bankView} />
+          </div>
+        ) : null}
         <section className="mx-auto max-w-[680px] px-5 py-20 text-center sm:py-28">
           <MotionSection>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-green dark:text-emerald-400">
@@ -579,12 +605,14 @@ export default async function BankPage({
               {user.email} hesabı üçün uyğun bank sətri tapılmadı.
             </p>
             <div className="mt-8 flex flex-col justify-center gap-2 sm:flex-row">
-              <Link
-                href="/portal"
-                className="inline-flex items-center justify-center rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/10 px-5 py-3 text-sm font-medium text-black/70 dark:text-white/75 transition hover:border-bank-blue/30 hover:text-bank-blue dark:hover:text-blue-400"
-              >
-                Portala qayıt
-              </Link>
+              {isFamily ? (
+                <Link
+                  href="/portal"
+                  className="inline-flex items-center justify-center rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/10 px-5 py-3 text-sm font-medium text-black/70 dark:text-white/75 transition hover:border-bank-blue/30 hover:text-bank-blue dark:hover:text-blue-400"
+                >
+                  Portala qayıt
+                </Link>
+              ) : null}
               <Link
                 href="/ismayilbank"
                 className="inline-flex items-center justify-center rounded-xl bg-bank-blue px-5 py-3 text-sm font-medium text-white transition hover:bg-bank-blue-deep"
@@ -614,8 +642,11 @@ export default async function BankPage({
     account.paymentSchedule.length === 0;
 
   return (
-    <main className="min-h-screen bg-bank-section">
-      <BankHeader dateLabel={dateLabel} />
+    <main
+      className="min-h-screen bg-bank-section"
+      data-access-scope={isFamily ? undefined : "external"}
+    >
+      <BankHeader dateLabel={dateLabel} isFamily={isFamily} />
 
       <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
         <MotionSection>
@@ -625,8 +656,12 @@ export default async function BankPage({
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-bank-blue dark:text-blue-400">
               XOŞ GƏLDİN, {account.name}
             </p>
-            <BankViewToggle active={bankView} compact className="sm:hidden" />
-            <BankViewToggle active={bankView} className="hidden sm:inline-flex" />
+            {isFamily ? (
+              <>
+                <BankViewToggle active={bankView} compact className="sm:hidden" />
+                <BankViewToggle active={bankView} className="hidden sm:inline-flex" />
+              </>
+            ) : null}
           </div>
         </MotionSection>
 
@@ -774,6 +809,15 @@ export default async function BankPage({
               {productTerms ? (
                 <div className="mt-4">
                   <BankTermsPanel initial={productTerms} />
+                </div>
+              ) : null}
+              {appUsers ? (
+                <div className="mt-4">
+                  <AccessPanel
+                    users={appUsers}
+                    selfId={user.id}
+                    externalCapPct={externalCapPct}
+                  />
                 </div>
               ) : null}
             </div>

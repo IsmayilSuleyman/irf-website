@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth-guard";
+import { requireUserWithScope } from "@/lib/auth-guard";
 import {
   getBondMarketData,
   type BondPaymentRow,
@@ -81,15 +81,20 @@ export default async function BondsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  await requireUser("/bonds");
+  // External members buy bonds too; they only lose the family-portfolio links.
+  const { scope } = await requireUserWithScope("/bonds");
+  const isFamily = scope === "family";
   const sp = await searchParams;
   const data = await getBondMarketData();
   const dateLabel = formatBakuDate(new Date());
 
   if (!data) {
     return (
-      <main className="min-h-screen bg-bank-section">
-        <BankHeader dateLabel={dateLabel} />
+      <main
+      className="min-h-screen bg-bank-section"
+      data-access-scope={isFamily ? undefined : "external"}
+    >
+        <BankHeader dateLabel={dateLabel} isFamily={isFamily} />
         <div className="mx-auto max-w-5xl px-6 py-16 text-center text-sm text-black/55 dark:text-white/60">
           İstiqraz məlumatları yüklənmədi.
         </div>
@@ -122,8 +127,11 @@ export default async function BondsPage({
     : data.payments;
 
   return (
-    <main className="min-h-screen bg-bank-section">
-      <BankHeader dateLabel={dateLabel} />
+    <main
+      className="min-h-screen bg-bank-section"
+      data-access-scope={isFamily ? undefined : "external"}
+    >
+      <BankHeader dateLabel={dateLabel} isFamily={isFamily} />
 
       <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
         <MotionSection>

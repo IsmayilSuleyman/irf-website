@@ -8,7 +8,15 @@ import { Logo } from "@/components/Logo";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
 import { NotificationsBell } from "@/components/NotificationsBell";
 
-export function Header({ dateLabel }: { dateLabel: string }) {
+export function Header({
+  dateLabel,
+  isFamily = true,
+}: {
+  dateLabel: string;
+  /** false for an external member on /market: the logo leads back to his
+   *  bank page instead of the family portfolio, and there is no portal. */
+  isFamily?: boolean;
+}) {
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
   const canLogout = supabase != null;
@@ -33,7 +41,11 @@ export function Header({ dateLabel }: { dateLabel: string }) {
     >
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 py-5">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" aria-label="İRF portfelinə keç" className="w-[150px] sm:w-[190px]">
+          <Link
+            href={isFamily ? "/dashboard" : "/bank"}
+            aria-label={isFamily ? "İRF portfelinə keç" : "İsmayılBank hesabına keç"}
+            className="w-[150px] sm:w-[190px]"
+          >
             <Logo width={190} priority />
           </Link>
           <Link
@@ -49,12 +61,14 @@ export function Header({ dateLabel }: { dateLabel: string }) {
         </div>
         <div className="flex shrink-0 items-center gap-4 sm:gap-6">
           <NotificationsBell />
-          <Link
-            href="/portal"
-            className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50 transition hover:text-brand-green dark:hover:text-emerald-400 sm:inline"
-          >
-            Portal
-          </Link>
+          {isFamily ? (
+            <Link
+              href="/portal"
+              className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50 transition hover:text-brand-green dark:hover:text-emerald-400 sm:inline"
+            >
+              Portal
+            </Link>
+          ) : null}
           <span className="hidden text-xs text-black/45 dark:text-white/50 sm:inline">{dateLabel}</span>
           <button
             onClick={onLogout}

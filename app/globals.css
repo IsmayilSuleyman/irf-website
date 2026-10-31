@@ -420,3 +420,13 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .vault-spin { animation: none; }
 }
+
+/* ============================================================
+   External members (lib/access.ts) have no İRF portfolio. The gated
+   pages flag themselves and the phone tab bar — rendered by the root
+   layout, which never reads the session — drops its Portfel tab.
+   Browsers without :has() keep it; /dashboard only redirects to /bank.
+   ============================================================ */
+body:has([data-access-scope="external"]) .mobile-tab-bar a[href="/dashboard"] {
+  display: none;
+}
