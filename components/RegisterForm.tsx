@@ -186,7 +186,6 @@ export function RegisterForm({
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
           className={inputClass}
-          placeholder="Əli"
         />
       </div>
 
@@ -203,7 +202,6 @@ export function RegisterForm({
           value={lastName}
           onChange={(e) => setLastName(e.target.value)}
           className={inputClass}
-          placeholder="İbrahimov"
         />
       </div>
 
