@@ -173,8 +173,9 @@ export function LoginForm() {
         {googleLoading ? "Google-a yönləndirilir..." : "Google ilə daxil ol"}
       </button>
       <p className="text-center text-[11px] leading-5 text-black/45 dark:text-white/50">
-        İlk dəfə Google ilə girirsinizsə, ad-soyadınızı yazıb admin təsdiqini
-        gözləyəcəksiniz.
+        Hesabınız artıq varsa, əvvəl şifrə ilə daxil olub Google hesabınızı
+        bağlayın — sonra Google ilə birbaşa girərsiniz. İlk dəfə Google ilə
+        girirsinizsə, ad-soyadınızı yazıb admin təsdiqini gözləyəcəksiniz.
       </p>
     </m.form>
   );

@@ -13,10 +13,11 @@ import { safeNextPath } from "@/lib/nextPath";
  * itself through the server client, and widening the matcher is what caused
  * the deploy-time logout stampedes (see middleware.ts).
  *
- * Failure modes land on /login with an Azerbaijani message:
- *   ?error=not_invited — Google account whose e-mail has no pre-created
- *                        user (sign-ups are off, so GoTrue refuses it)
- *   ?error=google      — anything else (cancelled consent, stale code, …)
+ * Two callers share this route:
+ *   - sign-in (LoginForm): failures land on /login?error=google|not_invited;
+ *   - identity LINKING (GoogleLinkCard, `link=1`): the user is already
+ *     signed in, so failures go back to /bank?google=error|exists instead
+ *     of a login page the middleware would bounce them off anyway.
  */
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
@@ -25,12 +26,20 @@ export async function GET(request: NextRequest) {
   const code = url.searchParams.get("code");
   const providerError = url.searchParams.get("error");
   const providerErrorCode = url.searchParams.get("error_code");
+  const linking = url.searchParams.get("link") === "1";
 
-  const fail = (kind: "google" | "not_invited") =>
-    NextResponse.redirect(`${base}/login?error=${kind}`);
+  const fail = (kind: "google" | "not_invited" | "exists") => {
+    if (linking) {
+      return NextResponse.redirect(
+        `${base}/bank?google=${kind === "exists" ? "exists" : "error"}`,
+      );
+    }
+    return NextResponse.redirect(`${base}/login?error=${kind}`);
+  };
 
   if (providerError || !code) {
     if (providerErrorCode === "signup_disabled") return fail("not_invited");
+    if (providerErrorCode === "identity_already_exists") return fail("exists");
     console.error("[auth/callback] provider returned no code:", {
       error: providerError,
       code: providerErrorCode,
@@ -47,7 +56,13 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     console.error("[auth/callback] exchangeCodeForSession failed:", error);
-    return fail(error.code === "signup_disabled" ? "not_invited" : "google");
+    return fail(
+      error.code === "signup_disabled"
+        ? "not_invited"
+        : error.code === "identity_already_exists"
+          ? "exists"
+          : "google",
+    );
   }
 
   return NextResponse.redirect(`${base}${next}`);
