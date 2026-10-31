@@ -14,19 +14,19 @@ const fmtPct = (p: number) =>
   `${p >= 0 ? "+" : "−"}${(Math.abs(p) * 100).toFixed(2).replace(".", ",")}%`;
 
 /** The pinned ticker's live day change — ▲/▼ carries the polarity so it
- *  stays readable on the green banner. */
+ *  stays readable on either plate. */
 function TickerChip({ item }: { item: FundNewsItem }) {
   if (!item.ticker || item.tickerDayPct == null) return null;
   const up = item.tickerDayPct >= 0;
   return (
-    <span className="num inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2 py-1 text-[11px] font-semibold">
+    <span className="num inline-flex items-center gap-1.5 rounded-lg bg-black/[0.05] px-2 py-1 text-[11px] font-semibold dark:bg-white/15">
       {item.ticker}
       {item.tickerPriceUsd != null ? (
-        <span className="text-white/75">
+        <span className="text-black/55 dark:text-white/75">
           {item.tickerPriceUsd.toFixed(2).replace(".", ",")}$
         </span>
       ) : null}
-      <span className={up ? "text-emerald-100" : "text-rose-200"}>
+      <span className={up ? "text-emerald-700 dark:text-emerald-100" : "text-rose-600 dark:text-rose-200"}>
         {up ? "▲" : "▼"} {fmtPct(item.tickerDayPct)}
       </span>
     </span>
@@ -45,17 +45,17 @@ function NewsBanner({
   deleting: boolean;
 }) {
   return (
-    // A black plate (deliberately the same in both themes, like the bond
-    // certificates): white text reads crisply, the fund speaks through the
-    // green accents — date, border, glow.
-    <article className="relative overflow-hidden rounded-2xl border border-brand-green/25 bg-[linear-gradient(135deg,#0e1411,#18211b)] p-5 text-white sm:p-6">
+    // A pale-green plate in light mode, a black one in dark: the text keeps
+    // full contrast either way, the fund speaks through the green accents —
+    // date, border, glow.
+    <article className="relative overflow-hidden rounded-2xl border border-brand-green/25 bg-[linear-gradient(135deg,#f4fbf6,#e5f4ea)] p-5 text-black/85 dark:bg-[linear-gradient(135deg,#0e1411,#18211b)] dark:text-white sm:p-6">
       <div
         aria-hidden
-        className="absolute -right-10 -top-14 h-40 w-40 rounded-full bg-brand-green/15 blur-2xl"
+        className="absolute -right-10 -top-14 h-40 w-40 rounded-full bg-brand-green/10 blur-2xl dark:bg-brand-green/15"
       />
       <div className="relative">
         <div className="flex items-start justify-between gap-3">
-          <p className="num text-[10px] font-semibold uppercase tracking-[0.22em] text-emerald-400/90">
+          <p className="num text-[10px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400/90">
             {item.dateLabel}
           </p>
           {canPost ? (
@@ -63,7 +63,7 @@ function NewsBanner({
               type="button"
               onClick={() => onDelete(item.id)}
               disabled={deleting}
-              className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55 transition hover:text-white disabled:opacity-50"
+              className="text-[10px] font-semibold uppercase tracking-[0.14em] text-black/45 transition hover:text-black disabled:opacity-50 dark:text-white/55 dark:hover:text-white"
             >
               Sil
             </button>
@@ -78,7 +78,7 @@ function NewsBanner({
             <img
               src={item.imageUrl}
               alt=""
-              className="float-right mb-2 ml-4 mt-2 h-24 w-24 rounded-xl border border-white/20 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.2)] sm:h-28 sm:w-28"
+              className="float-right mb-2 ml-4 mt-2 h-24 w-24 rounded-xl border border-black/10 object-cover shadow-[0_10px_28px_rgba(0,0,0,0.12)] dark:border-white/20 dark:shadow-[0_10px_28px_rgba(0,0,0,0.2)] sm:h-28 sm:w-28"
             />
           ) : null}
           <h3 className="mt-2 text-[clamp(1.15rem,2.6vw,1.45rem)] font-black tracking-[-0.03em]">
@@ -89,7 +89,7 @@ function NewsBanner({
               <TickerChip item={item} />
             </div>
           ) : null}
-          <p className="mt-2.5 whitespace-pre-line text-[13px] leading-6 text-white/85">
+          <p className="mt-2.5 whitespace-pre-line text-[13px] leading-6 text-black/70 dark:text-white/85">
             {item.body}
           </p>
         </div>
