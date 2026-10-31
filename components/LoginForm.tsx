@@ -8,8 +8,7 @@ import { safeNextPath } from "@/lib/nextPath";
 
 /** Messages for the `?error=` the OAuth callback (app/auth/callback) sets. */
 const CALLBACK_ERRORS: Record<string, string> = {
-  not_invited:
-    "Bu Google hesabı üçün giriş açılmayıb. Giriş yalnız əvvəlcədən qeydə alınmış e-poçtlarla mümkündür.",
+  not_invited: "Bu Google hesabı ilə giriş hazırda bağlıdır.",
   google: "Google ilə giriş alınmadı. Yenidən cəhd edin.",
 };
 
@@ -65,9 +64,9 @@ export function LoginForm() {
 
   // Google: the browser goes to Google, then to Supabase, then back to our
   // /auth/callback, which exchanges the code for a session and continues to
-  // `next`. Sign-ups are disabled in Supabase, so only a Gmail address that
-  // İsmayıl pre-created can finish this; everyone else lands back here with
-  // ?error=not_invited.
+  // `next`. A first-time Google login has no name (pin_full_name strips the
+  // provider's), so requireUser sends it to /register to type Ad + Soyad
+  // and wait for İsmayıl's approval.
   const onGoogle = async () => {
     if (!supabase) {
       setError("Supabase ayarlari Vercel-de tam qurasdirilmayib.");
@@ -173,6 +172,10 @@ export function LoginForm() {
         <GoogleMark />
         {googleLoading ? "Google-a yönləndirilir..." : "Google ilə daxil ol"}
       </button>
+      <p className="text-center text-[11px] leading-5 text-black/45 dark:text-white/50">
+        İlk dəfə Google ilə girirsinizsə, ad-soyadınızı yazıb admin təsdiqini
+        gözləyəcəksiniz.
+      </p>
     </m.form>
   );
 }

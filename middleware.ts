@@ -10,7 +10,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/bank") ||
     pathname.startsWith("/bonds") ||
     pathname.startsWith("/market") ||
-    pathname.startsWith("/portal");
+    pathname.startsWith("/portal") ||
+    pathname.startsWith("/register");
   const isAuthPage = pathname.startsWith("/login");
   const config = getSupabaseConfig();
 
@@ -119,6 +120,7 @@ export const config = {
     "/bonds/:path*",
     "/market/:path*",
     "/portal/:path*",
+    "/register",
     "/login",
     "/",
     "/welcome",

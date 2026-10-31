@@ -13,7 +13,7 @@ import {
 } from "@/lib/extendedPortfolio";
 import { dayChangeReference, getPriceHistory } from "@/lib/priceHistory";
 import { getHolderMarketState } from "@/lib/holdings";
-import { requireUser } from "@/lib/auth-guard";
+import { requireUserWithScope } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { displayNameOf, formatBakuDate } from "@/lib/user";
 import { getBankProductTerms } from "@/lib/bankTerms";
@@ -71,8 +71,9 @@ import { DebtNoticePanel } from "@/components/DebtNoticePanel";
 import { BroadcastPanel } from "@/components/BroadcastPanel";
 import { PersonalDebtsCard } from "@/components/PersonalDebtsCard";
 import { getMyPersonalDebts } from "@/lib/personalDebts";
-import { getAccessScope, listAppUsers } from "@/lib/access";
+import { listAppUsers, listRegistrations } from "@/lib/access";
 import { AccessPanel } from "@/components/AccessPanel";
+import { RegistrationsPanel } from "@/components/RegistrationsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -236,13 +237,13 @@ export default async function BankPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const user = await requireUser("/bank");
-  const sp = await searchParams;
-  const supabase = await createSupabaseServerClient();
   // Family or external member (lib/access.ts): an external member banks
   // here like anyone else but never sees the bank-wide view — every
   // depositor and borrower by name — or the links into the İRF portfolio.
-  const isFamily = (await getAccessScope(supabase)) === "family";
+  const { user, scope } = await requireUserWithScope("/bank");
+  const sp = await searchParams;
+  const supabase = await createSupabaseServerClient();
+  const isFamily = scope === "family";
   // Bank-wide transparency view, available to every family login. Encoded in
   // the URL (?view=bank) so the server renders the right dataset and the state
   // survives refreshes — mirrors FundViewToggle on /dashboard.
@@ -566,7 +567,16 @@ export default async function BankPage({
   const productTerms = isAdmin ? sharedTerms : null;
   // The cabinet's access panel: every auth user with the external flag, plus
   // the share cap it quotes. Absent until the external_members migration runs.
-  const appUsers = isAdmin && supabase ? await listAppUsers(supabase) : null;
+  const [appUsersRaw, registrations] =
+    isAdmin && supabase
+      ? await Promise.all([listAppUsers(supabase), listRegistrations(supabase)])
+      : [null, []];
+  // Pending /register logins have no name yet and are handled in their own
+  // panel; keep them out of the family/external switch list.
+  const pendingIds = new Set(registrations.map((r) => r.userId));
+  const appUsers = appUsersRaw
+    ? appUsersRaw.filter((u) => !pendingIds.has(u.userId))
+    : null;
   const externalCapPct =
     appUsers && supabase ? await readExternalCapPct(supabase) : null;
   const adminNetLiquidity = isAdmin
@@ -809,6 +819,14 @@ export default async function BankPage({
               {productTerms ? (
                 <div className="mt-4">
                   <BankTermsPanel initial={productTerms} />
+                </div>
+              ) : null}
+              {registrations.length > 0 && appUsers ? (
+                <div className="mt-4">
+                  <RegistrationsPanel
+                    registrations={registrations}
+                    profiles={appUsers}
+                  />
                 </div>
               ) : null}
               {appUsers ? (
