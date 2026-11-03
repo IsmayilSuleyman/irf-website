@@ -51,6 +51,10 @@ export function SessionHistoryChart({
     .sort((a, b) => a.ts - b.ts);
   const values = data.map((d) => d.pct);
   const crossesZero = Math.min(...values) < 0 && Math.max(...values) > 0;
+  // Per-color gradient id: the fill tracks the line's (now direction-
+  // dependent) color, and one shared id would let a second chart on the
+  // page repaint this one's wash.
+  const gradId = `sessHistGrad-${color.replace(/[^a-zA-Z0-9]/g, "")}`;
 
   const tickLabel = (ms: number) => {
     const parts = bakuParts(new Date(ms).toISOString());
@@ -62,7 +66,7 @@ export function SessionHistoryChart({
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
-            <linearGradient id="sessHistGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={0.2} />
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
@@ -111,7 +115,7 @@ export function SessionHistoryChart({
             dataKey="pct"
             stroke={color}
             strokeWidth={2}
-            fill="url(#sessHistGrad)"
+            fill={`url(#${gradId})`}
             dot={{ r: 2, fill: color, strokeWidth: 0 }}
             activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
           />
