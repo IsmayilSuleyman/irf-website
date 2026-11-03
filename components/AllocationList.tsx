@@ -12,6 +12,7 @@ import {
 } from "@/lib/portfolio";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
 import { ABOVE_SPARK, RowSpark } from "@/components/RowSpark";
+import { HoldingDetailChart } from "@/components/HoldingDetailChart";
 import { SparkRangeToggle } from "@/components/SparkRangeToggle";
 import { SectorIcon } from "@/components/SectorIcon";
 import {
@@ -647,14 +648,22 @@ export function AllocationList({
               {/* The picked window's movement as the row's backdrop — the
                   tile treatment, so it costs no horizontal space. Keyed by
                   window so a switch remounts it (and fades it in). */}
+              {/* An open row hands the curve to the drill-down's full chart,
+                  so the backdrop fades out rather than drawing it twice. */}
               {sparkSeries && sparkSeries.length > 1 ? (
-                <RowSpark
-                  key={sparkRange}
-                  values={sparkSeries}
-                  id={`fpspark-${ticker}-${sparkRange}`}
-                  up={sparkUp}
-                  fadeIn={sparkSwitched}
-                />
+                <div
+                  className={`transition-opacity duration-200 motion-reduce:transition-none ${
+                    momoIsOpen ? "opacity-0" : "opacity-100"
+                  }`}
+                >
+                  <RowSpark
+                    key={sparkRange}
+                    values={sparkSeries}
+                    id={`fpspark-${ticker}-${sparkRange}`}
+                    up={sparkUp}
+                    fadeIn={sparkSwitched}
+                  />
+                </div>
               ) : null}
               {/* Identity: ticker over company name (+ percent of portfolio).
                   Rank + movement arrow + sector icon are vertically centered
@@ -706,10 +715,26 @@ export function AllocationList({
                   <span className="flex min-w-0 items-center gap-1.5">
                     {/* Phone widths get a smaller ticker (and truncate as a
                         last resort) so the value/price columns never collide
-                        with it. */}
-                    <span className="num min-w-0 truncate text-sm font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-base">
+                        with it. From sm up an open row leads with the company
+                        name and demotes the ticker beside it; phones keep
+                        the ticker (the name would truncate to a letter). */}
+                    <span
+                      className={`num min-w-0 truncate text-sm font-semibold leading-tight tracking-wide text-black/85 dark:text-white/90 sm:text-base ${
+                        momoIsOpen && secondary ? "sm:hidden" : ""
+                      }`}
+                    >
                       {primary}
                     </span>
+                    {momoIsOpen && secondary ? (
+                      <span className="hidden min-w-0 items-baseline gap-1.5 sm:flex">
+                        <span className="min-w-0 truncate text-lg font-semibold leading-tight text-black/85 dark:text-white/90">
+                          {secondary}
+                        </span>
+                        <span className="num shrink-0 text-xs font-medium tracking-wide text-black/45 dark:text-white/50">
+                          {primary}
+                        </span>
+                      </span>
+                    ) : null}
                     {momoRow && (
                       <svg
                         aria-hidden
@@ -731,7 +756,11 @@ export function AllocationList({
                       positive gap, matching Aktivlərim. */}
                   <div className="mt-0.5 flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                     {secondary && (
-                      <span className="min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50">
+                      <span
+                        className={`min-w-0 max-w-full truncate text-[11px] leading-tight text-black/45 dark:text-white/50 ${
+                          momoIsOpen ? "sm:hidden" : ""
+                        }`}
+                      >
                         {secondary}
                       </span>
                     )}
@@ -854,11 +883,10 @@ export function AllocationList({
               </div>
               </div>
 
-              {/* Momentum factor drill-down: one line per factor with the
-                  rank and value pill. The meta line labels the momentum
-                  score and adds the average purchase price; on phones it
-                  also carries the portfolio % and pay count that the
-                  collapsed row omits.
+              {/* Momentum factor drill-down: the meta line carries the
+                  average purchase price (on phones also the portfolio %,
+                  pay count and score the collapsed row omits), then the
+                  window's price chart beside one pill per factor.
 
                   Opened with a NATIVE grid-rows transition instead of the
                   old framer height tween: a JS-driven height re-layouts the
@@ -885,14 +913,6 @@ export function AllocationList({
                           <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:hidden">
                             {secondaryExtras}
                           </span>
-                          <span className="hidden items-center gap-1.5 sm:inline-flex">
-                            <span
-                              className={`num rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(momoRow.score)}`}
-                            >
-                              {momoRow.score.toFixed(1)}
-                            </span>
-                            Momentum balı
-                          </span>
                           {item.avgPurchaseUsd != null && item.avgPurchaseUsd > 0 && (
                             <span>
                               Ortalama alış qiyməti:{" "}
@@ -904,10 +924,33 @@ export function AllocationList({
                             </span>
                           )}
                         </div>
-                        <MomentumFactorRows
-                          row={momoRow}
-                          className="pb-1 pl-4 pr-2 pt-3 sm:pl-12"
-                        />
+                        {/* Chart left, factor pills right (stacked on
+                            phones): the picked window's price against the
+                            average purchase price, beside the momentum
+                            factors. */}
+                        <div className="grid gap-4 pb-1 pl-4 pr-2 pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-8 sm:pl-12">
+                          {sparkSeries && sparkSeries.length > 1 ? (
+                            <HoldingDetailChart
+                              values={sparkSeries}
+                              avgPrice={item.avgPurchaseUsd ?? null}
+                              up={sparkUp}
+                              id={`fpdetail-${ticker}-${sparkRange}`}
+                              format={(usd) =>
+                                priceCur === "usd"
+                                  ? formatUsd(usd)
+                                  : formatAzn(usd * USD_TO_AZN)
+                              }
+                            />
+                          ) : null}
+                          <MomentumFactorRows
+                            row={momoRow}
+                            className={
+                              sparkSeries && sparkSeries.length > 1
+                                ? ""
+                                : "sm:col-span-2"
+                            }
+                          />
+                        </div>
                       </>
                     ) : null}
                   </div>
