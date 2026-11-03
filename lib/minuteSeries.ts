@@ -29,12 +29,15 @@ export type MinuteSeries = {
 };
 
 // Step/window per tier, tuned to keep every payload in the hundreds of
-// points: a day of 2-minute buckets, a week of 10-minute buckets, a
-// month of 30-minute buckets.
+// points: a day of 2-minute buckets, a week of 15-minute buckets, a
+// month of hourly buckets. Each tier MUST stay under PostgREST's
+// 1000-row response cap — the RPC returns buckets oldest-first, so an
+// overflow silently drops the NEWEST points (30-minute month buckets
+// = 1488 rows froze 1 AY three weeks back). hours × 60 / step < 1000.
 const TIERS = [
   { key: "day", step: 2, hours: 26 },
-  { key: "week", step: 10, hours: 7 * 24 },
-  { key: "month", step: 30, hours: 31 * 24 },
+  { key: "week", step: 15, hours: 7 * 24 },
+  { key: "month", step: 60, hours: 31 * 24 },
 ] as const;
 
 type Row = {
