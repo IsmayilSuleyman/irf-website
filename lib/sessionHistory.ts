@@ -1,4 +1,4 @@
-// Pure, dependency-free helpers for the 10-minute session-history snapshots
+// Pure, dependency-free helpers for the minutely session-history snapshots
 // (extended_hours_history table). Client-safe: imported by the hover-chart
 // components as values, so nothing server-side may live in this module.
 

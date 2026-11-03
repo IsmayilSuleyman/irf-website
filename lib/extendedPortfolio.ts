@@ -172,10 +172,12 @@ const getCachedQuotes = unstable_cache(
 );
 
 /**
- * Record one 10-minute snapshot of a live session's % move (pre/post/
- * regular). Overnight never records — the value is frozen at the
- * after-market close. The RPC buckets and first-write-wins, so concurrent
- * renders can't duplicate. Best-effort by design.
+ * Record one minute's snapshot of a live session's % move (pre/post/
+ * regular) from a dashboard render — a backstop for any minute the
+ * minutely cron (/api/record-minute → record_session_minute) missed.
+ * Overnight never records — the value is frozen at the after-market
+ * close. The RPC buckets to the minute and first-write-wins, so
+ * concurrent renders can't duplicate. Best-effort by design.
  */
 export async function recordSessionSnapshot(
   supabase: SupabaseClient,
@@ -189,23 +191,35 @@ export async function recordSessionSnapshot(
   if (error) console.error("[extended-portfolio] snapshot record failed:", error);
 }
 
+// PostgREST caps a response at 1000 rows, and minutely points outgrow it
+// (a week of regular sessions is ~1950) — page through in ascending order
+// so no window silently loses its newest minutes.
+const HISTORY_PAGE = 1000;
+const HISTORY_MAX_PAGES = 4;
+
 async function fetchSessionHistory(
   supabase: SupabaseClient,
   mode: SessionMode,
   sinceHours: number,
 ): Promise<SessionHistoryPoint[]> {
   const since = new Date(Date.now() - sinceHours * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
-    .from("extended_hours_history")
-    .select("bucket_start, mode, change_pct")
-    .eq("mode", mode)
-    .gte("bucket_start", since)
-    .order("bucket_start", { ascending: true });
-  if (error) {
-    console.error("[extended-portfolio] history fetch failed:", error);
-    return [];
+  const rows: Array<{ bucket_start: unknown; mode: unknown; change_pct: unknown }> = [];
+  for (let page = 0; page < HISTORY_MAX_PAGES; page++) {
+    const { data, error } = await supabase
+      .from("extended_hours_history")
+      .select("bucket_start, mode, change_pct")
+      .eq("mode", mode)
+      .gte("bucket_start", since)
+      .order("bucket_start", { ascending: true })
+      .range(page * HISTORY_PAGE, (page + 1) * HISTORY_PAGE - 1);
+    if (error) {
+      console.error("[extended-portfolio] history fetch failed:", error);
+      return [];
+    }
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < HISTORY_PAGE) break;
   }
-  return (data ?? []).map((r) => ({
+  return rows.map((r) => ({
     t: String(r.bucket_start),
     changePct: Number(r.change_pct),
     mode: r.mode as SessionMode,
@@ -229,12 +243,20 @@ export async function getExtendedHistory(
 /**
  * The full week of intraday (regular-session) points for the countdown
  * chip's daily/weekly chart; the client slices the daily view with
- * latestSessionTail(points, 8).
+ * latestSessionTail(points, 8). The latest session keeps every minute;
+ * older days thin to 5-minute marks — the weekly view can't show more,
+ * and ~1950 raw minutes would ride every dashboard payload.
  */
 export async function getRegularHistory(
   supabase: SupabaseClient,
 ): Promise<SessionHistoryPoint[]> {
-  return fetchSessionHistory(supabase, "regular", 7 * 24);
+  const points = await fetchSessionHistory(supabase, "regular", 7 * 24);
+  if (points.length === 0) return points;
+  const latestFrom = new Date(latestSessionTail(points, 8)[0].t).getTime();
+  return points.filter((p) => {
+    const ms = new Date(p.t).getTime();
+    return ms >= latestFrom || Math.floor(ms / 60_000) % 5 === 0;
+  });
 }
 
 function holdingSymbols(holdings: Holding[]): string[] {
@@ -413,7 +435,15 @@ const getFastQuotes = unstable_cache(
  */
 export async function getLiveFundDeltaFast(
   holdings: Holding[],
-): Promise<(LiveFundDelta & { asOfMs: number | null }) | null> {
+): Promise<
+  | (LiveFundDelta & {
+      asOfMs: number | null;
+      /** The session % move the hover charts plot (the same fold's
+       *  changePct the dashboard records). */
+      changePct: number;
+    })
+  | null
+> {
   const symbols = holdingSymbols(holdings);
   if (symbols.length === 0) return null;
   try {
@@ -428,11 +458,23 @@ export async function getLiveFundDeltaFast(
           ? computeExtendedPortfolio(holdings, quotes, "overnight")
           : null);
       return ext
-        ? { deltaAzn: ext.deltaAzn, mode: ext.mode, asOfMs: ext.asOfMs }
+        ? {
+            deltaAzn: ext.deltaAzn,
+            mode: ext.mode,
+            asOfMs: ext.asOfMs,
+            changePct: ext.changePct,
+          }
         : null;
     }
     const reg = computeRegularPortfolio(holdings, quotes);
-    return reg ? { deltaAzn: reg.deltaAzn, mode: null, asOfMs: null } : null;
+    return reg
+      ? {
+          deltaAzn: reg.deltaAzn,
+          mode: null,
+          asOfMs: null,
+          changePct: reg.changePct,
+        }
+      : null;
   } catch (err) {
     console.error("[extended-portfolio] fast quote fetch failed:", err);
     return null;

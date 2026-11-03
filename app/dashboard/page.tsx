@@ -183,13 +183,14 @@ export default async function DashboardPage({
   // Whole-portfolio revaluation at Yahoo extended-hours prices (pre-market,
   // after-market, or the overnight gap carrying the after-market close);
   // null only during regular trading hours. Shared 60s quote cache. The
-  // Supabase hover-graph reads and the 10-minute snapshot recording chain
+  // Supabase hover-graph reads and the per-minute snapshot recording chain
   // behind it inside one closure, so the whole strand runs concurrently with
   // the ETF quote fetch kicked off just below — instead of the old serial
   // await staircase. Recording runs in-render (not after()) because the
   // Supabase client may touch the request's cookies, which are off-limits
-  // post-response; the RPC buckets to 10 minutes and first-write-wins, so
-  // repeated renders cost one cheap no-op insert. Extended windows record
+  // post-response; the RPC buckets to the minute and first-write-wins, so
+  // repeated renders cost one cheap no-op insert (the minutely cron is the
+  // main writer — renders only fill minutes it missed). Extended windows record
   // the extended %, regular hours record the intraday day-change % for the
   // countdown chart.
   const extendedAndHistory = (async () => {
