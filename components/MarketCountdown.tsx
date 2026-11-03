@@ -165,12 +165,12 @@ export function MarketCountdown({
             <div className="mt-3 flex h-20 items-center justify-center text-center text-[11px] leading-4 text-black/45 dark:text-white/50">
               Hələ kifayət qədər qeyd yoxdur — qrafik bazar saatlarında
               <br />
-              hər 10 dəqiqədən bir yığılan qeydlərdən qurulur.
+              hər dəqiqə yığılan qeydlərdən qurulur.
             </div>
           )}
 
           <p className="mt-2 text-[10px] text-black/45 dark:text-white/50">
-            Hər 10 dəqiqədən bir qeyd olunur.
+            Hər dəqiqə qeyd olunur.
           </p>
         </div>
       )}

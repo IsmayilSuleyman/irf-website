@@ -31,7 +31,7 @@ const pctLabel = (v: number) =>
 
 /**
  * Mini %-movement chart for the session-history popovers (one point per
- * 10-minute snapshot). labelKind "time" shows HH:MM (single session);
+ * minutely snapshot). labelKind "time" shows HH:MM (single session);
  * "datetime" shows dd.MM HH:MM (weekly view spanning several days).
  */
 export function SessionHistoryChart({
@@ -116,7 +116,9 @@ export function SessionHistoryChart({
             stroke={color}
             strokeWidth={2}
             fill={`url(#${gradId})`}
-            dot={{ r: 2, fill: color, strokeWidth: 0 }}
+            // Minutely points would smear the dots into a second line —
+            // only a sparse series (an early session) marks each reading.
+            dot={data.length <= 40 ? { r: 2, fill: color, strokeWidth: 0 } : false}
             activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
           />
         </AreaChart>

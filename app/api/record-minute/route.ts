@@ -16,7 +16,10 @@ const r4 = (n: number) => Math.round(n * 10_000) / 10_000;
 // Minutely snapshot recorder, called by the Supabase pg_cron job — every
 // minute, visitors or none. Records the LIVE figures the dashboard shows
 // (pay price, fund total, each holder's İRF value plus their ETF book) so
-// the daily/weekly/monthly charts have a real series to draw. The bearer
+// the daily/weekly/monthly charts have a real series to draw, plus the
+// live session's % move for the hover charts (pre/post badge, countdown
+// chip) — so those fill every minute too, not only when someone visits.
+// The bearer
 // the cron sends is forwarded to the RPC, which checks it against the
 // Vault secret — the database is the single gatekeeper.
 export async function GET(req: Request) {
@@ -62,6 +65,24 @@ export async function GET(req: Request) {
     a: r2(bookByName.get(h.name.trim().toLocaleLowerCase("az-AZ")) ?? 0),
   }));
 
+  // Session % for the hover charts: pre/post/regular only — overnight is
+  // frozen at the after-market close and never records. Best-effort: a
+  // failure here must not fail the fund snapshot below.
+  const sessionMode = delta?.mode ?? (delta ? "regular" : null);
+  const sessionWrite =
+    delta && sessionMode !== "overnight"
+      ? supabase
+          .rpc("record_session_minute", {
+            p_secret: bearer,
+            p_mode: sessionMode,
+            p_change_pct: delta.changePct,
+          })
+          .then(({ error: e }) => {
+            if (e) console.error("[record-minute] session write failed:", e);
+            return !e;
+          })
+      : Promise.resolve(null);
+
   const { data, error } = await supabase.rpc("record_minute_snapshot", {
     p_secret: bearer,
     p_unit_price_azn: r4(unitPriceLive),
@@ -74,5 +95,9 @@ export async function GET(req: Request) {
     const status = error.code === "42501" ? 401 : 500;
     return NextResponse.json({ error: error.message }, { status });
   }
-  return NextResponse.json({ ok: true, ...(data as object) });
+  return NextResponse.json({
+    ok: true,
+    ...(data as object),
+    session: await sessionWrite,
+  });
 }
