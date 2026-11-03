@@ -15,6 +15,8 @@ import {
 import { formatAzn, formatGrouped } from "@/lib/portfolio";
 import { usePrivacy } from "@/components/PrivacyProvider";
 import { IsmayilBankMark } from "@/components/IsmayilBankLogo";
+import { PrivacyToggle } from "@/components/PrivacyToggle";
+import { useIsPhone } from "@/components/useIsPhone";
 
 type Point = {
   label: string;
@@ -213,6 +215,47 @@ function AthDot({
   );
 }
 
+/**
+ * The newest value boxed on the phone axis column, level with the line's
+ * end — the finance-app "current price" tag. Rendered as a ReferenceDot
+ * shape so recharts hands it the point's pixel position; it paints after
+ * the axis, covering whichever tick label it lands on.
+ */
+function ValueTag({
+  cx,
+  cy,
+  text,
+  color,
+}: {
+  cx?: number;
+  cy?: number;
+  text: string;
+  color: string;
+}) {
+  if (cx == null || cy == null) return null;
+  const w = 40;
+  const h = 16;
+  const x = cx + 4;
+  // Pre-market amber is too light for white text; every other fill takes it.
+  const ink = color === LIVE_STROKE.pre ? "#1a1203" : "#ffffff";
+  return (
+    <g>
+      <rect x={x} y={cy - h / 2} width={w} height={h} rx={4} fill={color} />
+      <text
+        x={x + w / 2}
+        y={cy + 3.5}
+        textAnchor="middle"
+        fontSize={10}
+        fontWeight={600}
+        fill={ink}
+        className="num"
+      >
+        {text}
+      </text>
+    </g>
+  );
+}
+
 export function PerformanceChart({
   data,
   priceData,
@@ -246,6 +289,7 @@ export function PerformanceChart({
   priceHero?: ReactNode;
 }) {
   const { hidden } = usePrivacy();
+  const isPhone = useIsPhone();
   const hasValue = data != null && data.length > 0;
   const hasPrice = priceData != null && priceData.length > 0;
   // New holders with no transactions still get the public price series.
@@ -527,12 +571,15 @@ export function PerformanceChart({
 
   /**
    * The period-change readout, rendered in two places with one definition so
-   * the wordings can never diverge: in the control row on sm+, overlaid on
-   * the plot's top-right corner on phones. It is a readout, not a control —
+   * the wordings can never diverge: in the header's control cluster on every
+   * width. On phones it also names its window ("BÜTÜN · +76,5%") — up there
+   * it has no plot beneath it to point at. It is a readout, not a control —
    * no hover state, no aria-pressed. Percentages stay visible in hide-amounts
    * mode, matching the rest of the app: a return reveals no position size.
    */
-  const changePill = (className: string) =>
+  const activeRangeLabel =
+    RANGES.find((r) => r.key === activeRange)?.label ?? "";
+  const changePill = (className: string, withRange = false) =>
     periodChange == null ? null : (
       <span
         title={
@@ -540,14 +587,25 @@ export function PerformanceChart({
             ? "Seçilmiş dövr üzrə mənfəət/zərər (reallaşmış + reallaşmamış)"
             : "Seçilmiş dövr üzrə dəyişim"
         }
-        className={`num rounded-lg border px-2 py-1.5 text-center text-[10px] font-semibold tracking-[0.06em] sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
+        className={`num inline-flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-center text-[10px] font-semibold tracking-[0.06em] sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
           periodChange >= 0
             ? "border-brand-green/30 bg-brand-green/10 text-brand-green dark:text-emerald-400"
             : "border-brand-red/30 bg-brand-red/10 text-brand-red dark:text-red-400"
         } ${className}`}
       >
-        {periodChange >= 0 ? "+" : ""}
-        {(periodChange * 100).toFixed(1)}%
+        {withRange ? (
+          <span
+            className={`border-r pr-1.5 opacity-70 ${
+              periodChange >= 0 ? "border-brand-green/30" : "border-brand-red/30"
+            }`}
+          >
+            {activeRangeLabel}
+          </span>
+        ) : null}
+        <span>
+          {periodChange >= 0 ? "+" : "−"}
+          {formatGrouped(Math.abs(periodChange * 100), 1)}%
+        </span>
       </span>
     );
 
@@ -693,16 +751,24 @@ export function PerformanceChart({
   }
 
   return (
-    <div className="glass w-full p-6">
+    <div className="glass w-full p-4 sm:p-6">
       {/* Header: one short label left ("Tarixçə" — the mode buttons beside
-          it already name the series), mode switch right; the range buttons
-          moved below the plot (Yahoo-app composition, see bottom). */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          it already name the series). Phones: the window-change pill and
+          the hide-amounts eye on the right — the card-level controls — so
+          nothing sits beside the headline's change lines below (the eye
+          there is sm+ only, see ChartSummary). sm+: pill + mode switch
+          right; the range buttons sit below the plot (Yahoo-app
+          composition, see bottom). */}
+      <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4 sm:flex-wrap">
         <span className="whitespace-nowrap text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           Tarixçə
         </span>
-        <div className="ml-auto flex items-center gap-2">
-          {changePill("hidden sm:inline-block")}
+        <div className="flex items-center gap-2 sm:hidden">
+          {changePill("", true)}
+          <PrivacyToggle />
+        </div>
+        <div className="ml-auto hidden items-center gap-2 sm:flex">
+          {changePill("")}
           {hasValue && hasPrice && (
             <div className="flex items-center gap-1">
               {MODES.map((m) => (
@@ -711,7 +777,7 @@ export function PerformanceChart({
                   type="button"
                   onClick={() => setMode(m.key)}
                   aria-pressed={mode === m.key}
-                  className={`whitespace-nowrap rounded-lg border px-1 py-1.5 text-center text-[10px] font-medium tracking-[0.02em] transition sm:px-3 sm:py-1 sm:text-[11px] sm:tracking-[0.08em] ${
+                  className={`whitespace-nowrap rounded-lg border px-3 py-1 text-center text-[11px] font-medium tracking-[0.08em] transition ${
                     mode === m.key
                       ? "border-brand-green bg-brand-green text-white shadow-sm"
                       : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
@@ -724,241 +790,301 @@ export function PerformanceChart({
           )}
         </div>
       </div>
-      {mode === "price" ? priceHero : hero}
-      {/* Shorter plot on phones — h-72 ate most of the viewport there;
-          desktop keeps the full height. */}
-      <div className="relative h-52 sm:h-72">
-        {/* Phones: the pill rides top-LEFT — the mirrored value labels own
-            the right edge now. */}
-        {timed.length > 0 && (
-          <div className="pointer-events-none absolute left-1 top-0 z-10 sm:hidden">
-            {changePill("")}
-          </div>
-        )}
-        {timed.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-black/45 dark:text-white/50">
-            Bu dövr üçün məlumat yoxdur.
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart
-              data={timed}
-              margin={{ top: 10, right: 14, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="pcGain" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={GREEN} stopOpacity={0.28} />
-                  <stop offset="100%" stopColor={GREEN} stopOpacity={0.08} />
-                </linearGradient>
-                {/* One gradient per polarity, picked by id — a single id
-                    recolored in place would collide with another chart on
-                    the page trending the other way. */}
-                <linearGradient id="pcPriceUp" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={GREEN} stopOpacity={0.22} />
-                  <stop offset="100%" stopColor={GREEN} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="pcPriceDown" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={RED} stopOpacity={0.2} />
-                  <stop offset="100%" stopColor={RED} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
-              <XAxis
-                dataKey="ts"
-                type="number"
-                scale="time"
-                domain={["dataMin", "dataMax"]}
-                stroke="rgba(0,0,0,0.45)"
-                tick={{ fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-                minTickGap={24}
-                tickFormatter={timeTicks ? bakuTime : tickDate}
-              />
-              {/* Value labels float inside the RIGHT edge (mirror) so the
-                  plot's left edge sits flush with the card's text — the
-                  finance-app composition İsmayıl asked for. */}
-              <YAxis
-                hide={masked}
-                orientation="right"
-                mirror
-                domain={["auto", "auto"]}
-                width={1}
-                tick={{ fontSize: 10, fill: "rgba(0,0,0,0.4)" }}
-                tickLine={false}
-                axisLine={false}
-                tickCount={4}
-                tickFormatter={(v: number) => formatGrouped(v, yTickDecimals)}
-              />
-              <Tooltip content={<ChartTip />} />
-              {/* Price mode keeps the classic under-line gradient; value mode
-                  trades it for the profit/loss bands against the cost basis —
-                  the strip between the lines IS the P&L. Children are an
-                  ARRAY, never a fragment: recharts matches its direct
-                  children by type and silently drops anything inside <>. */}
-              {(mode === "price" || !showInvested) && (
-                // valueSolid, not value: the gradient ends at the last
-                // recorded point, matching the dashed live tail's
-                // provisional treatment.
-                <Area
-                  type="monotone"
-                  dataKey="valueSolid"
-                  stroke="none"
-                  fill={down ? "url(#pcPriceDown)" : "url(#pcPriceUp)"}
-                />
-              )}
-              {mode === "value" &&
-                showInvested && [
-                  <Area
-                    key="gainBand"
-                    type="monotone"
-                    dataKey="gainBand"
-                    stroke="none"
-                    fill="url(#pcGain)"
-                    isAnimationActive={false}
-                    tooltipType="none"
-                  />,
-                  <Area
-                    key="lossBand"
-                    type="monotone"
-                    dataKey="lossBand"
-                    stroke="none"
-                    fill={RED}
-                    fillOpacity={0.16}
-                    isAnimationActive={false}
-                    tooltipType="none"
-                  />,
-                ]}
-              <Line
-                type="monotone"
-                dataKey="valueSolid"
-                stroke={trend}
-                strokeWidth={2.5}
-                dot={false}
-                activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
-              />
-              {/* Dashed live tail: last recorded close → the session price
-                  the headline shows, in the session's identity color. */}
-              <Line
-                type="linear"
-                dataKey="valueLive"
-                stroke={sessionMode ? LIVE_STROKE[sessionMode] : trend}
-                strokeWidth={2}
-                strokeDasharray="4 3"
-                dot={false}
-                activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
-                isAnimationActive={false}
-              />
-              {showInvested && (
-                <Line
-                  type="stepAfter"
-                  dataKey="invested"
-                  stroke={NEUTRAL}
-                  strokeWidth={1.5}
-                  strokeDasharray="5 4"
-                  dot={false}
-                  activeDot={false}
-                />
-              )}
-              {markers.map((mk) => (
-                <ReferenceDot
-                  key={`mk-${mk.ts}`}
-                  x={mk.ts}
-                  y={mk.value}
-                  shape={
-                    <TriangleDot dir={mk.buyUnits >= mk.sellUnits ? 1 : -1} />
-                  }
-                />
-              ))}
-              {ath && (
-                <ReferenceDot
-                  x={ath.ts}
-                  y={ath.value}
-                  shape={<AthDot color={trend} />}
-                />
-              )}
-              {last && last.live && (
-                <ReferenceDot
-                  x={last.ts}
-                  y={last.value}
-                  shape={
-                    <LiveDot
-                      color={sessionMode ? LIVE_STROKE[sessionMode] : trend}
-                    />
-                  }
-                />
-              )}
-              {last && !last.live && (!ath || ath.ts !== last.ts) && (
-                <ReferenceDot
-                  x={last.ts}
-                  y={last.value}
-                  r={4}
-                  fill={trend}
-                  stroke="#fff"
-                  strokeWidth={2}
-                />
-              )}
-            </ComposedChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-      {/* Glyph key — identity is never color-alone: the marker shapes and
-          line styles repeat here in words. Value mode only; price mode is a
-          single self-named series. */}
-      {mode === "value" && showInvested && timed.length > 0 ? (
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-black/40 dark:text-white/45">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-0.5 w-4 rounded" style={{ background: trend }} />
-            Dəyər
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-0 w-4 border-t border-dashed"
-              style={{ borderColor: NEUTRAL }}
-            />
-            Maya dəyəri
-          </span>
-          {markers.length > 0 ? (
-            <>
-              <span style={{ color: GREEN }}>▲ Alış</span>
-              <span style={{ color: RED }}>▼ Satış</span>
-            </>
-          ) : null}
-          <span className="flex items-center gap-1">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full border"
-              style={{ borderColor: trend }}
-            />
-            Zirvə
-          </span>
-        </div>
-      ) : null}
-      {/* Range buttons below the plot. Compact FIXED-width pills in a
-          scrollable flex row on phones — the old equal-column grid divided
-          the screen by 7 and visibly crushed the labels; shrink-0 +
-          nowrap means a pill can never render narrower than its text, and
-          a too-narrow screen scrolls the row instead. */}
-      <div className="mt-4 flex items-center gap-1.5 sm:gap-2">
-        <div className="no-scrollbar flex flex-1 items-center gap-1 overflow-x-auto sm:flex-none sm:gap-2">
-          {visibleRanges.map((r) => (
+      {/* Phones: the mode switch as one full-width two-segment control on
+          its own row — bigger thumbs and 11px labels instead of two chips
+          squeezed beside the title. */}
+      {hasValue && hasPrice && (
+        <div
+          role="group"
+          aria-label="Seriya"
+          className="mb-4 flex rounded-[10px] border border-brand-green/30 bg-white/60 p-0.5 dark:bg-white/5 sm:hidden"
+        >
+          {MODES.map((m) => (
             <button
-              key={r.key}
+              key={m.key}
               type="button"
-              onClick={() => setRange(r.key)}
-              aria-pressed={activeRange === r.key}
-              className={`shrink-0 whitespace-nowrap rounded-lg border px-2 py-1 text-center text-[10px] font-medium tracking-[0.05em] transition sm:px-3 sm:text-[11px] sm:tracking-[0.08em] ${
-                activeRange === r.key
-                  ? "border-brand-green bg-brand-green text-white shadow-sm"
-                  : "border-brand-green/30 bg-white/60 dark:bg-white/5 text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400"
+              onClick={() => setMode(m.key)}
+              aria-pressed={mode === m.key}
+              className={`h-7 min-w-0 flex-1 whitespace-nowrap rounded-lg px-1.5 text-center text-[11px] font-medium tracking-[0.04em] transition ${
+                mode === m.key
+                  ? "bg-brand-green text-white shadow-sm"
+                  : "text-black/55 dark:text-white/60"
               }`}
             >
-              {r.label}
+              {m.label}
             </button>
           ))}
         </div>
-        <span className="hidden text-[10px] text-black/45 dark:text-white/50 sm:inline">
-          ₼
-        </span>
+      )}
+      {mode === "price" ? priceHero : hero}
+      {/* Plot, key and range row. Phones: the key drops to the card's last
+          line (order-last) so the ranges sit right under the plot they
+          control; sm+ keeps plot → key → ranges. */}
+      <div className="flex flex-col">
+        {/* Shorter plot on phones — h-72 ate most of the viewport there;
+            desktop keeps the full height. */}
+        <div className="relative h-52 sm:h-72">
+          {timed.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-sm text-black/45 dark:text-white/50">
+              Bu dövr üçün məlumat yoxdur.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart
+                data={timed}
+                margin={{
+                top: 10,
+                // Phones hand the right edge to the axis column; with the
+                // axis hidden (hide-amounts) the last dot needs the room back.
+                right: isPhone && !masked ? 0 : 14,
+                left: 0,
+                bottom: 0,
+              }}
+              >
+                <defs>
+                  <linearGradient id="pcGain" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={GREEN} stopOpacity={0.28} />
+                    <stop offset="100%" stopColor={GREEN} stopOpacity={0.08} />
+                  </linearGradient>
+                  {/* One gradient per polarity, picked by id — a single id
+                      recolored in place would collide with another chart on
+                      the page trending the other way. */}
+                  <linearGradient id="pcPriceUp" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={GREEN} stopOpacity={0.22} />
+                    <stop offset="100%" stopColor={GREEN} stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="pcPriceDown" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={RED} stopOpacity={0.2} />
+                    <stop offset="100%" stopColor={RED} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
+                <XAxis
+                  dataKey="ts"
+                  type="number"
+                  scale="time"
+                  domain={["dataMin", "dataMax"]}
+                  stroke="rgba(0,0,0,0.45)"
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  minTickGap={24}
+                  tickFormatter={timeTicks ? bakuTime : tickDate}
+                />
+                {/* Value labels. sm+: they float inside the RIGHT edge
+                    (mirror) so the plot's left edge sits flush with the card's
+                    text — the finance-app composition İsmayıl asked for.
+                    Phones: a real axis column OUTSIDE the plot instead (the
+                    Yahoo-app composition) — mirrored labels sat on top of the
+                    newest data, which always lives at the right edge; the
+                    ValueTag below boxes the current value on that column. */}
+                <YAxis
+                  hide={masked}
+                  orientation="right"
+                  mirror={!isPhone}
+                  domain={["auto", "auto"]}
+                  width={isPhone ? 44 : 1}
+                  tickSize={isPhone ? 0 : 6}
+                  tickMargin={isPhone ? 4 : 2}
+                  tick={{ fontSize: 10, fill: "rgba(0,0,0,0.4)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickCount={4}
+                  tickFormatter={(v: number) => formatGrouped(v, yTickDecimals)}
+                />
+                <Tooltip content={<ChartTip />} />
+                {/* Price mode keeps the classic under-line gradient; value mode
+                    trades it for the profit/loss bands against the cost basis —
+                    the strip between the lines IS the P&L. Children are an
+                    ARRAY, never a fragment: recharts matches its direct
+                    children by type and silently drops anything inside <>. */}
+                {(mode === "price" || !showInvested) && (
+                  // valueSolid, not value: the gradient ends at the last
+                  // recorded point, matching the dashed live tail's
+                  // provisional treatment.
+                  <Area
+                    type="monotone"
+                    dataKey="valueSolid"
+                    stroke="none"
+                    fill={down ? "url(#pcPriceDown)" : "url(#pcPriceUp)"}
+                  />
+                )}
+                {mode === "value" &&
+                  showInvested && [
+                    <Area
+                      key="gainBand"
+                      type="monotone"
+                      dataKey="gainBand"
+                      stroke="none"
+                      fill="url(#pcGain)"
+                      isAnimationActive={false}
+                      tooltipType="none"
+                    />,
+                    <Area
+                      key="lossBand"
+                      type="monotone"
+                      dataKey="lossBand"
+                      stroke="none"
+                      fill={RED}
+                      fillOpacity={0.16}
+                      isAnimationActive={false}
+                      tooltipType="none"
+                    />,
+                  ]}
+                <Line
+                  type="monotone"
+                  dataKey="valueSolid"
+                  stroke={trend}
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
+                />
+                {/* Dashed live tail: last recorded close → the session price
+                    the headline shows, in the session's identity color. */}
+                <Line
+                  type="linear"
+                  dataKey="valueLive"
+                  stroke={sessionMode ? LIVE_STROKE[sessionMode] : trend}
+                  strokeWidth={2}
+                  strokeDasharray="4 3"
+                  dot={false}
+                  activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
+                  isAnimationActive={false}
+                />
+                {showInvested && (
+                  <Line
+                    type="stepAfter"
+                    dataKey="invested"
+                    stroke={NEUTRAL}
+                    strokeWidth={1.5}
+                    strokeDasharray="5 4"
+                    dot={false}
+                    activeDot={false}
+                  />
+                )}
+                {markers.map((mk) => (
+                  <ReferenceDot
+                    key={`mk-${mk.ts}`}
+                    x={mk.ts}
+                    y={mk.value}
+                    shape={
+                      <TriangleDot dir={mk.buyUnits >= mk.sellUnits ? 1 : -1} />
+                    }
+                  />
+                ))}
+                {ath && (
+                  <ReferenceDot
+                    x={ath.ts}
+                    y={ath.value}
+                    shape={<AthDot color={trend} />}
+                  />
+                )}
+                {last && last.live && (
+                  <ReferenceDot
+                    x={last.ts}
+                    y={last.value}
+                    shape={
+                      <LiveDot
+                        color={sessionMode ? LIVE_STROKE[sessionMode] : trend}
+                      />
+                    }
+                  />
+                )}
+                {last && !last.live && (!ath || ath.ts !== last.ts) && (
+                  <ReferenceDot
+                    x={last.ts}
+                    y={last.value}
+                    r={4}
+                    fill={trend}
+                    stroke="#fff"
+                    strokeWidth={2}
+                  />
+                )}
+                {/* Phones: the newest value tagged on the axis column, level
+                    with the line's end — the session's colour when it is a
+                    live print, the trend's otherwise. Gone with the axis in
+                    hide-amounts mode; the headline carries the exact figure. */}
+                {isPhone && !masked && last && (
+                  <ReferenceDot
+                    x={last.ts}
+                    y={last.value}
+                    shape={
+                      <ValueTag
+                        text={formatGrouped(
+                        last.value,
+                        mode === "price" ? 2 : yTickDecimals,
+                      )}
+                        color={
+                          last.live && sessionMode ? LIVE_STROKE[sessionMode] : trend
+                        }
+                      />
+                    }
+                  />
+                )}
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+        {/* Glyph key — identity is never color-alone: the marker shapes and
+            line styles repeat here in words. Value mode only; price mode is a
+            single self-named series. */}
+        {mode === "value" && showInvested && timed.length > 0 ? (
+          <div className="order-last mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-black/40 dark:text-white/45 sm:order-none sm:mt-2 sm:gap-x-4">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-0.5 w-3 rounded sm:w-4" style={{ background: trend }} />
+              Dəyər
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-0 w-3 border-t border-dashed sm:w-4"
+                style={{ borderColor: NEUTRAL }}
+              />
+              Maya dəyəri
+            </span>
+            {markers.length > 0 ? (
+              <>
+                <span style={{ color: GREEN }}>▲ Alış</span>
+                <span style={{ color: RED }}>▼ Satış</span>
+              </>
+            ) : null}
+            <span className="flex items-center gap-1">
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full border"
+                style={{ borderColor: trend }}
+              />
+              Zirvə
+            </span>
+          </div>
+        ) : null}
+        {/* Range buttons below the plot. Phones: plain-text pills spread
+            across the row, only the active one filled — seven bordered boxes
+            made the card's bottom edge busy. Still FIXED-width (shrink-0 +
+            nowrap: a pill never renders narrower than its text) in a
+            scrollable row, so a too-narrow screen scrolls instead of
+            crushing the labels, as the old equal-column grid did; px-1.5
+            lets all seven fit a 360px phone without scrolling. */}
+        <div className="mt-3 flex items-center gap-1.5 sm:mt-4 sm:gap-2">
+          <div className="no-scrollbar flex flex-1 items-center justify-between gap-1 overflow-x-auto sm:flex-none sm:justify-start sm:gap-2">
+            {visibleRanges.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                onClick={() => setRange(r.key)}
+                aria-pressed={activeRange === r.key}
+                className={`shrink-0 whitespace-nowrap rounded-lg border px-1.5 py-1 text-center text-[10px] font-medium tracking-[0.05em] transition sm:px-3 sm:text-[11px] sm:tracking-[0.08em] ${
+                  activeRange === r.key
+                    ? "border-brand-green bg-brand-green text-white shadow-sm"
+                    : "border-transparent bg-transparent text-black/55 dark:text-white/60 hover:border-brand-green hover:text-brand-green dark:hover:text-emerald-400 sm:border-brand-green/30 sm:bg-white/60 sm:dark:bg-white/5"
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <span className="hidden text-[10px] text-black/45 dark:text-white/50 sm:inline">
+            ₼
+          </span>
+      </div>
       </div>
     </div>
   );
