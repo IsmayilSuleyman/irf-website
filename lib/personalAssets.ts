@@ -12,6 +12,8 @@ import { effectiveSessionMode, sessionPriceOf } from "@/lib/sessionPricing";
 import { parseSheetDateMs } from "@/lib/sheetDates";
 import {
   dailySparkWindows,
+  detailSparkWindows,
+  FIVE_YEAR_DAYS,
   toSpark,
   YEAR_DAYS,
   type RowSparkSet,
@@ -299,6 +301,10 @@ function orEmptyAfterTimeout<T>(p: Promise<T[]>): Promise<T[]> {
 export async function getAssetRowSparks(
   symbols: string[],
   intraday?: Record<string, number[]>,
+  /** Also build the drill-down chart's 1 AY / 3 AY / 5 İL windows (Fond
+   *  Portfeli only — Aktivlərim has no drill-down to spend payload on).
+   *  5 İL is its own fetch, so a slow one only blanks that window. */
+  detail = false,
 ): Promise<Record<string, RowSparkSet>> {
   const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()))]
     .filter(Boolean)
@@ -307,18 +313,26 @@ export async function getAssetRowSparks(
   const entries = await Promise.all(
     unique.map(async (s) => {
       const known = intraday?.[s];
-      const [closes, day] = await Promise.all([
+      const [closes, day, fiveCloses] = await Promise.all([
         orEmptyAfterTimeout(getCachedDailyCloses(s, YEAR_DAYS + 7)),
         known && known.length > 1
           ? known
           : orEmptyAfterTimeout(getCachedIntradaySpark(s)),
+        detail
+          ? orEmptyAfterTimeout(getCachedDailyCloses(s, FIVE_YEAR_DAYS + 7))
+          : Promise.resolve([] as DailyClose[]),
       ]);
+      const yearPoints = closes.map((c) => ({ t: c.t, v: c.close }));
       const set: RowSparkSet = {
         day: toSpark(day),
-        ...dailySparkWindows(
-          closes.map((c) => ({ t: c.t, v: c.close })),
-          nowMs,
-        ),
+        ...dailySparkWindows(yearPoints, nowMs),
+        ...(detail
+          ? detailSparkWindows(
+              yearPoints,
+              fiveCloses.map((c) => ({ t: c.t, v: c.close })),
+              nowMs,
+            )
+          : {}),
       };
       return [s, set] as const;
     }),

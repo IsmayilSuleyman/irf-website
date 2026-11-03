@@ -14,8 +14,24 @@ export const SPARK_RANGES: { key: SparkRange; label: string; title: string }[] =
 
 export const DEFAULT_SPARK_RANGE: SparkRange = "day";
 
+/**
+ * The Fond Portfeli drill-down chart's windows — the row toggle's three
+ * plus 1 AY / 3 AY (sliced from the same year of closes) and 5 İL (its own
+ * longer fetch). Rows only ever read the SparkRange subset.
+ */
+export type DetailRange = "day" | "month" | "quarter" | "half" | "year" | "five";
+
+export const DETAIL_RANGES: { key: DetailRange; label: string }[] = [
+  { key: "day", label: "1G" },
+  { key: "month", label: "1 AY" },
+  { key: "quarter", label: "3 AY" },
+  { key: "half", label: "6 AY" },
+  { key: "year", label: "1 İL" },
+  { key: "five", label: "5 İL" },
+];
+
 /** One row's series per window; a missing or too-short one draws no line. */
-export type RowSparkSet = Partial<Record<SparkRange, number[]>>;
+export type RowSparkSet = Partial<Record<DetailRange, number[]>>;
 
 /** The windows at least one row can draw, in pill order. */
 export function availableSparkRanges(
@@ -41,8 +57,11 @@ export function initialSparkRange(
 }
 
 const DAY_MS = 86_400_000;
+export const MONTH_DAYS = 31;
+export const QUARTER_DAYS = 92;
 export const HALF_YEAR_DAYS = 183;
 export const YEAR_DAYS = 365;
+export const FIVE_YEAR_DAYS = 5 * 365 + 2;
 
 // Densest series a row needs: the sparkline is ≤160px wide, and ≤190
 // points is about the density of the old six-month daily rows — a year of
@@ -74,6 +93,17 @@ export function toSpark(values: number[]): number[] {
   ).map((v) => Number(v.toPrecision(5)));
 }
 
+function sinceWindow(
+  points: Array<{ t: string; v: number }>,
+  nowMs: number,
+): (days: number) => number[] {
+  const dated = points
+    .map((p) => ({ ms: Date.parse(p.t), v: p.v }))
+    .filter((p) => Number.isFinite(p.ms));
+  return (days) =>
+    toSpark(dated.filter((p) => p.ms >= nowMs - days * DAY_MS).map((p) => p.v));
+}
+
 /**
  * The Yarımillik and İllik slices of an ascending daily series, windowed
  * on the wall clock (server side only, so no hydration skew). `t` is an
@@ -83,12 +113,25 @@ export function dailySparkWindows(
   points: Array<{ t: string; v: number }>,
   nowMs: number,
 ): Pick<RowSparkSet, "half" | "year"> {
-  const dated = points
-    .map((p) => ({ ms: Date.parse(p.t), v: p.v }))
-    .filter((p) => Number.isFinite(p.ms));
-  const since = (days: number) =>
-    toSpark(dated.filter((p) => p.ms >= nowMs - days * DAY_MS).map((p) => p.v));
+  const since = sinceWindow(points, nowMs);
   return { half: since(HALF_YEAR_DAYS), year: since(YEAR_DAYS) };
+}
+
+/**
+ * The drill-down chart's extra windows: 1 AY and 3 AY from the year of
+ * closes the rows already hold, 5 İL from a separate longer series.
+ */
+export function detailSparkWindows(
+  yearPoints: Array<{ t: string; v: number }>,
+  fivePoints: Array<{ t: string; v: number }>,
+  nowMs: number,
+): Pick<RowSparkSet, "month" | "quarter" | "five"> {
+  const since = sinceWindow(yearPoints, nowMs);
+  return {
+    month: since(MONTH_DAYS),
+    quarter: since(QUARTER_DAYS),
+    five: sinceWindow(fivePoints, nowMs)(FIVE_YEAR_DAYS),
+  };
 }
 
 const HOUR_MS = 3_600_000;

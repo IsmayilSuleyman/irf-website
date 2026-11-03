@@ -23,7 +23,9 @@ import type { ScoredItem } from "@/lib/momentum";
 import type { ExtendedMode, ExtendedSymbolQuote } from "@/lib/extendedPortfolio";
 import {
   availableSparkRanges,
+  DETAIL_RANGES,
   initialSparkRange,
+  type DetailRange,
   type RowSparkSet,
   type SparkRange,
 } from "@/lib/sparkRanges";
@@ -321,6 +323,10 @@ export function AllocationList({
   );
   // Fresh sparklines fade in only once the viewer has switched windows.
   const [sparkSwitched, setSparkSwitched] = useState(false);
+  // The drill-down chart's own window, shared by every open row (so
+  // comparing two holdings keeps the same span); independent of the row
+  // toggle, which only has the three backdrop windows.
+  const [detailRange, setDetailRange] = useState<DetailRange>("year");
   const pickSparkRange = (r: SparkRange) => {
     setSparkRange(r);
     setSparkSwitched(true);
@@ -776,7 +782,13 @@ export function AllocationList({
               {/* 64px track fits the iconed session pill in % mode so column
                   toggling never overflows; AZN amount modes may extend into
                   the gap between the two number columns. */}
-              <div className="tile-figure grid shrink-0 grid-cols-[auto_56px] items-center gap-x-2 gap-y-1 text-right sm:grid-cols-[auto_64px] sm:gap-x-4">
+              {/* An open row moves these figures into the drill-down's
+                  right column (above the factor pills). */}
+              <div
+                className={`tile-figure grid shrink-0 grid-cols-[auto_56px] items-center gap-x-2 gap-y-1 text-right sm:grid-cols-[auto_64px] sm:gap-x-4 ${
+                  momoIsOpen ? "hidden" : ""
+                }`}
+              >
                 <div className="num text-xs font-medium text-black/85 dark:text-white/90 sm:text-[13px]">
                   <AnimatePresence initial={false}>
                     {visible.value && (
@@ -924,33 +936,150 @@ export function AllocationList({
                             </span>
                           )}
                         </div>
-                        {/* Chart left, factor pills right (stacked on
-                            phones): the picked window's price against the
-                            average purchase price, beside the momentum
-                            factors. */}
-                        <div className="grid gap-4 pb-1 pl-4 pr-2 pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-8 sm:pl-12">
-                          {sparkSeries && sparkSeries.length > 1 ? (
-                            <HoldingDetailChart
-                              values={sparkSeries}
-                              avgPrice={item.avgPurchaseUsd ?? null}
-                              up={sparkUp}
-                              id={`fpdetail-${ticker}-${sparkRange}`}
-                              format={(usd) =>
-                                priceCur === "usd"
-                                  ? formatUsd(usd)
-                                  : formatAzn(usd * USD_TO_AZN)
-                              }
-                            />
-                          ) : null}
-                          <MomentumFactorRows
-                            row={momoRow}
-                            className={
-                              sparkSeries && sparkSeries.length > 1
-                                ? ""
-                                : "sm:col-span-2"
-                            }
-                          />
-                        </div>
+                        {/* Chart left (window pills under it), figures +
+                            factor pills right; stacked on phones. */}
+                        {(() => {
+                          const ranges = DETAIL_RANGES.filter(
+                            (r) => (sparks?.[ticker]?.[r.key]?.length ?? 0) > 1,
+                          );
+                          const active =
+                            ranges.find((r) => r.key === detailRange)?.key ??
+                            ranges[ranges.length - 1]?.key ??
+                            null;
+                          const series =
+                            active && !item.isCash
+                              ? sparks?.[ticker]?.[active]
+                              : undefined;
+                          const hasChart = !!series && series.length > 1;
+                          // 1G reads vs the previous close like the day
+                          // badge; the daily windows by first → last close.
+                          const windowPct = !hasChart
+                            ? null
+                            : active === "day" && item.dayChangePct != null
+                              ? item.dayChangePct
+                              : series![0] > 0
+                                ? series![series!.length - 1] / series![0] - 1
+                                : null;
+                          const fmtPrice = (usd: number) =>
+                            priceCur === "usd"
+                              ? formatUsd(usd)
+                              : formatAzn(usd * USD_TO_AZN);
+                          const priceNow =
+                            item.isCash || item.priceUsd == null
+                              ? null
+                              : extQuote
+                                ? extQuote.priceUsd
+                                : item.priceUsd;
+                          const FIG_LABEL =
+                            "text-[11px] text-black/45 dark:text-white/50";
+                          return (
+                            <div className="grid gap-4 pb-1 pl-4 pr-2 pt-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-8 sm:pl-12">
+                              {hasChart ? (
+                                <div className="flex min-w-0 flex-col gap-2">
+                                  <HoldingDetailChart
+                                    values={series!}
+                                    avgPrice={item.avgPurchaseUsd ?? null}
+                                    up={windowPct != null ? windowPct >= 0 : null}
+                                    id={`fpdetail-${ticker}-${active}`}
+                                    format={fmtPrice}
+                                  />
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    {ranges.map((r) => (
+                                      <button
+                                        key={r.key}
+                                        type="button"
+                                        onClick={() => setDetailRange(r.key)}
+                                        aria-pressed={active === r.key}
+                                        className={`num whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[10px] font-medium tracking-[0.04em] transition ${
+                                          active === r.key
+                                            ? "border-brand-green bg-brand-green text-white"
+                                            : "border-brand-green/25 text-black/55 hover:border-brand-green hover:text-brand-green dark:text-white/60 dark:hover:text-emerald-400"
+                                        }`}
+                                      >
+                                        {r.label}
+                                      </button>
+                                    ))}
+                                    {windowPct != null ? (
+                                      <span
+                                        title="Seçilmiş dövr üzrə qiymət dəyişimi"
+                                        className={`num ml-auto rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                                          windowPct >= 0
+                                            ? "bg-brand-green/15 text-brand-green dark:text-emerald-400"
+                                            : "bg-brand-red/15 text-brand-red dark:text-red-400"
+                                        }`}
+                                      >
+                                        {windowPct >= 0 ? "+" : ""}
+                                        {(windowPct * 100).toFixed(1)}%
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              ) : null}
+                              <div className={hasChart ? "" : "sm:col-span-2"}>
+                                {/* The row's top-right figures, relocated:
+                                    same badges (and % ↔ amount toggles). */}
+                                <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1.5">
+                                  {priceNow != null ? (
+                                    <>
+                                      <span className={FIG_LABEL}>Hazırki qiymət:</span>
+                                      <span className="flex items-center justify-end gap-2">
+                                        <span className="num text-[12px] font-semibold text-black/85 dark:text-white/90">
+                                          {fmtPrice(priceNow)}
+                                        </span>
+                                        {extQuote && extended ? (
+                                          <ChangeBadge
+                                            pct={extQuote.changePct}
+                                            amountAzn={extQuote.deltaAzn}
+                                            mode={extMode[item.name] ?? "pct"}
+                                            onToggle={() => flipMode(setExtMode, item.name)}
+                                            currency={priceCur}
+                                            icon={
+                                              <span
+                                                aria-hidden
+                                                className={`inline-flex shrink-0 ${EXTENDED_META[extended.mode].iconTint} [&_svg]:h-3 [&_svg]:w-3`}
+                                              >
+                                                {EXTENDED_META[extended.mode].icon}
+                                              </span>
+                                            }
+                                          />
+                                        ) : item.dayChangePct != null ? (
+                                          <ChangeBadge
+                                            pct={item.dayChangePct}
+                                            amountAzn={item.dayChangeAzn}
+                                            mode={dayMode[item.name] ?? "pct"}
+                                            onToggle={() => flipMode(setDayMode, item.name)}
+                                            variant="outlined"
+                                            currency={priceCur}
+                                          />
+                                        ) : null}
+                                      </span>
+                                    </>
+                                  ) : null}
+                                  <span className={FIG_LABEL}>Ümumi dəyər:</span>
+                                  <span className="flex items-center justify-end gap-2">
+                                    <span className="num text-[12px] font-semibold text-black/85 dark:text-white/90">
+                                      {formatMoney(
+                                        item.valueAzn + (extQuote?.deltaAzn ?? 0),
+                                        valueCur,
+                                      )}
+                                    </span>
+                                    {item.changePct != null && !item.isCash ? (
+                                      <ChangeBadge
+                                        pct={item.changePct}
+                                        amountAzn={item.totalPnlAzn}
+                                        mode={totalMode[item.name] ?? "pct"}
+                                        onToggle={() => flipMode(setTotalMode, item.name)}
+                                        currency={valueCur}
+                                      />
+                                    ) : null}
+                                  </span>
+                                </div>
+                                <div className="my-2.5 border-t border-black/10 dark:border-white/10" />
+                                <MomentumFactorRows row={momoRow} />
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </>
                     ) : null}
                   </div>

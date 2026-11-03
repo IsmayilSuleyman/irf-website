@@ -562,14 +562,16 @@ export default async function DashboardPage({
       ? getAssetRowSparks(assetPositions.map((p) => p.symbol))
       : Promise.resolve({} as Record<string, RowSparkSet>),
     // Fond Portfeli row sparklines — fund view only, one cached year of
-    // closes per non-cash holding. The Günlük curves are the ticker
-    // strip's holdings sparks, already fetched above — no extra calls.
+    // closes per non-cash holding, plus five years for the drill-down
+    // chart's 5 İL window. The Günlük curves are the ticker strip's
+    // holdings sparks, already fetched above — no extra calls.
     fundView && holdings.length > 0
       ? getAssetRowSparks(
           holdings
             .filter((h) => !h.isCash && isTickerSymbol(h.symbol))
             .map((h) => h.symbol),
           Object.fromEntries(holdingsTicker.map((q) => [q.label, q.spark])),
+          true,
         )
       : Promise.resolve({} as Record<string, RowSparkSet>),
     assetPositions.length > 0
