@@ -774,9 +774,10 @@ export default async function DashboardPage({
         ]
       : priceChartData;
 
-  // The chart headline's right-edge cluster: the extended-hours badge when
-  // a session is live (the hide-amounts eye lives in the header now).
-  // Personal view only — the fund view keeps it in its own row.
+  // The chart headline's right-edge cluster (sm+): the extended-hours badge
+  // when a session is live — the hide-amounts eye lives in the page header
+  // now. Personal view only; the fund view keeps the badge in its own row.
+  // On phones the badge takes the `chartSession` line below instead.
   const chartActions = (
     <div className="flex items-center gap-2">
       {badgePortfolio ? (
@@ -799,6 +800,27 @@ export default async function DashboardPage({
       ) : null}
     </div>
   );
+
+  // Phones: the same badge on its own line under the chart headline
+  // (ChartSummary's `session` slot), label and ₼ delta visible since the
+  // line is all its own; the popover opens from the left edge there.
+  const chartSession = badgePortfolio ? (
+    <ExtendedHoursBadge
+      data={badgePortfolio}
+      scope="personal"
+      history={extendedHistory}
+      align="left"
+      detail="full"
+      extra={{
+        baseValueAzn: holdingValue,
+        unitPriceAzn: fund.unitPrice,
+        unitPriceExtAzn,
+      }}
+    />
+  ) : sessionNow ? (
+    <ExtendedHoursPlaceholder mode={sessionNow} />
+  ) : null;
+
 
   // The header's account button and the viewer's own row in Pay sahibləri:
   // initials, and the Google profile picture when this login has one.
@@ -1289,6 +1311,7 @@ export default async function DashboardPage({
                         scale: holderShare,
                       }}
                       action={chartActions}
+                      session={chartSession}
                     />
                   }
                   priceHero={
@@ -1308,6 +1331,7 @@ export default async function DashboardPage({
                         scale: fund.totalUnits > 0 ? 1 / fund.totalUnits : 0,
                       }}
                       action={chartActions}
+                      session={chartSession}
                     />
                   }
                 />

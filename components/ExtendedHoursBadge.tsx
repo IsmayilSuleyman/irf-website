@@ -72,6 +72,7 @@ export function ExtendedHoursBadge({
   scope,
   history = [],
   align = "left",
+  detail = "auto",
   extra,
 }: {
   data: ExtendedPortfolio;
@@ -79,6 +80,13 @@ export function ExtendedHoursBadge({
   history?: SessionHistoryPoint[];
   /** Popover anchor edge — "right" when the badge sits near a card's right edge. */
   align?: "left" | "right";
+  /**
+   * "auto" (default): phones show icon + percent only, the label and ₼
+   * delta wait for sm+. "full": label and delta at every width — for a
+   * slot that owns a whole line, like the chart headline's session line on
+   * phones.
+   */
+  detail?: "auto" | "full";
   /**
    * Absolute figures for the popover (phones can't fit them in the pill):
    * the value the delta applies to at the last close (viewer's slice or the
@@ -126,12 +134,16 @@ export function ExtendedHoursBadge({
         {/* Phones show icon + percent only, so the badge shares one row with
             the countdown chip; the label and ₼ delta live in the popover
             (and return inline on sm+). */}
-        <span className="hidden text-black/45 dark:text-white/50 sm:inline">
+        <span
+          className={`text-black/45 dark:text-white/50 ${
+            detail === "full" ? "inline" : "hidden sm:inline"
+          }`}
+        >
           {meta.label}:
         </span>
         <span className={`num font-semibold ${numberTone}`}>{pct}</span>
         {showDelta ? (
-          <span className="hidden sm:inline">
+          <span className={detail === "full" ? "inline" : "hidden sm:inline"}>
             <Masked mask="••••" className="text-black/45 dark:text-white/50">
               <span className={`num opacity-90 ${numberTone}`}>({delta})</span>
             </Masked>
