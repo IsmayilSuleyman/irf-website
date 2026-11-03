@@ -1,7 +1,11 @@
-// The Fond Portfeli drill-down's price chart: the row sparkline's window
-// (Günlük / Yarımillik / İllik, whichever the toggle picked) drawn large,
-// against the holding's average purchase price as a dashed reference line
-// — "where is it now vs what we paid". Pure SVG like RowSpark, no hooks.
+"use client";
+
+import { useState, type PointerEvent } from "react";
+
+// The Fond Portfeli drill-down's price chart: the picked window (1G … 5 İL)
+// drawn large, against the holding's average purchase price as a dashed
+// reference line — "where is it now vs what we paid". Pure SVG like
+// RowSpark; hovering (or touch-dragging) reads the exact price at any point.
 //
 // The svg stretches (preserveAspectRatio=none) to fill the box, so the line
 // keeps a fixed stroke via non-scaling-stroke, and every round or textual
@@ -29,6 +33,8 @@ export function HoldingDetailChart({
   /** Price formatter for the two labels (USD or AZN view). */
   format: (usd: number) => string;
 }) {
+  // Index of the point under the pointer; null when not hovering.
+  const [hover, setHover] = useState<number | null>(null);
   if (values.length < 2) return null;
   const up = upOverride ?? values[values.length - 1] >= values[0];
 
@@ -47,6 +53,17 @@ export function HoldingDetailChart({
   const lastY = y(last);
   const refY = ref != null ? y(ref) : null;
 
+  const pick = (e: PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (r.width <= 0) return;
+    const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    setHover(Math.round(f * (values.length - 1)));
+  };
+  // A window switch can shrink the series under a stale index.
+  const hIdx = hover == null ? null : Math.min(hover, values.length - 1);
+  const hx = hIdx == null ? 0 : hIdx * step;
+  const hy = hIdx == null ? 0 : y(values[hIdx]);
+
   return (
     <div
       className={`relative pb-5 ${
@@ -56,7 +73,15 @@ export function HoldingDetailChart({
       }`}
     >
       {/* L-shaped axes as the plot box's own left/bottom borders. */}
-      <div className="relative h-28 border-b border-l border-black/15 dark:border-white/20 sm:h-32">
+      {/* touch-pan-y: a horizontal finger drag scrubs the price, a vertical
+          one still scrolls the page. */}
+      <div
+        className="relative h-28 cursor-crosshair touch-pan-y border-b border-l border-black/15 dark:border-white/20 sm:h-32"
+        onPointerMove={pick}
+        onPointerDown={pick}
+        onPointerLeave={() => setHover(null)}
+        onPointerCancel={() => setHover(null)}
+      >
         <svg
           aria-hidden
           viewBox={`0 0 100 ${H}`}
@@ -97,6 +122,31 @@ export function HoldingDetailChart({
               {format(ref)}
             </span>
           </div>
+        )}
+
+        {hIdx != null && (
+          <>
+            {/* Hover guide + point + price bubble; the bubble anchors to
+                the nearer edge near the plot's ends so it never clips. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 w-px bg-current opacity-40"
+              style={{ left: `${hx}%` }}
+            />
+            <span
+              aria-hidden
+              className="pointer-events-none absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-current ring-2 ring-white dark:ring-[#0f1a14]"
+              style={{ left: `${hx}%`, top: `${hy}%` }}
+            />
+            <span
+              className={`num pointer-events-none absolute z-10 whitespace-nowrap rounded-md border border-black/10 bg-white/95 px-1.5 py-0.5 text-[11px] font-semibold text-black/85 shadow-sm dark:border-white/15 dark:bg-[#0f1a14]/95 dark:text-white/90 ${
+                hx < 15 ? "" : hx > 85 ? "-translate-x-full" : "-translate-x-1/2"
+              } ${hy < 30 ? "translate-y-2" : "-translate-y-[calc(100%+8px)]"}`}
+              style={{ left: `${hx}%`, top: `${hy}%` }}
+            >
+              {format(values[hIdx])}
+            </span>
+          </>
         )}
 
         {/* Latest value: a round HTML dot on the right edge. */}
