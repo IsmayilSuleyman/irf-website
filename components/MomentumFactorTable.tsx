@@ -72,9 +72,11 @@ export function azOrdinal(n: number): string {
 function ValuePill({
   children,
   tone,
+  title,
 }: {
   children: React.ReactNode;
   tone: "up" | "down" | "muted";
+  title?: string;
 }) {
   const cls =
     tone === "up"
@@ -84,6 +86,7 @@ function ValuePill({
         : "border-transparent bg-black/5 text-black/45 dark:bg-white/10 dark:text-white/50";
   return (
     <span
+      title={title}
       className={`num inline-flex min-w-[3.6rem] justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-medium ${cls}`}
     >
       {children}
@@ -92,12 +95,13 @@ function ValuePill({
 }
 
 /**
- * Factor breakdown for the holdings drill-down, one line per factor:
- * label · rank · value pill, with the pills aligned in a single right-hand
- * column. The 200GO line puts the price-vs-average comparison where the
- * ranks sit and the above/below state in the pill column. Phones get the
- * short "8/17" rank form so the three columns still fit. No weights here —
- * those belong to the Momentum section where they are adjustable.
+ * Factor breakdown for the holdings drill-down, one compact line per
+ * factor: label · value pill, the pills aligned in one right-hand column
+ * beside the drill-down's price chart. The detail that used to fill a
+ * middle column — the rank ("23 pozisiyadan 13-cü"), the S&P 500 verdict,
+ * the price-vs-200GO comparison — rides each pill's hover title instead.
+ * No weights here — those belong to the Momentum section where they are
+ * adjustable.
  */
 export function MomentumFactorRows({
   row,
@@ -106,92 +110,62 @@ export function MomentumFactorRows({
   row: ScoredItem;
   className?: string;
 }) {
-  const valueCls = (v: number) =>
-    v >= 0
-      ? "text-brand-green dark:text-emerald-400"
-      : "text-brand-red dark:text-red-400";
   const LABEL = "text-[11px] text-black/45 dark:text-white/50";
-  const RANK = "num text-[11px] text-black/55 dark:text-white/60";
 
   return (
     <div
-      className={`grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1.5 ${className}`}
+      className={`grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1.5 ${className}`}
     >
       {FACTORS.map((f) => {
         const value = row[f.key];
         const rank = row.ranks[f.key];
         const n = row.counts[f.key] ?? 0;
-        const hasRank = value != null && rank != null;
         return (
           <Fragment key={f.key}>
             <span className={LABEL}>{f.full}:</span>
-            <span className={`${RANK} text-right`}>
-              {hasRank ? (
-                <>
-                  <span className="sm:hidden">
-                    {rank}/{n}
-                  </span>
-                  <span className="hidden sm:inline">
-                    {n} pozisiyadan {azOrdinal(rank)}
-                  </span>
-                </>
-              ) : (
-                "məlumat yoxdur"
-              )}
-            </span>
-            <ValuePill tone={value == null ? "muted" : value >= 0 ? "up" : "down"}>
+            <ValuePill
+              tone={value == null ? "muted" : value >= 0 ? "up" : "down"}
+              title={
+                value != null && rank != null
+                  ? `${n} pozisiyadan ${azOrdinal(rank)}`
+                  : "məlumat yoxdur"
+              }
+            >
               {value == null ? "—" : fmtPct(value)}
             </ValuePill>
           </Fragment>
         );
       })}
 
-      {/* Binary factors mirror each other: the comparison in the rank column,
-          the state in the pill column. The benchmark is the SPY ETF but is
-          named for its index everywhere in the UI. */}
+      {/* The benchmark is the SPY ETF but is named for its index everywhere
+          in the UI. */}
       <span className={LABEL}>S&P 500-ə nisbi güc:</span>
       {row.rs == null ? (
-        <>
-          <span className={`${RANK} text-right`}>məlumat yoxdur</span>
-          <ValuePill tone="muted">—</ValuePill>
-        </>
+        <ValuePill tone="muted" title="məlumat yoxdur">
+          —
+        </ValuePill>
       ) : (
-        <>
-          <span
-            className={`num text-right text-[11px] font-medium ${valueCls(
-              row.rs >= 0 ? 1 : -1,
-            )}`}
-          >
-            13 həftədə S&P 500-dən {row.rs >= 0 ? "üstün" : "geridə"}
-          </span>
-          <ValuePill tone={row.rs >= 0 ? "up" : "down"}>
-            {fmtPct(row.rs)}
-          </ValuePill>
-        </>
+        <ValuePill
+          tone={row.rs >= 0 ? "up" : "down"}
+          title={`13 həftədə S&P 500-dən ${row.rs >= 0 ? "üstün" : "geridə"}`}
+        >
+          {fmtPct(row.rs)}
+        </ValuePill>
       )}
 
       <span className={LABEL}>200 günlük ortalama:</span>
       {row.avg200Usd == null ? (
-        <>
-          <span className={`${RANK} text-right`}>məlumat yoxdur</span>
-          <ValuePill tone="muted">—</ValuePill>
-        </>
+        <ValuePill tone="muted" title="məlumat yoxdur">
+          —
+        </ValuePill>
       ) : (
-        <>
-          <span
-            className={`num text-right text-[11px] font-medium ${valueCls(
-              row.above200 ? 1 : -1,
-            )}`}
-          >
-            {formatUsd(row.priceUsd)} {row.above200 ? ">" : "<"}{" "}
-            {formatUsd(row.avg200Usd)}
-          </span>
-          <ValuePill tone={row.above200 ? "up" : "down"}>
-            {row.above200 ? "üzərində" : "altında"}
-          </ValuePill>
-        </>
+        <ValuePill
+          tone={row.above200 ? "up" : "down"}
+          title={`${formatUsd(row.priceUsd)} ${row.above200 ? ">" : "<"} ${formatUsd(row.avg200Usd)}`}
+        >
+          {row.above200 ? "üzərində" : "altında"}
+        </ValuePill>
       )}
     </div>
   );
 }
-
