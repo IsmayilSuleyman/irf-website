@@ -1,6 +1,7 @@
 import { Masked } from "@/components/Masked";
 import { SectorIcon } from "@/components/SectorIcon";
 import { ShowMore } from "@/components/ShowMore";
+import { CollapsibleCard } from "@/components/Collapsible";
 import { sectorColor } from "@/lib/sectorColors";
 import { formatAzn } from "@/lib/portfolio";
 import {
@@ -154,16 +155,22 @@ export function InvestmentPolicyCard({
   const nextUnwind = report.unwind.schedule.find((m) => m.status === "next");
   const unwindActive = report.unwind.excessAzn > 0 && !report.unwind.finished;
 
+  // Optionally hide-able (İsmayıl's ask): the title row stays, everything
+  // below folds behind the Gizlət pill and the choice is remembered.
   return (
-    <div className="glass flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between gap-3">
+    <CollapsibleCard
+      storageKey="irf-fold-siyaset"
+      title={
         <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
           İnvestisiya Siyasəti
         </div>
-        <div className="text-[11px] text-black/45 dark:text-white/50">
+      }
+      aside={
+        <div className="hidden text-[11px] text-black/45 dark:text-white/50 sm:block">
           Qüvvədə: {formatPolicyDate(POLICY.effectiveDate)}
         </div>
-      </div>
+      }
+    >
 
       {/* §1 — sleeves against their floor/caps */}
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
@@ -360,6 +367,6 @@ export function InvestmentPolicyCard({
         qərar yazılı və tarixli olmalıdır.
       </div>
       </ShowMore>
-    </div>
+    </CollapsibleCard>
   );
 }

@@ -366,6 +366,13 @@ body {
     backdrop-filter: blur(6px);
   }
 
+  /* The phone dock's 30px wet-glass blur is the same budget risk — a
+     light frost reads the same on a phone screen. */
+  .glass-dock {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
   /* The dashboard's drifting-orb layer: three 500px+ blurred circles
      animating forever on a fixed layer — the compositor never idles.
      The page gradient behind it carries the look alone. */
@@ -422,11 +429,103 @@ body {
 }
 
 /* ============================================================
+   The phone dock (components/MobileTabBar) — Leobank-style wet glass:
+   a near-clear pill with a thin white rim, a top sheen, deep blur and a
+   frosted capsule behind the active tab (--dock-on). The bank pages tint
+   the drop shadow blue via data-tone.
+   ============================================================ */
+.glass-dock {
+  --dock-on: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 12px 30px rgba(22, 163, 74, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+  backdrop-filter: blur(30px) saturate(1.5);
+  isolation: isolate;
+}
+.glass-dock::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.38),
+    rgba(255, 255, 255, 0) 55%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.glass-dock[data-tone="bank"] {
+  box-shadow:
+    0 12px 30px rgba(47, 97, 216, 0.16),
+    0 2px 6px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.dark .glass-dock {
+  --dock-on: rgba(255, 255, 255, 0.16);
+  background: rgba(24, 28, 26, 0.5);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.dark .glass-dock::before {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0) 55%
+  );
+}
+.dark .glass-dock[data-tone="bank"] {
+  background: rgba(24, 26, 32, 0.5);
+}
+
+/* ============================================================
+   Live-strip marquee — the phone ticker's quotes glide slowly to the left
+   (components/MarketTickerStrip). The track holds the items twice, so a
+   -50% translate loops seamlessly; hover/focus pauses it, reduced motion
+   stops it, and an opened tile panel pauses it from JS (data-paused).
+   ============================================================ */
+@keyframes strip-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.strip-marquee {
+  display: flex;
+  width: max-content;
+  animation: strip-slide var(--strip-duration, 60s) linear infinite;
+}
+.strip-marquee:hover,
+.strip-marquee:focus-within,
+[data-paused="true"] > .strip-marquee {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .strip-marquee {
+    animation: none;
+  }
+  /* No glide: the row scrolls by hand instead, so the second copy goes. */
+  .strip-wrap {
+    overflow-x: auto;
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+  .strip-marquee > [data-clone] {
+    display: none;
+  }
+}
+
+/* ============================================================
    External members (lib/access.ts) have no İRF portfolio. The gated
    pages flag themselves and the phone tab bar — rendered by the root
    layout, which never reads the session — drops its Portfel tab.
    Browsers without :has() keep it; /dashboard only redirects to /bank.
    ============================================================ */
-body:has([data-access-scope="external"]) .mobile-tab-bar a[href="/dashboard"] {
+body:has([data-access-scope="external"]) .mobile-tab-bar a[href^="/dashboard"] {
   display: none;
 }

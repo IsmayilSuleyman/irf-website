@@ -8,6 +8,11 @@ import { SectorIcon } from "@/components/SectorIcon";
 import { sectorColor } from "@/lib/sectorColors";
 import { Masked } from "@/components/Masked";
 import {
+  CollapseBody,
+  CollapseButton,
+  useRememberedOpen,
+} from "@/components/Collapsible";
+import {
   savePurchaseCadence,
   saveWeeklyBudget,
 } from "@/app/dashboard/budget-actions";
@@ -91,6 +96,98 @@ function PodiumBlock({
           {pick.score.toFixed(1)}
         </span>
       </div>
+    </div>
+  );
+}
+
+/** A row of the "Zəiflər" podium: the board's lowest momentum scores. */
+export type WeakRow = {
+  symbol: string;
+  name: string;
+  sector: string | null;
+  score: number;
+};
+
+// The weak side of the board, mirrored from the buy podium (İsmayıl: "we
+// also need to see losers in this manner"): the three lowest scores, the
+// weakest raised in the centre on a red-washed block. Information only —
+// the SAT matrix below decides sells, this just shows where the board ends.
+function WeakBlock({ row, slot }: { row: WeakRow; slot: 1 | 2 | 3 }) {
+  const color = sectorColor(row.sector ?? "");
+  return (
+    <div className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
+      <span
+        aria-hidden
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+        style={{ backgroundColor: `${color}26`, color }}
+      >
+        <SectorIcon sector={row.sector ?? ""} className="h-3.5 w-3.5" />
+      </span>
+      <div
+        className={`flex w-full min-w-0 flex-col items-center justify-center gap-1 rounded-t-xl border border-b-0 border-brand-red/30 px-1.5 pb-2 pt-2 dark:border-red-400/30 ${BLOCK_HEIGHT[slot]}`}
+        style={{
+          backgroundImage:
+            "linear-gradient(to bottom, rgba(220,38,38,0.14), rgba(220,38,38,0.03))",
+        }}
+      >
+        <span className="num w-full truncate text-center text-xs font-semibold tracking-wide text-black/85 dark:text-white/90 sm:text-sm">
+          {row.symbol}
+        </span>
+        <span
+          className={`num rounded-md px-1.5 py-px text-[10px] font-medium ${scorePill(row.score)}`}
+          title="Momentum balı"
+        >
+          {row.score.toFixed(1)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function WeakPodium({ rows }: { rows: WeakRow[] }) {
+  if (rows.length === 0) return null;
+  // Lowest score = slot 1 (centre, tallest), then 2 right, 3 left.
+  const bySlot = new Map<number, WeakRow>(rows.map((r, i) => [i + 1, r]));
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-red/75 dark:text-red-400/75">
+          Zəiflər
+        </span>
+        <span className="num text-[10.5px] text-black/40 dark:text-white/45">
+          ən aşağı {rows.length} bal
+        </span>
+      </div>
+      <div className="mx-auto w-full max-w-sm">
+        <div className="flex items-end gap-1.5 sm:gap-2">
+          {PODIUM_ORDER.map((slot) => {
+            const row = bySlot.get(slot);
+            return row ? <WeakBlock key={row.symbol} row={row} slot={slot} /> : null;
+          })}
+        </div>
+        <Pedestal />
+      </div>
+      <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
+        {rows.map((row, i) => (
+          <li
+            key={row.symbol}
+            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-2"
+          >
+            <span className="num w-4 shrink-0 text-xs text-black/45 dark:text-white/55">
+              {i + 1}
+            </span>
+            <span className="num shrink-0 text-sm font-semibold tracking-wide text-black/85 dark:text-white/90">
+              {row.symbol}
+            </span>
+            <span className="min-w-0 truncate text-[11px] text-black/45 dark:text-white/50">
+              {row.name}
+            </span>
+            <span className="num ml-auto shrink-0 text-[10px] text-black/40 dark:text-white/45">
+              bal {row.score.toFixed(1)}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -253,6 +350,9 @@ function SellSignals({
   showAmount: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Optionally hide-able (İsmayıl's ask) — the header line stays, the
+  // matrix folds; remembered per device.
+  const [open, toggleOpen] = useRememberedOpen("irf-fold-satis");
   const sat = sell.signals.filter((s) => s.level === "sat");
   const izle = sell.signals.filter((s) => s.level === "izle");
   const shown = expanded ? izle : izle.slice(0, IZLE_VISIBLE);
@@ -271,12 +371,17 @@ function SellSignals({
         <span className="text-[10px] uppercase tracking-[0.22em] text-brand-red/70 dark:text-red-400/70">
           Satış siqnalları
         </span>
-        {sell.signals.length > 0 && (
-          <span className="num text-[10.5px] text-black/40 dark:text-white/45">
-            {sat.length} SAT · {izle.length} İZLƏ · 200GO altında: {below200}
-          </span>
-        )}
+        <span className="flex items-center gap-2">
+          {sell.signals.length > 0 && (
+            <span className="num text-[10.5px] text-black/40 dark:text-white/45">
+              {sat.length} SAT · {izle.length} İZLƏ · 200GO altında: {below200}
+            </span>
+          )}
+          <CollapseButton open={open} onClick={toggleOpen} />
+        </span>
       </div>
+      <CollapseBody open={open}>
+      <div className="flex flex-col gap-1 pt-1">
       {sell.signals.length === 0 ? (
         <p className="text-[11px] text-black/45 dark:text-white/50">
           Satış siqnalı yoxdur — bütün mövqelər trend qaydalarına uyğundur.
@@ -360,6 +465,8 @@ function SellSignals({
           )}
         </>
       )}
+      </div>
+      </CollapseBody>
     </div>
   );
 }
@@ -549,10 +656,13 @@ export function BuyTicketPodium({
   ticket,
   sell,
   canEdit = false,
+  weakest = [],
 }: {
   ticket: BuyTicket;
   sell?: SellState;
   canEdit?: boolean;
+  /** The board's lowest scores for the "Zəiflər" podium (lowest first). */
+  weakest?: WeakRow[];
 }) {
   const { picks, advice, budgetAzn, unallocatedAzn } = ticket;
   if (picks.length === 0 && (sell == null || sell.signals.length === 0)) {
@@ -622,6 +732,10 @@ export function BuyTicketPodium({
         cadence={advice.cadence}
       />
 
+      {/* Alış on the left, Zəiflər on the right (stacked on phones) — the
+          two ends of the same board side by side. */}
+      <div className={`grid gap-6 ${weakest.length > 0 ? "sm:grid-cols-2" : ""}`}>
+      <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2">
         <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-green/75 dark:text-emerald-400/75">
           Alış
@@ -694,6 +808,10 @@ export function BuyTicketPodium({
           </li>
         ))}
       </ul>
+
+      </div>
+      {weakest.length > 0 ? <WeakPodium rows={weakest} /> : null}
+      </div>
 
       {/* One fragility note instead of a chip on every row. Careful copy:
           closeCall marks a pick near its board NEIGHBOUR — possibly an

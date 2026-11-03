@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { PageBackground } from "@/components/PageBackground";
@@ -54,7 +55,11 @@ export default function RootLayout({
         <MotionProvider>
           <PageBackground />
           <div className="relative z-10 min-h-screen">{children}</div>
-          <MobileTabBar />
+          {/* The dock reads ?view= to light the Fond tab — useSearchParams
+              wants a Suspense boundary on the static public pages. */}
+          <Suspense fallback={null}>
+            <MobileTabBar />
+          </Suspense>
           <ThemeToggle />
           <ServiceWorkerRegister />
         </MotionProvider>

@@ -112,10 +112,16 @@ export function Greeting({
   privacyToggle?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      {/* Row 1: greeting + right-corner controls (eye + toggle in one cluster,
-          so the eye adds no extra row height). On mobile the name drops to its
-          own row below (so it never truncates); on desktop it stays inline. */}
+    <div className="relative flex flex-col gap-0.5">
+      {/* A soft green shade behind the right side of the greeting on phones
+          (İsmayıl's ask) — the name's glow, spread into the corner. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-8 -top-8 h-24 w-44 rounded-full bg-[radial-gradient(closest-side,rgba(22,163,74,0.22),rgba(22,163,74,0))] blur-md dark:bg-[radial-gradient(closest-side,rgba(52,211,153,0.22),rgba(52,211,153,0))] sm:hidden"
+      />
+      {/* Row 1: greeting + optional right-corner controls. On mobile the
+          name drops to its own row below (so it never truncates); on
+          desktop it stays inline. */}
       <div className="flex items-center justify-between gap-2">
         <div className="text-[13px] font-semibold uppercase tracking-[0.22em] text-brand-green dark:text-emerald-400">
           Xoş gəldin,

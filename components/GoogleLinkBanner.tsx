@@ -33,6 +33,7 @@ export function GoogleLinkBanner({
   returnTo,
   status,
   tone = "fund",
+  variant = "banner",
 }: {
   /** Page to come back to after Google (e.g. "/dashboard"). */
   returnTo: string;
@@ -40,6 +41,9 @@ export function GoogleLinkBanner({
   status: GoogleLinkStatus;
   /** Fund green on /dashboard, bank blue on /bank. */
   tone?: "fund" | "bank";
+  /** "card": the compact glass card of the dashboard's side rail (and the
+   *  phone's lower slot) instead of the full-width gradient banner. */
+  variant?: "banner" | "card";
 }) {
   const router = useRouter();
   const [hidden, setHidden] = useState(true);
@@ -88,6 +92,57 @@ export function GoogleLinkBanner({
     }
     setHidden(true);
   };
+
+  if (variant === "card") {
+    return (
+      <section
+        aria-label="Google hesabını bağla"
+        className="glass flex flex-col gap-3 p-5"
+      >
+        <p className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
+          Google ilə giriş
+        </p>
+        <p className="text-[12px] leading-relaxed text-black/70 dark:text-white/75">
+          {done
+            ? GOOGLE_LINK_TEXT.linked
+            : "Bir dəfə bağla; sonra şifrəsiz, Google ilə birbaşa bu hesaba gir."}
+        </p>
+        {error ? (
+          <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
+            {error}
+          </p>
+        ) : null}
+        {done ? null : (
+          <div className="flex flex-wrap items-center gap-3">
+            {GOOGLE_CLIENT_ID ? (
+              <div
+                className={`w-[240px] max-w-full ${busy ? "pointer-events-none opacity-60" : ""}`}
+              >
+                <GoogleIdentity clientId={GOOGLE_CLIENT_ID} onCredential={onIdToken} />
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onRedirectLink}
+                className="inline-flex h-8 items-center gap-2 rounded-xl border border-black/10 bg-white/80 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-black/85 shadow-sm transition hover:-translate-y-px disabled:opacity-60 dark:border-white/15 dark:bg-white/10 dark:text-white/90"
+              >
+                <GoogleMark />
+                {busy ? "Yönləndirilir…" : "Hesabı bağla"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onLater}
+              className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/45 transition hover:text-black/75 dark:text-white/50 dark:hover:text-white/80"
+            >
+              Sonra
+            </button>
+          </div>
+        )}
+      </section>
+    );
+  }
 
   const gradient =
     tone === "bank"

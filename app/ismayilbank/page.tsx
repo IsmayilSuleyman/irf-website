@@ -2,6 +2,7 @@ import Link from "next/link";
 import { IsmayilBankCalculator } from "@/components/IsmayilBankCalculator";
 import { IsmayilBankDepositCalculator } from "@/components/IsmayilBankDepositCalculator";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
+import { ThemeButton } from "@/components/ThemeToggle";
 import { getSupabaseServerUser } from "@/lib/supabase/server";
 import { getBankAccounts } from "@/lib/bank";
 import { getBankProductTerms } from "@/lib/bankTerms";
@@ -144,16 +145,21 @@ export default async function IsmayilBankPage({
     <main className="min-h-screen bg-bank-section">
       {/* Slim public-safe top bar: brand left, way back right — the page can
           be viewed signed-out, so it carries no auth-dependent controls. */}
-      <header className="border-b border-black/10 dark:border-white/10 bg-white/80 dark:bg-white/10 px-6 py-4 backdrop-blur-xl">
+      <header className="bg-white/80 dark:bg-white/10 px-6 py-3.5 backdrop-blur-xl sm:py-4">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4">
           <IsmayilBankLogo size={28} />
-          <Link
-            href={backHref}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-black/10 dark:border-white/15 bg-white/80 dark:bg-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-black/55 dark:text-white/60 transition hover:border-bank-blue/30 hover:text-bank-blue dark:hover:text-blue-400"
-          >
-            <span aria-hidden>←</span>
-            {backLabel}
-          </Link>
+          {/* The theme button rides in the header here too — the floating
+              corner switch stays off the app pages. */}
+          <div className="flex items-center gap-2.5">
+            <ThemeButton />
+            <Link
+              href={backHref}
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-full border border-black/10 dark:border-white/15 bg-white/80 dark:bg-white/10 px-3.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-black/55 dark:text-white/60 transition hover:border-bank-blue/30 hover:text-bank-blue dark:hover:text-blue-400 sm:h-9"
+            >
+              <span aria-hidden>←</span>
+              {backLabel}
+            </Link>
+          </div>
         </div>
       </header>
 

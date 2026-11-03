@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
+import {
+  useEffect,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { AnimatePresence, m } from "framer-motion";
 import {
   formatAzn,
@@ -12,15 +18,21 @@ import { ASSET_ICONS } from "@/components/assetIcons";
 import { SectorIcon } from "@/components/SectorIcon";
 import { EXTENDED_META } from "@/components/extendedHoursMeta";
 import { useLivePricing } from "@/components/LivePricing";
+import { isUsMarketOpen } from "@/lib/marketHours";
 import type { ExtendedMode as ExtendedModeKey } from "@/lib/marketHours";
 import type { HistoryPoint, TickerQuote } from "@/lib/marketTicker";
 
-// The Yahoo-Finance-style ticker card under the dashboard greeting: the
-// "Əsas indekslər və aktivlər" tiles with the market-status chips below.
-// Purchasable tiles (S&P 500 / Bitcoin / Qızıl / Gümüş — the ETFs İsmayıl
-// buys on holders' verbal orders) expand a detail panel with the ETF's own
-// quote and the viewer's position; a floating popover would be clipped by
-// the strip's horizontal scroll container, hence the accordion.
+// The phone's live strip under the dashboard greeting (desktop has the
+// Bazar rail card instead). Collapsed, it is one line: the market pulse and
+// the quotes gliding slowly past (İsmayıl: "slowly sliding"), with a round
+// expand button at its right end. Expanded — İsmayıl's "125" — it is the
+// Yahoo-Finance-style tiles card: benchmark tiles + İRF pay + one tile per
+// fund holding, gliding the same way, with the market-status chips below
+// and "Hamısı →" to the Bazar page. Purchasable tiles (S&P 500 / Bitcoin /
+// Qızıl / Gümüş — the ETFs İsmayıl buys on holders' verbal orders) expand a
+// detail panel with the ETF's own quote and the viewer's position; a
+// floating popover would be clipped by the strip's overflow, hence the
+// accordion. The glide pauses while a panel is open.
 
 /** Per-tile ETF info + the viewer's position, keyed by instrument key. */
 export type TileAsset = {
@@ -215,8 +227,10 @@ function Tile({
   // sparkline layer sits behind the relatively-positioned content above.
   // aspect-square: Yahoo-card proportions — label pinned top, figures
   // bottom (mt-auto), the sparkline filling the lower half behind them.
+  // A fixed width (the old min-w) now that the row glides instead of
+  // flexing to the viewport.
   const base =
-    "relative flex aspect-square min-w-[6.25rem] flex-1 flex-col overflow-hidden rounded-xl border px-3 py-2.5 shadow-sm bg-gradient-to-b from-white/80 via-white/60 to-white/50 dark:from-white/10 dark:via-white/[0.05] dark:to-white/[0.03] [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.22),0_1px_2px_0_rgba(0,0,0,0.05)]";
+    "relative flex aspect-square w-[6.25rem] shrink-0 flex-col overflow-hidden rounded-xl border px-3 py-2.5 shadow-sm bg-gradient-to-b from-white/80 via-white/60 to-white/50 dark:from-white/10 dark:via-white/[0.05] dark:to-white/[0.03] [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.22),0_1px_2px_0_rgba(0,0,0,0.05)]";
   if (!expandable) {
     return (
       <div className={`${base} border-black/10 dark:border-white/10`}>
@@ -239,6 +253,69 @@ function Tile({
     </button>
   );
 }
+
+// The collapsed strip's market pulse: a dot and Açıq / Bağlı, computed on
+// the client after mount (the wall clock is not hydration-safe).
+function MarketPulse() {
+  const [open, setOpen] = useState<boolean | null>(null);
+  useEffect(() => {
+    const tick = () => setOpen(isUsMarketOpen(new Date()));
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, []);
+  if (open == null) {
+    return (
+      <span
+        aria-hidden
+        className="h-2 w-2 shrink-0 rounded-full bg-black/10 dark:bg-white/15"
+      />
+    );
+  }
+  return (
+    <span
+      className="flex shrink-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+      title="ABŞ fond bazarları"
+    >
+      <span
+        className={`h-2 w-2 rounded-full ${
+          open ? "bg-brand-green animate-pulse" : "bg-black/25 dark:bg-white/30"
+        }`}
+      />
+      <span
+        className={
+          open
+            ? "text-brand-green dark:text-emerald-400"
+            : "text-black/45 dark:text-white/50"
+        }
+      >
+        {open ? "Açıq" : "Bağlı"}
+      </span>
+    </span>
+  );
+}
+
+function Chevron({ up = false }: { up?: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={up ? "rotate-180" : ""}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+const ROUND_BTN =
+  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white/80 text-black/55 shadow-sm transition hover:text-black/85 dark:border-white/15 dark:bg-white/10 dark:text-white/65 dark:hover:text-white/90";
 
 export function MarketTickerStrip({
   quotes,
@@ -270,10 +347,12 @@ export function MarketTickerStrip({
   assets?: Record<string, TileAsset>;
   /** false for İsmayıl — he is the counterparty, not a buyer. */
   showBuyHint?: boolean;
-  /** One tile per fund holding (`h-<ticker>` keys), its own row under the
-   *  benchmarks. Expanding one shows the 5-year history panel. */
+  /** One tile per fund holding (`h-<ticker>` keys), gliding in the same row
+   *  after the benchmarks. Expanding one shows the 5-year history panel. */
   holdingQuotes?: TickerQuote[];
 }) {
+  // Collapsed one-liner by default; the expand button opens the tiles card.
+  const [expanded, setExpanded] = useState(false);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [histRange, setHistRange] = useState<HistRangeKey>("5y");
   // The İRF tile reticks with the live poll; the server-passed figures are
@@ -332,325 +411,433 @@ export function MarketTickerStrip({
   const showPanel =
     open != null || openInfo != null || (openIsHolding && openQuote != null);
 
-  return (
-    // relative z-20: the card's backdrop-filter creates a stacking context,
-    // so the chip popovers' z-50 can't escape it on their own — lifting the
-    // whole card keeps them above the chart card below (header stays z-40).
-    <div className="relative z-20 flex flex-col gap-2.5 rounded-2xl border border-black/10 bg-white/40 p-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 sm:p-3">
-      <div className="px-0.5 pt-0.5 text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
-        Əsas indekslər və fond aktivləri
-      </div>
-      <div className="no-scrollbar flex gap-2 overflow-x-auto">
-        {quotes.map((q) => (
-          <Tile
-            key={q.key}
-            label={q.label}
-            price={`${formatGrouped(q.price, 2)}$`}
-            changePct={q.changePct}
-            icon={ASSET_ICONS[q.key]}
-            sessionIcon={
-              q.sessionMode ? (
-                <span
-                  className={`inline-flex shrink-0 ${EXTENDED_META[q.sessionMode].iconTint}`}
-                  title={`${EXTENDED_META[q.sessionMode].label} — ETF proksisi ilə`}
-                >
-                  {EXTENDED_META[q.sessionMode].icon}
-                </span>
-              ) : undefined
-            }
-            spark={q.spark}
-            sparkId={q.key}
-            expandable={assets?.[q.key] != null || INFO_TILES[q.key] != null}
-            selected={openKey === q.key}
-            onClick={() =>
-              setOpenKey((k) => (k === q.key ? null : q.key))
-            }
-          />
-        ))}
+  const sessionGlyph = (mode: ExtendedModeKey | null | undefined, title?: string) =>
+    mode ? (
+      <span
+        className={`inline-flex shrink-0 ${EXTENDED_META[mode].iconTint}`}
+        title={title ?? EXTENDED_META[mode].label}
+      >
+        {EXTENDED_META[mode].icon}
+      </span>
+    ) : undefined;
+
+  // ---- the collapsed line's items: İRF first, then the benchmarks
+  const lineItems: { key: string; label: string; price: string; changePct: number | null }[] = [
+    {
+      key: "irf",
+      label: "İRF",
+      price: `${formatGrouped(irfPriceAzn, 2)}₼`,
+      changePct: irfChangePct,
+    },
+    ...quotes.map((q) => ({
+      key: q.key,
+      label: q.label,
+      price: `${formatGrouped(q.price, 2)}$`,
+      changePct: q.changePct,
+    })),
+  ];
+  const lineCopy = (copy: string) =>
+    lineItems.map((it) => (
+      <span
+        key={`${copy}-${it.key}`}
+        className="flex items-center gap-1.5 whitespace-nowrap pr-5 text-[11px]"
+      >
+        <span className="font-semibold text-black/60 dark:text-white/65">
+          {it.label}
+        </span>
+        <span className="num text-black/85 dark:text-white/90">{it.price}</span>
+        <span className={`num font-semibold ${toneOf(it.changePct)}`}>
+          {it.changePct == null ? "—" : fmtPct(it.changePct)}
+        </span>
+      </span>
+    ));
+
+  // ---- the expanded card's tiles, rendered twice for the seamless glide
+  const tilesCopy = (copy: string) => (
+    <>
+      {quotes.map((q) => (
         <Tile
-          label="İRF Payı"
-          price={`${formatGrouped(irfPriceAzn, 2)}₼`}
-          changePct={irfChangePct}
-          icon={ASSET_ICONS.irf}
-          sessionIcon={
-            irfSessionMode ? (
-              <span
-                className={`inline-flex shrink-0 ${EXTENDED_META[irfSessionMode].iconTint}`}
-                title={EXTENDED_META[irfSessionMode].label}
-              >
-                {EXTENDED_META[irfSessionMode].icon}
-              </span>
-            ) : undefined
-          }
-          spark={irf.spark}
-          sparkId="irf"
+          key={`${copy}-${q.key}`}
+          label={q.label}
+          price={`${formatGrouped(q.price, 2)}$`}
+          changePct={q.changePct}
+          icon={ASSET_ICONS[q.key]}
+          sessionIcon={sessionGlyph(
+            q.sessionMode,
+            q.sessionMode
+              ? `${EXTENDED_META[q.sessionMode].label} — ETF proksisi ilə`
+              : undefined,
+          )}
+          spark={q.spark}
+          sparkId={`${q.key}-${copy}`}
+          expandable={assets?.[q.key] != null || INFO_TILES[q.key] != null}
+          selected={openKey === q.key}
+          onClick={() => setOpenKey((k) => (k === q.key ? null : q.key))}
         />
-        {/* The fund's own book, one tile per holding, flowing in the SAME
-            row after the İRF tile — İsmayıl's call: one continuous strip,
-            not a second labeled band. Tapping a tile expands the shared
-            history panel below. */}
-        {holdingQuotes?.map((q) => (
-          <Tile
-            key={q.key}
-            label={q.label}
-            price={`${formatGrouped(q.price, 2)}$`}
-            changePct={q.changePct}
-            icon={
-              <span
-                aria-hidden
-                className="inline-flex shrink-0 text-black/45 dark:text-white/55"
-              >
-                <SectorIcon sector={q.sector ?? ""} className="h-3.5 w-3.5" />
-              </span>
-            }
-            sessionIcon={
-              q.sessionMode ? (
-                <span
-                  className={`inline-flex shrink-0 ${EXTENDED_META[q.sessionMode].iconTint}`}
-                  title={EXTENDED_META[q.sessionMode].label}
-                >
-                  {EXTENDED_META[q.sessionMode].icon}
-                </span>
-              ) : undefined
-            }
-            spark={q.spark}
-            sparkId={q.key}
-            expandable
-            selected={openKey === q.key}
-            onClick={() => setOpenKey((k) => (k === q.key ? null : q.key))}
-          />
-        ))}
-      </div>
-      {/* Unfold animation; mode="wait" + key means switching tiles collapses
-          the old panel before the next one slides open. */}
-      <AnimatePresence initial={false} mode="wait">
-      {showPanel && (
-        <m.div
-          key={openKey}
-          initial={{ height: 0, opacity: 0, y: -6 }}
-          animate={{ height: "auto", opacity: 1, y: 0 }}
-          exit={{ height: 0, opacity: 0, y: -6 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="overflow-hidden"
-        >
-        <div className="rounded-xl border border-brand-green/30 bg-brand-green/5 px-3.5 py-3 text-[12px]">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <span className="font-semibold text-black/85 dark:text-white/90">
-              {openLabel} ·{" "}
-              <span className="num text-black/55 dark:text-white/60">
-                {panelSymbol}
-              </span>
+      ))}
+      <Tile
+        key={`${copy}-irf`}
+        label="İRF Payı"
+        price={`${formatGrouped(irfPriceAzn, 2)}₼`}
+        changePct={irfChangePct}
+        icon={ASSET_ICONS.irf}
+        sessionIcon={sessionGlyph(irfSessionMode)}
+        spark={irf.spark}
+        sparkId={`irf-${copy}`}
+      />
+      {/* The fund's own book, one tile per holding, flowing in the SAME
+          row after the İRF tile — İsmayıl's call: one continuous strip,
+          not a second labeled band. Tapping a tile expands the shared
+          history panel below. */}
+      {holdingQuotes?.map((q) => (
+        <Tile
+          key={`${copy}-${q.key}`}
+          label={q.label}
+          price={`${formatGrouped(q.price, 2)}$`}
+          changePct={q.changePct}
+          icon={
+            <span
+              aria-hidden
+              className="inline-flex shrink-0 text-black/45 dark:text-white/55"
+            >
+              <SectorIcon sector={q.sector ?? ""} className="h-3.5 w-3.5" />
             </span>
-            <span className="num font-semibold text-black/85 dark:text-white/90">
-              {panelPriceUsd != null
-                ? `${formatGrouped(panelPriceUsd, 2)}$`
-                : "—"}
-              {panelDayPct != null ? (
-                <span className={`ml-1.5 ${toneOf(panelDayPct)}`}>
-                  {fmtPct(panelDayPct)}
-                </span>
-              ) : null}
+          }
+          sessionIcon={sessionGlyph(q.sessionMode)}
+          spark={q.spark}
+          sparkId={`${q.key}-${copy}`}
+          expandable
+          selected={openKey === q.key}
+          onClick={() => setOpenKey((k) => (k === q.key ? null : q.key))}
+        />
+      ))}
+    </>
+  );
+  const tileCount = quotes.length + 1 + (holdingQuotes?.length ?? 0);
+
+  return (
+    <AnimatePresence initial={false} mode="wait">
+      {!expanded ? (
+        <m.div
+          key="line"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          className="relative z-20 flex h-11 items-center gap-2.5 rounded-2xl border border-black/10 bg-white/40 pl-3 pr-1.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5"
+        >
+          <MarketPulse />
+          <div className="strip-wrap relative min-w-0 flex-1 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_6%,#000_94%,transparent)]">
+            <div
+              className="strip-marquee"
+              style={
+                {
+                  "--strip-duration": `${Math.max(30, lineItems.length * 6)}s`,
+                } as CSSProperties
+              }
+            >
+              <div className="flex">{lineCopy("a")}</div>
+              <div className="flex" data-clone aria-hidden>
+                {lineCopy("b")}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            aria-expanded={false}
+            aria-label="Bazar panelini aç"
+            className={ROUND_BTN}
+          >
+            <Chevron />
+          </button>
+        </m.div>
+      ) : (
+        <m.div
+          key="card"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+          // relative z-20: the card's backdrop-filter creates a stacking
+          // context, so the chip popovers' z-50 can't escape it on their
+          // own — lifting the whole card keeps them above the cards below.
+          className="relative z-20 flex flex-col gap-2.5 rounded-2xl border border-black/10 bg-white/40 p-2.5 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-white/5 sm:p-3"
+        >
+          <div className="flex items-center justify-between gap-2 px-0.5 pt-0.5">
+            <span className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
+              Bazar
+            </span>
+            <span className="flex items-center gap-2">
+              <Link
+                href="/market"
+                className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-green transition hover:text-brand-green-deep dark:text-emerald-400"
+              >
+                Hamısı →
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setExpanded(false);
+                  setOpenKey(null);
+                }}
+                aria-expanded
+                aria-label="Bazar panelini yığ"
+                className={ROUND_BTN}
+              >
+                <Chevron up />
+              </button>
             </span>
           </div>
-
-          {/* 1. What this asset is. */}
-          {openKey != null && DESCRIPTIONS[openKey] ? (
-            <p className="mt-1.5 text-[11px] leading-relaxed text-black/55 dark:text-white/60">
-              {DESCRIPTIONS[openKey]}
-            </p>
-          ) : null}
-
-          {/* 2. Price history with 6 AY / 1 İL / 5 İL ranges — fetched on
-              first expand. */}
-          {(() => {
-            const full = openKey != null ? histories[openKey] : undefined;
-            if (full == null) {
-              return (
-                <div className="mt-3 flex h-16 items-center justify-center text-[11px] text-black/40 dark:text-white/45 sm:h-20">
-                  Tarixçə yüklənir...
-                </div>
-              );
-            }
-            const rangeDef =
-              HIST_RANGES.find((r) => r.key === histRange) ?? HIST_RANGES[2];
-            const sliced = sliceHistory(full, rangeDef.days);
-            const hist = sliced.length >= 2 ? sliced : full;
-            if (hist.length < 2) return null;
-            const values = hist.map((p) => p.c);
-            const pctRange =
-              values[0] > 0 ? values[values.length - 1] / values[0] - 1 : null;
-            const line = sparkPath(values, 100, 30, 2);
-            const gid = `hist-${openKey}`;
-            return (
-              <div className="mt-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-                  <span className="text-[10px] uppercase tracking-[0.14em] text-black/45 dark:text-white/50">
-                    {rangeDef.title}
+          {/* The tiles glide left; an open panel holds them still. */}
+          <div
+            className="strip-wrap relative overflow-hidden"
+            data-paused={openKey != null ? "true" : "false"}
+          >
+            <div
+              className="strip-marquee"
+              style={
+                { "--strip-duration": `${Math.max(40, tileCount * 4)}s` } as CSSProperties
+              }
+            >
+              <div className="flex gap-2 pr-2">{tilesCopy("a")}</div>
+              <div className="flex gap-2 pr-2" data-clone>
+                {tilesCopy("b")}
+              </div>
+            </div>
+          </div>
+          {/* Unfold animation; mode="wait" + key means switching tiles
+              collapses the old panel before the next one slides open. */}
+          <AnimatePresence initial={false} mode="wait">
+          {showPanel && (
+            <m.div
+              key={openKey}
+              initial={{ height: 0, opacity: 0, y: -6 }}
+              animate={{ height: "auto", opacity: 1, y: 0 }}
+              exit={{ height: 0, opacity: 0, y: -6 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+            <div className="rounded-xl border border-brand-green/30 bg-brand-green/5 px-3.5 py-3 text-[12px]">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                <span className="font-semibold text-black/85 dark:text-white/90">
+                  {openLabel} ·{" "}
+                  <span className="num text-black/55 dark:text-white/60">
+                    {panelSymbol}
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    {HIST_RANGES.map((r) => (
-                      <button
-                        key={r.key}
-                        type="button"
-                        aria-pressed={histRange === r.key}
-                        onClick={() => setHistRange(r.key)}
-                        className={`rounded-md border px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.08em] transition ${
-                          histRange === r.key
-                            ? "border-brand-green/50 bg-brand-green/15 text-brand-green dark:border-emerald-400/50 dark:text-emerald-400"
-                            : "border-black/10 text-black/45 hover:border-brand-green/40 dark:border-white/15 dark:text-white/50 dark:hover:border-emerald-400/40"
-                        }`}
-                      >
-                        {r.label}
-                      </button>
-                    ))}
-                    {pctRange != null ? (
-                      <span className={`num ml-1 text-[11px] font-semibold ${toneOf(pctRange)}`}>
-                        {fmtPct(pctRange)}
-                      </span>
-                    ) : null}
-                  </span>
-                </div>
-                {(() => {
-                  // Start / low / high figures pinned to their points. The
-                  // SVG stretches (preserveAspectRatio="none"), so text
-                  // inside it would distort — labels and dots are HTML,
-                  // positioned by percentage over the same normalization
-                  // sparkPath uses.
-                  const n = values.length;
-                  const vMin = Math.min(...values);
-                  const vMax = Math.max(...values);
-                  const span = vMax - vMin || 1;
-                  const minIdx = values.indexOf(vMin);
-                  const maxIdx = values.indexOf(vMax);
-                  const PAD = 2 / 30;
-                  const xPct = (i: number) => (i / (n - 1)) * 100;
-                  const yPct = (v: number) =>
-                    (PAD + (1 - (v - vMin) / span) * (1 - 2 * PAD)) * 100;
-                  const fmtPrice = (v: number) =>
-                    `${formatGrouped(v, v >= 1000 ? 0 : 2)}$`;
-                  const marker = (
-                    i: number,
-                    v: number,
-                    pos: "above" | "below",
-                    key: string,
-                  ) => {
-                    const x = xPct(i);
-                    const y = yPct(v);
-                    const tx = x < 10 ? "0%" : x > 90 ? "-100%" : "-50%";
-                    const ty = pos === "above" ? "calc(-100% - 4px)" : "4px";
-                    return (
-                      <span key={key} className="pointer-events-none">
-                        <span
-                          className="absolute h-1.5 w-1.5 rounded-full bg-current"
-                          style={{
-                            left: `${x}%`,
-                            top: `${y}%`,
-                            transform: "translate(-50%, -50%)",
-                          }}
-                        />
-                        <span
-                          className="num absolute whitespace-nowrap rounded bg-white/80 px-1 text-[9px] font-semibold leading-4 text-black/65 dark:bg-black/50 dark:text-white/80"
-                          style={{
-                            left: `${x}%`,
-                            top: `${y}%`,
-                            transform: `translate(${tx}, ${ty})`,
-                          }}
-                        >
-                          {fmtPrice(v)}
-                        </span>
-                      </span>
-                    );
-                  };
-                  const flat = minIdx === maxIdx;
+                </span>
+                <span className="num font-semibold text-black/85 dark:text-white/90">
+                  {panelPriceUsd != null
+                    ? `${formatGrouped(panelPriceUsd, 2)}$`
+                    : "—"}
+                  {panelDayPct != null ? (
+                    <span className={`ml-1.5 ${toneOf(panelDayPct)}`}>
+                      {fmtPct(panelDayPct)}
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+
+              {/* 1. What this asset is. */}
+              {openKey != null && DESCRIPTIONS[openKey] ? (
+                <p className="mt-1.5 text-[11px] leading-relaxed text-black/55 dark:text-white/60">
+                  {DESCRIPTIONS[openKey]}
+                </p>
+              ) : null}
+
+              {/* 2. Price history with 6 AY / 1 İL / 5 İL ranges — fetched on
+                  first expand. */}
+              {(() => {
+                const full = openKey != null ? histories[openKey] : undefined;
+                if (full == null) {
                   return (
-                    <div className={`relative mt-1 ${toneOf(pctRange)}`}>
-                      <svg
-                        viewBox="0 0 100 30"
-                        preserveAspectRatio="none"
-                        aria-hidden
-                        className="h-16 w-full sm:h-20"
-                      >
-                        <defs>
-                          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                            <stop
-                              offset="0%"
-                              stopColor="currentColor"
-                              stopOpacity="0.22"
-                            />
-                            <stop
-                              offset="100%"
-                              stopColor="currentColor"
-                              stopOpacity="0"
-                            />
-                          </linearGradient>
-                        </defs>
-                        <path d={`${line} L100 30 L0 30 Z`} fill={`url(#${gid})`} />
-                        <path
-                          d={line}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          opacity="0.85"
-                        />
-                      </svg>
-                      {marker(
-                        0,
-                        values[0],
-                        yPct(values[0]) < 50 ? "below" : "above",
-                        "start",
-                      )}
-      {/* Both extremes label BELOW their point: the high sits at the
-                          plot's top edge, so an above-label would collide
-                          with the range buttons; the low's label falls into
-                          the natural gap under the chart. */}
-                      {!flat && maxIdx !== 0
-                        ? marker(maxIdx, vMax, "below", "max")
-                        : null}
-                      {!flat && minIdx !== 0
-                        ? marker(minIdx, vMin, "below", "min")
-                        : null}
+                    <div className="mt-3 flex h-16 items-center justify-center text-[11px] text-black/40 dark:text-white/45 sm:h-20">
+                      Tarixçə yüklənir...
                     </div>
                   );
-                })()}
-              </div>
-            );
-          })()}
+                }
+                const rangeDef =
+                  HIST_RANGES.find((r) => r.key === histRange) ?? HIST_RANGES[2];
+                const sliced = sliceHistory(full, rangeDef.days);
+                const hist = sliced.length >= 2 ? sliced : full;
+                if (hist.length < 2) return null;
+                const values = hist.map((p) => p.c);
+                const pctRange =
+                  values[0] > 0 ? values[values.length - 1] / values[0] - 1 : null;
+                const line = sparkPath(values, 100, 30, 2);
+                const gid = `hist-${openKey}`;
+                return (
+                  <div className="mt-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-black/45 dark:text-white/50">
+                        {rangeDef.title}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        {HIST_RANGES.map((r) => (
+                          <button
+                            key={r.key}
+                            type="button"
+                            aria-pressed={histRange === r.key}
+                            onClick={() => setHistRange(r.key)}
+                            className={`rounded-md border px-1.5 py-0.5 text-[9px] font-semibold tracking-[0.08em] transition ${
+                              histRange === r.key
+                                ? "border-brand-green/50 bg-brand-green/15 text-brand-green dark:border-emerald-400/50 dark:text-emerald-400"
+                                : "border-black/10 text-black/45 hover:border-brand-green/40 dark:border-white/15 dark:text-white/50 dark:hover:border-emerald-400/40"
+                            }`}
+                          >
+                            {r.label}
+                          </button>
+                        ))}
+                        {pctRange != null ? (
+                          <span className={`num ml-1 text-[11px] font-semibold ${toneOf(pctRange)}`}>
+                            {fmtPct(pctRange)}
+                          </span>
+                        ) : null}
+                      </span>
+                    </div>
+                    {(() => {
+                      // Start / low / high figures pinned to their points. The
+                      // SVG stretches (preserveAspectRatio="none"), so text
+                      // inside it would distort — labels and dots are HTML,
+                      // positioned by percentage over the same normalization
+                      // sparkPath uses.
+                      const n = values.length;
+                      const vMin = Math.min(...values);
+                      const vMax = Math.max(...values);
+                      const span = vMax - vMin || 1;
+                      const minIdx = values.indexOf(vMin);
+                      const maxIdx = values.indexOf(vMax);
+                      const PAD = 2 / 30;
+                      const xPct = (i: number) => (i / (n - 1)) * 100;
+                      const yPct = (v: number) =>
+                        (PAD + (1 - (v - vMin) / span) * (1 - 2 * PAD)) * 100;
+                      const fmtPrice = (v: number) =>
+                        `${formatGrouped(v, v >= 1000 ? 0 : 2)}$`;
+                      const marker = (
+                        i: number,
+                        v: number,
+                        pos: "above" | "below",
+                        key: string,
+                      ) => {
+                        const x = xPct(i);
+                        const y = yPct(v);
+                        const tx = x < 10 ? "0%" : x > 90 ? "-100%" : "-50%";
+                        const ty = pos === "above" ? "calc(-100% - 4px)" : "4px";
+                        return (
+                          <span key={key} className="pointer-events-none">
+                            <span
+                              className="absolute h-1.5 w-1.5 rounded-full bg-current"
+                              style={{
+                                left: `${x}%`,
+                                top: `${y}%`,
+                                transform: "translate(-50%, -50%)",
+                              }}
+                            />
+                            <span
+                              className="num absolute whitespace-nowrap rounded bg-white/80 px-1 text-[9px] font-semibold leading-4 text-black/65 dark:bg-black/50 dark:text-white/80"
+                              style={{
+                                left: `${x}%`,
+                                top: `${y}%`,
+                                transform: `translate(${tx}, ${ty})`,
+                              }}
+                            >
+                              {fmtPrice(v)}
+                            </span>
+                          </span>
+                        );
+                      };
+                      const flat = minIdx === maxIdx;
+                      return (
+                        <div className={`relative mt-1 ${toneOf(pctRange)}`}>
+                          <svg
+                            viewBox="0 0 100 30"
+                            preserveAspectRatio="none"
+                            aria-hidden
+                            className="h-16 w-full sm:h-20"
+                          >
+                            <defs>
+                              <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                                <stop
+                                  offset="0%"
+                                  stopColor="currentColor"
+                                  stopOpacity="0.22"
+                                />
+                                <stop
+                                  offset="100%"
+                                  stopColor="currentColor"
+                                  stopOpacity="0"
+                                />
+                              </linearGradient>
+                            </defs>
+                            <path d={`${line} L100 30 L0 30 Z`} fill={`url(#${gid})`} />
+                            <path
+                              d={line}
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              opacity="0.85"
+                            />
+                          </svg>
+                          {marker(
+                            0,
+                            values[0],
+                            yPct(values[0]) < 50 ? "below" : "above",
+                            "start",
+                          )}
+                          {/* Both extremes label BELOW their point: the high
+                              sits at the plot's top edge, so an above-label
+                              would collide with the range buttons; the low's
+                              label falls into the natural gap under the chart. */}
+                          {!flat && maxIdx !== 0
+                            ? marker(maxIdx, vMax, "below", "max")
+                            : null}
+                          {!flat && minIdx !== 0
+                            ? marker(minIdx, vMin, "below", "min")
+                            : null}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
 
-          {/* 3. Your position — purchasable tiles only. Positions read as
-              money, not fractional unit counts — İsmayıl's call for the
-              whole personal-assets surface. */}
-          {open ? (
-            <div className="mt-2.5 text-black/55 dark:text-white/60">
-              {open.units > 0 ? (
-                <>
-                  Sizin mövqeyiniz:{" "}
-                  {open.valueAzn != null ? (
-                    <span className="num font-medium text-black/70 dark:text-white/75">
-                      <Masked mask="••••">{formatAzn(open.valueAzn)}</Masked>
-                    </span>
+              {/* 3. Your position — purchasable tiles only. Positions read as
+                  money, not fractional unit counts — İsmayıl's call for the
+                  whole personal-assets surface. */}
+              {open ? (
+                <div className="mt-2.5 text-black/55 dark:text-white/60">
+                  {open.units > 0 ? (
+                    <>
+                      Sizin mövqeyiniz:{" "}
+                      {open.valueAzn != null ? (
+                        <span className="num font-medium text-black/70 dark:text-white/75">
+                          <Masked mask="••••">{formatAzn(open.valueAzn)}</Masked>
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </>
                   ) : (
-                    "—"
+                    "Bu aktivdə hələ mövqeyiniz yoxdur."
                   )}
-                </>
-              ) : (
-                "Bu aktivdə hələ mövqeyiniz yoxdur."
+                </div>
+              ) : null}
+              {showBuyHint && open && (
+                <div className="mt-1 text-[11px] leading-relaxed text-black/45 dark:text-white/50">
+                  {open.symbol} almaq və ya satmaq üçün İsmayıl ilə əlaqə saxlayın
+                  — sifarişlər şifahi qəbul olunur, aktivlər İRF paylarından ayrı
+                  saxlanılır.
+                </div>
               )}
             </div>
-          ) : null}
-          {showBuyHint && open && (
-            <div className="mt-1 text-[11px] leading-relaxed text-black/45 dark:text-white/50">
-              {open.symbol} almaq və ya satmaq üçün İsmayıl ilə əlaqə saxlayın
-              — sifarişlər şifahi qəbul olunur, aktivlər İRF paylarından ayrı
-              saxlanılır.
-            </div>
+            </m.div>
           )}
-        </div>
+          </AnimatePresence>
+          {statusRow}
         </m.div>
       )}
-      </AnimatePresence>
-      {statusRow}
-    </div>
+    </AnimatePresence>
   );
 }

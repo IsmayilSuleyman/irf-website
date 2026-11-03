@@ -14,7 +14,7 @@ import { dayChangeReference, getPriceHistory } from "@/lib/priceHistory";
 import { getHolderMarketState } from "@/lib/holdings";
 import { requireUserWithScope } from "@/lib/auth-guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { displayNameOf, formatBakuDate } from "@/lib/user";
+import { displayNameOf, formatBakuDate, initialsOf } from "@/lib/user";
 import { getBankProductTerms } from "@/lib/bankTerms";
 import { getBondFundingAzn, getMyBondHoldings } from "@/lib/bonds";
 import { getAssetTransactions } from "@/lib/sheets";
@@ -239,6 +239,9 @@ export default async function BankPage({
   const sp = await searchParams;
   const supabase = await createSupabaseServerClient();
   const isFamily = scope === "family";
+  // The header's account button (→ /portal) wears the viewer's initials.
+  const viewerName = displayNameOf(user.user_metadata);
+  const initials = viewerName ? initialsOf(viewerName) : null;
   // Self-service Google linking (GoogleLinkCard): which identities hang on
   // this login, and the outcome of the last /auth/callback round-trip.
   const identities = user.identities ?? [];
@@ -274,7 +277,7 @@ export default async function BankPage({
     const todayIso = baku.toISOString().slice(0, 10);
     return (
       <main className="min-h-screen bg-bank-section">
-        <BankHeader dateLabel={dateLabel} isFamily={isFamily} />
+        <BankHeader dateLabel={dateLabel} isFamily={isFamily} initials={initials} />
         <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
           <div className="hidden justify-end sm:-mb-6 sm:flex">
             <BankViewToggle active={bankView} />
@@ -572,7 +575,7 @@ export default async function BankPage({
         className="min-h-screen bg-bank-section"
         data-access-scope={isFamily ? undefined : "external"}
       >
-        <BankHeader dateLabel={dateLabel} isFamily={isFamily} />
+        <BankHeader dateLabel={dateLabel} isFamily={isFamily} initials={initials} />
         {isFamily ? (
           <div className="mx-auto flex max-w-5xl justify-end px-6 pt-6">
             <BankViewToggle active={bankView} />
@@ -634,7 +637,7 @@ export default async function BankPage({
       className="min-h-screen bg-bank-section"
       data-access-scope={isFamily ? undefined : "external"}
     >
-      <BankHeader dateLabel={dateLabel} isFamily={isFamily} />
+      <BankHeader dateLabel={dateLabel} isFamily={isFamily} initials={initials} />
 
       <section className="mx-auto max-w-5xl px-6 py-10 sm:py-14">
         <MotionSection>

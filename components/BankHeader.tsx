@@ -2,78 +2,82 @@
 
 import Link from "next/link";
 import { m } from "framer-motion";
-import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { IsmayilBankLogo } from "@/components/IsmayilBankLogo";
-import { Logo } from "@/components/Logo";
+import { NotificationsBell } from "@/components/NotificationsBell";
+import { ThemeButton } from "@/components/ThemeToggle";
+import { LogoutButton } from "@/components/LogoutButton";
+import { HEADER_DIVIDER, ICON_BTN } from "@/components/iconButton";
+
+// The İsmayılBank header (/bank, /bonds) — the mirror image of the fund
+// header: wordmark on the left, the same round icon cluster on the right —
+//   date · bell · theme | Fond · exit · account
+// where Fond is the round İRF mark leading back to the family portfolio
+// (İsmayıl: "Fond button will be added on the top navigation panel,
+// alongside light-dark mode change, exit button, notifications"). The
+// phone dock below carries the bank's own tabs (Hesabım · Hesabla ·
+// İstiqraz). No bottom border, like the fund header.
 
 export function BankHeader({
   dateLabel,
   isFamily = true,
+  initials,
 }: {
   dateLabel: string;
   /** false for an external member: no İRF link, no portal — /bank is home. */
   isFamily?: boolean;
+  /** Viewer's initials for the account button (→ /portal). */
+  initials?: string | null;
 }) {
-  const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
-  const canLogout = supabase != null;
-
-  const onLogout = async () => {
-    if (!supabase) {
-      router.push("/welcome?setup=supabase");
-      return;
-    }
-
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  };
-
   return (
     <m.header
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="border-b border-black/10 dark:border-white/10 bg-white/80 dark:bg-white/10 px-6 py-4 backdrop-blur-xl"
+      className="relative z-40 bg-white/80 px-6 backdrop-blur-xl dark:bg-white/10 sm:sticky sm:top-0"
     >
-      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-6">
-        <div className="flex items-center gap-3">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 py-3.5 sm:py-4">
+        <Link
+          href="/bank"
+          aria-label="İsmayılBank hesabına keç"
+          className="shrink-0"
+        >
           <IsmayilBankLogo size={28} />
-          {isFamily ? (
-          <Link
-            href="/dashboard"
-            aria-label="İRF hesabına keç"
-            className="inline-flex items-center gap-2 rounded border border-black/10 dark:border-white/15 bg-white/80 dark:bg-white/10 px-2 py-1.5 transition hover:-translate-y-px hover:border-brand-green/30 hover:shadow-sm sm:px-3 sm:py-2"
-          >
-            <span aria-hidden className="text-sm leading-none text-black/55 dark:text-white/60 sm:hidden">→</span>
-            <div className="w-[80px]">
-              <Logo width={80} />
-            </div>
-            <span className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/55 dark:text-white/60 sm:inline">
-              Hesabına Keç
-            </span>
-          </Link>
-          ) : null}
-        </div>
+        </Link>
 
-        <div className="flex items-center gap-5">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
+          <span className="num mr-1 hidden text-xs text-black/45 dark:text-white/50 lg:inline">
+            {dateLabel}
+          </span>
+          <NotificationsBell />
+          <ThemeButton />
+
+          <span aria-hidden className={HEADER_DIVIDER} />
           {isFamily ? (
             <Link
-              href="/portal"
-              className="hidden text-[9px] font-semibold uppercase tracking-[0.18em] text-black/45 dark:text-white/50 transition hover:text-bank-blue dark:hover:text-blue-400 sm:inline"
+              href="/dashboard"
+              aria-label="İRF portfelinə keç"
+              title="İsmayıl Rifah Fondu"
+              className={ICON_BTN}
             >
-              Portal
+              <img
+                src="/images/irf-mark.png"
+                alt=""
+                aria-hidden
+                className="h-[18px] w-[18px]"
+              />
             </Link>
           ) : null}
-          <span className="hidden text-xs text-black/45 dark:text-white/50 sm:inline">{dateLabel}</span>
-          <button
-            onClick={onLogout}
-            disabled={!canLogout}
-            className="text-xs uppercase tracking-[0.18em] text-black/45 dark:text-white/50 transition hover:text-bank-blue dark:hover:text-blue-400"
-          >
-            Çıxış
-          </button>
+          <LogoutButton />
+          {isFamily && initials ? (
+            <Link
+              href="/portal"
+              aria-label="Portal — İRF və İsmayılBank arasında seç"
+              title="Portal"
+              className={`${ICON_BTN} hidden text-[11px] font-bold tracking-[0.06em] sm:inline-flex`}
+            >
+              {initials}
+            </Link>
+          ) : null}
         </div>
       </div>
     </m.header>

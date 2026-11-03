@@ -10,6 +10,11 @@ import {
   YAxis,
 } from "recharts";
 import { formatAzn } from "@/lib/portfolio";
+import {
+  CollapseBody,
+  CollapseButton,
+  useRememberedOpen,
+} from "@/components/Collapsible";
 import type { DebtProjection, DebtSchedulePoint } from "@/lib/debtSchedule";
 
 function payoffLabel(months: number | null): string {
@@ -34,6 +39,9 @@ function PaidOffBar({ remaining, original }: { remaining: number; original: numb
   );
 }
 
+// Borclar — admin-only, personal view. Optionally hide-able (İsmayıl's
+// ask): the header row with the monthly total always shows, the summary,
+// chart and list fold behind the Gizlət pill and the choice is remembered.
 export function DebtPanel({
   projections,
   schedule,
@@ -41,21 +49,27 @@ export function DebtPanel({
   projections: DebtProjection[];
   schedule: DebtSchedulePoint[];
 }) {
+  const [open, toggle] = useRememberedOpen("irf-fold-borclar");
   const totalRemaining = projections.reduce((s, d) => s + d.remainingAzn, 0);
   const totalOriginal = projections.reduce((s, d) => s + d.originalAzn, 0);
   const totalMonthly = projections.reduce((s, d) => s + d.monthlyPaymentAzn, 0);
 
   return (
-    <div className="glass p-6 flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+    <div className="glass p-6">
+      <div className="flex items-center justify-between gap-3">
         <div className="text-[10px] uppercase tracking-[0.22em] text-brand-red dark:text-red-400/80">
           Borclar
         </div>
-        <div className="num text-xs text-black/45 dark:text-white/50">
-          {formatAzn(totalMonthly)} / ay
+        <div className="flex items-center gap-3">
+          <div className="num text-xs text-black/45 dark:text-white/50">
+            {formatAzn(totalMonthly)} / ay
+          </div>
+          <CollapseButton open={open} onClick={toggle} />
         </div>
       </div>
 
+      <CollapseBody open={open}>
+      <div className="flex flex-col gap-6 pt-6">
       {/* Summary row */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div>
@@ -163,6 +177,8 @@ export function DebtPanel({
           </ul>
         </div>
       )}
+      </div>
+      </CollapseBody>
     </div>
   );
 }

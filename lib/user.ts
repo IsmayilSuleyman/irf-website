@@ -42,3 +42,17 @@ export function formatBakuDate(d: Date): string {
     timeZone: "Asia/Baku",
   }).format(d);
 }
+
+/**
+ * "İsmayıl Süleyman" → "İS": the first letter of the first two name parts,
+ * Azerbaijani-cased, for the header's account button and the holder avatars.
+ */
+export function initialsOf(name: string): string {
+  const parts = toTitleCaseAz(name.trim())
+    .split(/[\s-]+/)
+    .filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("");
+}
