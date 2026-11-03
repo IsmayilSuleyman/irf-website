@@ -296,6 +296,7 @@ export function ChartSummary({
   sessionMode,
   live,
   action,
+  session,
 }: {
   value: number;
   dayChange: number | null;
@@ -310,8 +311,15 @@ export function ChartSummary({
   sessionMode?: ExtendedMode | null;
   /** Subscribe the figures to the 3-5s live ticker. */
   live?: LiveFigure;
-  /** Control docked at the card's right edge beside the headline (the hide-amounts eye). */
+  /** Control cluster docked at the card's right edge beside the change rows
+   *  (the extended-hours badge + the hide-amounts eye). sm+ only: on phones
+   *  the chart card's header carries the eye, and the badge takes the
+   *  `session` line below. */
   action?: ReactNode;
+  /** Phones only: the extended-hours badge on its own line under the change
+   *  rows, with its label and ₼ delta visible — it no longer shares the
+   *  rows' width, so they stop wrapping. */
+  session?: ReactNode;
 }) {
   const liveCtx = useLivePricing();
   const figures = applyLive(live, liveCtx, {
@@ -364,16 +372,18 @@ export function ChartSummary({
       >
         {masked ? <Masked mask="••••">{headline}</Masked> : headline}
       </div>
-      {/* The badge + eye cluster rides beside the change rows, top-aligned
-          with the "bu gün" line — İsmayıl's pick over shrinking the figure
-          to make room next to it. */}
+      {/* sm+: the badge + eye cluster rides beside the change rows,
+          top-aligned with the "bu gün" line — İsmayıl's pick over shrinking
+          the figure to make room next to it. Phones: the rows get the whole
+          width (one line each) and the badge follows on its own line. */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           {line(dayChange, daySessionLabel(sessionMode, "bu gün"))}
           {line(totalChange, totalLabel)}
         </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
+        {action ? <div className="hidden shrink-0 sm:block">{action}</div> : null}
       </div>
+      {session ? <div className="sm:hidden">{session}</div> : null}
       <div className="text-xs text-black/45 dark:text-white/50">
         <Masked mask="••">{formatUnits(units)}</Masked> pay · ortalama alış
         qiyməti{" "}

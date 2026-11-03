@@ -775,9 +775,11 @@ export default async function DashboardPage({
         ]
       : priceChartData;
 
-  // The chart headline's right-edge cluster: the extended-hours badge (when
-  // a session is live) next to the hide-amounts eye. Personal view only —
-  // the fund view keeps both in its own rows.
+  // The chart headline's right-edge cluster (sm+): the extended-hours badge
+  // (when a session is live) next to the hide-amounts eye. Personal view
+  // only — the fund view keeps both in its own rows. On phones the chart
+  // card's header renders the eye itself and the badge takes the
+  // `chartSession` line below.
   const chartActions = (
     <div className="flex items-center gap-2">
       {badgePortfolio ? (
@@ -801,6 +803,26 @@ export default async function DashboardPage({
       <PrivacyToggle />
     </div>
   );
+
+  // Phones: the same badge on its own line under the chart headline
+  // (ChartSummary's `session` slot), label and ₼ delta visible since the
+  // line is all its own; the popover opens from the left edge there.
+  const chartSession = badgePortfolio ? (
+    <ExtendedHoursBadge
+      data={badgePortfolio}
+      scope="personal"
+      history={extendedHistory}
+      align="left"
+      detail="full"
+      extra={{
+        baseValueAzn: holdingValue,
+        unitPriceAzn: fund.unitPrice,
+        unitPriceExtAzn,
+      }}
+    />
+  ) : sessionNow ? (
+    <ExtendedHoursPlaceholder mode={sessionNow} />
+  ) : null;
 
   return (
     <main className="px-6 pb-24">
@@ -1015,6 +1037,7 @@ export default async function DashboardPage({
                       scale: holderShare,
                     }}
                     action={chartActions}
+                    session={chartSession}
                   />
                 }
                 priceHero={
@@ -1034,6 +1057,7 @@ export default async function DashboardPage({
                       scale: fund.totalUnits > 0 ? 1 / fund.totalUnits : 0,
                     }}
                     action={chartActions}
+                    session={chartSession}
                   />
                 }
               />
