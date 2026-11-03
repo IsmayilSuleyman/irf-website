@@ -195,12 +195,20 @@ function TriangleDot({
   );
 }
 
-function AthDot({ cx, cy }: { cx?: number; cy?: number }) {
+function AthDot({
+  cx,
+  cy,
+  color = GREEN,
+}: {
+  cx?: number;
+  cy?: number;
+  color?: string;
+}) {
   if (cx == null || cy == null) return null;
   return (
     <g>
-      <circle cx={cx} cy={cy} r={6} fill="none" stroke={GREEN} strokeWidth={1.6} opacity={0.85} />
-      <circle cx={cx} cy={cy} r={2.4} fill={GREEN} stroke="#fff" strokeWidth={1.2} />
+      <circle cx={cx} cy={cy} r={6} fill="none" stroke={color} strokeWidth={1.6} opacity={0.85} />
+      <circle cx={cx} cy={cy} r={2.4} fill={color} stroke="#fff" strokeWidth={1.2} />
     </g>
   );
 }
@@ -497,6 +505,13 @@ export function PerformanceChart({
     return pnlDelta / base;
   }, [timed, mode, events]);
 
+  // The line wears the pill's polarity: a window that closed down draws
+  // red, so the plot and the readout above it never disagree. The value
+  // mode P&L bands keep their own green/red — they encode value vs cost
+  // basis, not the window's direction.
+  const down = periodChange != null && periodChange < 0;
+  const trend = down ? RED : GREEN;
+
   if (!hasValue && !hasPrice) {
     return (
       <div className="glass flex h-72 items-center justify-center text-black/45 dark:text-white/50">
@@ -573,7 +588,7 @@ export function PerformanceChart({
         <div className="mt-1.5 space-y-1">
           <p className="flex items-center justify-between gap-6">
             <span className="flex items-center gap-1.5 text-black/60 dark:text-white/65">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ background: GREEN }} />
+              <span className="inline-block h-2 w-2 rounded-full" style={{ background: trend }} />
               {mode === "price" ? "1 payın qiyməti" : "Dəyər"}
             </span>
             <span className="num font-semibold text-black dark:text-white/90">{fmt(p.value)}</span>
@@ -735,9 +750,16 @@ export function PerformanceChart({
                   <stop offset="0%" stopColor={GREEN} stopOpacity={0.28} />
                   <stop offset="100%" stopColor={GREEN} stopOpacity={0.08} />
                 </linearGradient>
-                <linearGradient id="pcPrice" x1="0" y1="0" x2="0" y2="1">
+                {/* One gradient per polarity, picked by id — a single id
+                    recolored in place would collide with another chart on
+                    the page trending the other way. */}
+                <linearGradient id="pcPriceUp" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={GREEN} stopOpacity={0.22} />
                   <stop offset="100%" stopColor={GREEN} stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="pcPriceDown" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={RED} stopOpacity={0.2} />
+                  <stop offset="100%" stopColor={RED} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
@@ -782,7 +804,7 @@ export function PerformanceChart({
                   type="monotone"
                   dataKey="valueSolid"
                   stroke="none"
-                  fill="url(#pcPrice)"
+                  fill={down ? "url(#pcPriceDown)" : "url(#pcPriceUp)"}
                 />
               )}
               {mode === "value" &&
@@ -810,7 +832,7 @@ export function PerformanceChart({
               <Line
                 type="monotone"
                 dataKey="valueSolid"
-                stroke={GREEN}
+                stroke={trend}
                 strokeWidth={2.5}
                 dot={false}
                 activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
@@ -820,7 +842,7 @@ export function PerformanceChart({
               <Line
                 type="linear"
                 dataKey="valueLive"
-                stroke={sessionMode ? LIVE_STROKE[sessionMode] : GREEN}
+                stroke={sessionMode ? LIVE_STROKE[sessionMode] : trend}
                 strokeWidth={2}
                 strokeDasharray="4 3"
                 dot={false}
@@ -849,7 +871,11 @@ export function PerformanceChart({
                 />
               ))}
               {ath && (
-                <ReferenceDot x={ath.ts} y={ath.value} shape={<AthDot />} />
+                <ReferenceDot
+                  x={ath.ts}
+                  y={ath.value}
+                  shape={<AthDot color={trend} />}
+                />
               )}
               {last && last.live && (
                 <ReferenceDot
@@ -857,7 +883,7 @@ export function PerformanceChart({
                   y={last.value}
                   shape={
                     <LiveDot
-                      color={sessionMode ? LIVE_STROKE[sessionMode] : GREEN}
+                      color={sessionMode ? LIVE_STROKE[sessionMode] : trend}
                     />
                   }
                 />
@@ -867,7 +893,7 @@ export function PerformanceChart({
                   x={last.ts}
                   y={last.value}
                   r={4}
-                  fill={GREEN}
+                  fill={trend}
                   stroke="#fff"
                   strokeWidth={2}
                 />
@@ -882,7 +908,7 @@ export function PerformanceChart({
       {mode === "value" && showInvested && timed.length > 0 ? (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-black/40 dark:text-white/45">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-0.5 w-4 rounded" style={{ background: GREEN }} />
+            <span className="inline-block h-0.5 w-4 rounded" style={{ background: trend }} />
             Dəyər
           </span>
           <span className="flex items-center gap-1.5">
@@ -901,7 +927,7 @@ export function PerformanceChart({
           <span className="flex items-center gap-1">
             <span
               className="inline-block h-2.5 w-2.5 rounded-full border"
-              style={{ borderColor: GREEN }}
+              style={{ borderColor: trend }}
             />
             Zirvə
           </span>

@@ -22,6 +22,7 @@ import { formatAzn, formatGrouped } from "@/lib/portfolio";
 export type FundChartPoint = { label: string; value: number; date: string };
 
 const GREEN = "#16a34a";
+const RED = "#dc2626";
 
 const RANGES = [
   { key: "day", label: "1G" },
@@ -87,7 +88,11 @@ export function FundValueChart({
     return open > 0 ? timed[timed.length - 1].value / open - 1 : null;
   }, [timed]);
 
-  const fmt = (v: number) => (hidden ? "••••" : formatAzn(v));
+  // The line wears the pill's polarity — a window that closed down is red.
+  const down = periodPct != null && periodPct < 0;
+  const trend = down ? RED : GREEN;
+
+  const fmt =(v: number) => (hidden ? "••••" : formatAzn(v));
 
   if (timed.length < 2) {
     return (
@@ -144,9 +149,13 @@ export function FundValueChart({
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={timed} margin={{ top: 6, right: 4, bottom: 0, left: 4 }}>
             <defs>
-              <linearGradient id="fundValueFill" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="fundValueFillUp" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={GREEN} stopOpacity={0.24} />
                 <stop offset="100%" stopColor={GREEN} stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="fundValueFillDown" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={RED} stopOpacity={0.2} />
+                <stop offset="100%" stopColor={RED} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
@@ -203,9 +212,9 @@ export function FundValueChart({
             <Area
               type="monotone"
               dataKey="value"
-              stroke={GREEN}
+              stroke={trend}
               strokeWidth={2.5}
-              fill="url(#fundValueFill)"
+              fill={down ? "url(#fundValueFillDown)" : "url(#fundValueFillUp)"}
               activeDot={{ r: 4, stroke: "#fff", strokeWidth: 1.5 }}
             />
           </AreaChart>

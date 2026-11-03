@@ -18,6 +18,7 @@ function formatRemaining(ms: number): string {
 }
 
 const REGULAR_GREEN = "#16a34a";
+const REGULAR_RED = "#dc2626";
 
 export function MarketCountdown({
   history,
@@ -69,6 +70,10 @@ export function MarketCountdown({
       : range === "daily"
         ? latestSessionTail(history, 8)
         : history;
+  // Red when the newest point closed below the session open, like every
+  // other price chart; weekly reads today's (the last curve's) sign.
+  const lastPct = points.length > 0 ? points[points.length - 1].changePct : 0;
+  const lineColor = lastPct < 0 ? REGULAR_RED : REGULAR_GREEN;
 
   const chip = (
     <span
@@ -152,7 +157,7 @@ export function MarketCountdown({
             <div className="mt-3">
               <SessionHistoryChart
                 points={points}
-                color={REGULAR_GREEN}
+                color={lineColor}
                 labelKind={range === "weekly" ? "datetime" : "time"}
               />
             </div>
