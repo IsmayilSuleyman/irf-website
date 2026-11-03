@@ -14,7 +14,7 @@ import { EXTENDED_META } from "@/components/extendedHoursMeta";
 import { ABOVE_SPARK, RowSpark } from "@/components/RowSpark";
 import { HoldingDetailChart } from "@/components/HoldingDetailChart";
 import { SparkRangeToggle } from "@/components/SparkRangeToggle";
-import { SectorIcon } from "@/components/SectorIcon";
+import { HoldingLogo } from "@/components/HoldingLogo";
 import {
   MomentumFactorRows,
   scorePill,
@@ -276,6 +276,7 @@ export function AllocationList({
   extended,
   momentum,
   sparks,
+  initialRows,
 }: {
   items: Item[];
   /** Present only while a pre/after-market or overnight window is active. */
@@ -287,6 +288,9 @@ export function AllocationList({
   momentum?: Record<string, ScoredItem>;
   /** Row sparkline windows keyed by upper-cased ticker. */
   sparks?: Record<string, RowSparkSet>;
+  /** Rows shown before the "Daha N mövqe" chip opens the rest (İsmayıl's
+   *  call for the fund list: twelve, so the list balances the pie column). */
+  initialRows?: number;
 }) {
   const [visible, setVisible] = useState<Record<ColumnKey, boolean>>({
     value: true,
@@ -327,6 +331,8 @@ export function AllocationList({
   // comparing two holdings keeps the same span); independent of the row
   // toggle, which only has the three backdrop windows.
   const [detailRange, setDetailRange] = useState<DetailRange>("year");
+  // Whether the rows past `initialRows` are unfolded.
+  const [showAll, setShowAll] = useState(false);
   const pickSparkRange = (r: SparkRange) => {
     setSparkRange(r);
     setSparkSwitched(true);
@@ -394,6 +400,8 @@ export function AllocationList({
     if (ma === mb) return b.valueAzn - a.valueAzn;
     return sortDir === "desc" ? mb - ma : ma - mb;
   });
+  const foldable = initialRows != null && sorted.length > initialRows;
+  const visibleRows = foldable && !showAll ? sorted.slice(0, initialRows) : sorted;
   const activeSortLabel = sortChoices.find((c) => c.key === sortKey)?.label;
   const sortIsDefault = sortKey === "value" && sortDir === "desc";
   // The window picker shows once any row has any window to draw.
@@ -575,7 +583,7 @@ export function AllocationList({
           purpose, so sorting by movers reads "the #5 holding is today's
           best performer". */}
       <ul className="flex flex-col divide-y divide-[color:var(--glass-border)]">
-        {sorted.map((item) => {
+        {visibleRows.map((item) => {
           const ticker = (item.symbol ?? "").trim().toUpperCase();
           const primary = item.isCash ? item.name : ticker || item.name;
           const secondary =
@@ -701,22 +709,15 @@ export function AllocationList({
                     (todayRank.get(item.name) ?? 0)
                   }
                 />
-                {/* Sector glyph in a chip tinted with the holding's pie shade
-                    ("26" = 15% alpha) so rows still map onto the stock arcs. */}
-                <span
-                  aria-hidden
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black/5 text-black/55 dark:bg-white/10 dark:text-white/60"
-                  style={
-                    item.color
-                      ? { backgroundColor: `${item.color}26`, color: item.color }
-                      : undefined
-                  }
-                >
-                  <SectorIcon
-                    sector={item.sector ?? ""}
-                    className="h-3.5 w-3.5"
-                  />
-                </span>
+                {/* The company's logo (Parqet CDN); own marks for IBIT /
+                    GLDM / SIVR; cash and unknown symbols keep the sector
+                    glyph in a chip tinted with the holding's pie shade. */}
+                <HoldingLogo
+                  symbol={ticker}
+                  sector={item.sector}
+                  color={item.color}
+                  isCash={item.isCash}
+                />
                 <div className="flex min-w-0 flex-1 flex-col gap-0">
                   <span className="flex min-w-0 items-center gap-1.5">
                     {/* Phone widths get a smaller ticker (and truncate as a
@@ -1089,6 +1090,18 @@ export function AllocationList({
           );
         })}
       </ul>
+      {foldable ? (
+        <button
+          type="button"
+          onClick={() => setShowAll((s) => !s)}
+          aria-expanded={showAll}
+          className="mx-auto inline-flex w-fit items-center gap-1.5 rounded-full border border-brand-green/30 bg-brand-green/5 px-3.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-brand-green transition hover:bg-brand-green/10 dark:text-emerald-400"
+        >
+          {showAll
+            ? "Daha az ↑"
+            : `Daha ${sorted.length - (initialRows ?? 0)} mövqe ↓`}
+        </button>
+      ) : null}
     </div>
   );
 }

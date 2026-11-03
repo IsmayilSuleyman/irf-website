@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { NotificationRow } from "@/lib/notifications";
 import { PushControls } from "@/components/PushControls";
+import { ICON_BTN } from "@/components/iconButton";
 
 type BadgeNav = Navigator & {
   setAppBadge?: (n?: number) => Promise<void>;
@@ -97,11 +98,11 @@ export function NotificationsBell() {
       <button
         onClick={toggle}
         aria-label="Bildirişlər"
-        className="relative flex items-center text-black/55 dark:text-white/60 transition hover:text-brand-green dark:hover:text-emerald-400"
+        className={`${ICON_BTN} relative`}
       >
         <svg
-          width="18"
-          height="18"
+          width="17"
+          height="17"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -114,7 +115,7 @@ export function NotificationsBell() {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {unread > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-brand-red px-1 text-[9px] font-bold leading-none text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-brand-red px-1 text-[9px] font-bold leading-none text-white">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -124,7 +125,7 @@ export function NotificationsBell() {
         // dark:bg-white/15 let the hero text bleed through — near-opaque
         // neutral keeps the glass vibe (blur + border) but stays readable,
         // mirroring the bond-book popup surface.
-        <div className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-neutral-900/95 shadow-[0_18px_50px_rgba(48,94,63,0.18)] backdrop-blur-md sm:absolute sm:inset-x-auto sm:right-0 sm:top-9 sm:w-72 sm:max-w-[85vw]">
+        <div className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-xl border border-black/10 dark:border-white/15 bg-white/95 dark:bg-neutral-900/95 shadow-[0_18px_50px_rgba(48,94,63,0.18)] backdrop-blur-md sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-72 sm:max-w-[85vw]">
           <div className="flex items-center justify-between gap-2 border-b border-black/[0.07] px-4 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-green/80">
               Bildirişlər

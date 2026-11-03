@@ -28,7 +28,7 @@ import { getHolderMarketState } from "@/lib/holdings";
 import { parseSheetDateMs } from "@/lib/sheetDates";
 import { getMarketQuotes } from "@/lib/market";
 import { requireFamilyUser } from "@/lib/auth-guard";
-import { displayNameOf, formatBakuDate } from "@/lib/user";
+import { displayNameOf, formatBakuDate, initialsOf } from "@/lib/user";
 import { Header } from "@/components/Header";
 // Lazy client wrappers: the recharts-powered cards hydrate from their own
 // on-demand chunk instead of riding in the dashboard's first-load JS.
@@ -37,6 +37,7 @@ import { PortfolioPie } from "@/components/PortfolioPieLazy";
 import { DebtPanel } from "@/components/DebtPanelLazy";
 import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
+import { MarketRailCard } from "@/components/MarketRailCard";
 import { getHoldingsTicker, getMarketTicker } from "@/lib/marketTicker";
 import { isTickerSymbol } from "@/lib/yahoo";
 import { FundNewsCard } from "@/components/FundNewsCard";
@@ -54,7 +55,6 @@ import {
 import { AllocationList } from "@/components/AllocationList";
 import { SectorBreakdown } from "@/components/SectorBreakdown";
 import { RefreshButton } from "@/components/RefreshButton";
-import { FundViewToggle } from "@/components/FundViewToggle";
 import { ShareholdersList } from "@/components/ShareholdersList";
 import { DailySummaryCard } from "@/components/DailySummaryCard";
 import { PrivacyProvider } from "@/components/PrivacyProvider";
@@ -66,7 +66,6 @@ import {
   type RowSparkSet,
 } from "@/lib/sparkRanges";
 import { FundValueChart } from "@/components/FundValueChartLazy";
-import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { MarketCountdown } from "@/components/MarketCountdown";
 import { AutoRetry } from "@/components/AutoRetry";
 import { sectorColor, mixWithWhite } from "@/lib/sectorColors";
@@ -776,10 +775,9 @@ export default async function DashboardPage({
       : priceChartData;
 
   // The chart headline's right-edge cluster (sm+): the extended-hours badge
-  // (when a session is live) next to the hide-amounts eye. Personal view
-  // only — the fund view keeps both in its own rows. On phones the chart
-  // card's header renders the eye itself and the badge takes the
-  // `chartSession` line below.
+  // when a session is live — the hide-amounts eye lives in the page header
+  // now. Personal view only; the fund view keeps the badge in its own row.
+  // On phones the badge takes the `chartSession` line below instead.
   const chartActions = (
     <div className="flex items-center gap-2">
       {badgePortfolio ? (
@@ -800,7 +798,6 @@ export default async function DashboardPage({
         // headline reverts.
         <ExtendedHoursPlaceholder mode={sessionNow} />
       ) : null}
-      <PrivacyToggle />
     </div>
   );
 
@@ -824,11 +821,72 @@ export default async function DashboardPage({
     <ExtendedHoursPlaceholder mode={sessionNow} />
   ) : null;
 
-  return (
-    <main className="px-6 pb-24">
-      <Header dateLabel={dateLabel} />
 
-      <PrivacyProvider initialHidden={amountsHidden}>
+  // The header's account button and the viewer's own row in Pay sahibləri:
+  // initials, and the Google profile picture when this login has one.
+  const initials = initialsOf(holder.name);
+  const metaAvatar = user.user_metadata?.avatar_url ?? user.user_metadata?.picture;
+  const avatarUrl: string | null =
+    typeof metaAvatar === "string" && metaAvatar.length > 0 ? metaAvatar : null;
+
+  // The "Zəiflər" podium beside the buy ticket: the board's three lowest
+  // momentum scores (lowest first).
+  const weakest = [...momentumDefault.rows]
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 3)
+    .map((r) => ({
+      symbol: r.symbol,
+      name: r.name,
+      sector: r.sector,
+      score: r.score,
+    }));
+
+  // Fondun dəyər tarixçəsi, the long windows (3 AY … Bütün): the fund's
+  // value at every recorded pay price — every holder's units at that date ×
+  // the price. The sheet prices the pay on NET capital, so today's bank
+  // debt is added back to land on the same gross figure the hero and the
+  // minute tiers show. Rows whose date can't be read are left out.
+  const fundDailyHistory = fundView
+    ? (() => {
+        const dated = transactions
+          .map((t) => ({ units: t.units, ms: parseSheetDateMs(t.date) }))
+          .filter((t): t is { units: number; ms: number } => t.ms != null)
+          .sort((a, b) => a.ms - b.ms);
+        const points = priceHistory
+          .map((p) => ({ ...p, ms: new Date(p.recordedAt).getTime() }))
+          .filter((p) => Number.isFinite(p.ms))
+          .sort((a, b) => a.ms - b.ms);
+        const out: { label: string; value: number; date: string }[] = [];
+        let i = 0;
+        let units = 0;
+        for (const p of points) {
+          while (i < dated.length && dated[i].ms <= p.ms) {
+            units += dated[i].units;
+            i += 1;
+          }
+          if (units <= 1e-9) continue;
+          out.push({
+            label: p.label,
+            value: units * p.price + fund.debtCapital,
+            date: p.recordedAt,
+          });
+        }
+        return out;
+      })()
+    : [];
+
+  return (
+    <PrivacyProvider initialHidden={amountsHidden}>
+    <main className="px-6 pb-24">
+      {/* The header carries every control now: the eye, the Fond toggle
+          (Ümumfond switch) and the round İsmayılBank mark in its cluster. */}
+      <Header
+        dateLabel={dateLabel}
+        fundView={fundView}
+        privacy
+        initials={initials}
+      />
+
       {/* The 3-5s ticker: subscribed figures retick between full refreshes.
           initial carries the render-time delta, so hydration matches. */}
       <LivePricingProvider
@@ -838,522 +896,545 @@ export default async function DashboardPage({
           asOfMs: extendedPortfolio?.asOfMs ?? null,
         }}
       >
-      <div className="mx-auto -mt-6 flex max-w-5xl flex-col gap-16 sm:mt-0">
-        {/* Hero — greeting with the view controls inline on its own line
-            (every breakpoint), then the Yahoo-style ticker card:
-            market-status chips on top, benchmark tiles + İRF unit price
-            below. The hide-amounts eye lives beside the chart card's
-            headline in the personal view; the fund view (no chart card)
-            keeps it here. */}
-        <MotionSection id="icmal" className="scroll-mt-36 flex flex-col gap-5">
-          <Greeting
-            holderName={holder.name}
-            privacyToggle={fundView ? <PrivacyToggle /> : undefined}
-            toggle={
-              <>
-                <span className="sm:hidden">
-                  <FundViewToggle active={fundView} compact />
-                </span>
-                <span className="hidden sm:inline-flex">
-                  <FundViewToggle active={fundView} />
-                </span>
-              </>
-            }
-          />
-          {fundView ? null : ( /* Ümumfond baxış skips the ticker card; its
-               status chips sit under the fund figure instead. */
-            <MarketTickerStrip
-              quotes={marketTicker}
-              holdingQuotes={holdingsTicker}
-              irf={{
-                priceAzn: unitPriceLiveAzn,
-                changePct: unitDayPctLive,
-                sessionMode: extendedPortfolio?.mode ?? null,
-                live: {
-                  basePriceAzn: fund.unitPrice,
-                  prevCloseAzn: previousPricePoint?.price ?? null,
-                  totalUnits: fund.totalUnits,
-                },
-                // Unit-price history stands in for an intraday line — the
-                // pay reprices daily, so its "movement" is the last stretch
-                // of recorded prices.
-                // The live tail point rides along, so the glowing line ends
-                // at the price the tile displays.
-                spark: priceChartLive.slice(-30).map((p) => p.value),
-              }}
-              assets={tileAssets}
-              showBuyHint={!isAdmin}
-              statusRow={
-                <div className="flex flex-wrap items-center gap-2">
-                  <MarketCountdown history={regularHistory} />
-                </div>
-              }
-            />
+      <div className="mx-auto flex max-w-5xl flex-col gap-6">
+        {/* Greeting. On phones the live strip rides under it — one line that
+            glides, expanding into the tiles card (İsmayıl's "125"). Desktop
+            has no strip: the Bazar rail card beside the statement plays that
+            role. The view switch left this row for the header's Fond button
+            and the phone dock. */}
+        <MotionSection id="icmal" className="flex flex-col gap-5">
+          <Greeting holderName={holder.name} />
+          {fundView ? null : (
+            <div className="sm:hidden">
+              <MarketTickerStrip
+                quotes={marketTicker}
+                holdingQuotes={holdingsTicker}
+                irf={{
+                  priceAzn: unitPriceLiveAzn,
+                  changePct: unitDayPctLive,
+                  sessionMode: extendedPortfolio?.mode ?? null,
+                  live: {
+                    basePriceAzn: fund.unitPrice,
+                    prevCloseAzn: previousPricePoint?.price ?? null,
+                    totalUnits: fund.totalUnits,
+                  },
+                  // Unit-price history stands in for an intraday line — the
+                  // pay reprices daily, so its "movement" is the last stretch
+                  // of recorded prices. The live tail point rides along, so
+                  // the glowing line ends at the price the tile displays.
+                  spark: priceChartLive.slice(-30).map((p) => p.value),
+                }}
+                assets={tileAssets}
+                showBuyHint={!isAdmin}
+                statusRow={
+                  <div className="flex flex-wrap items-center gap-2">
+                    <MarketCountdown history={regularHistory} />
+                  </div>
+                }
+              />
+            </div>
           )}
         </MotionSection>
 
-        {!hasGoogle ? (
-          <MotionSection delay={0.03} className="-mt-10">
-            <GoogleLinkBanner returnTo="/dashboard" status={googleStatus} />
-          </MotionSection>
-        ) : null}
-
-        {/* Personal view: the holding value lives inside the history chart
-            card (Yahoo's portfolio-performance composition), with the
-            buy/sell quotes in a compact row under it. Fund view keeps the
-            plain fund hero next to the shareholders list — its dedicated
-            "Ümumfond dəyər tarixçəsi" chart comes later. */}
-        {/* Fund view, one desktop row: the fund figure in a narrow left
-            column (its font sized down to fit), the two holder cards side
-            by side on the right. Mobile stacks: figure, then the cards. */}
         {fundView ? (
-          <MotionSection delay={0.05} className="-mt-11 grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-3 lg:items-start">
-            <div className="flex flex-col gap-5 lg:col-span-2">
-              <HeroPrice
-                variant="fund"
-                showGreeting={false}
-                holderName={holder.name}
-                value={fund.totalCapital + liveDeltaFundAzn}
-                dayChange={fundDayLiveAzn}
-                totalChange={fundTotalChange + liveDeltaFundAzn}
-                sessionMode={extendedPortfolio?.mode ?? null}
-                live={{
-                  baseValue: fund.totalCapital,
-                  baseDay: fundDayLiveBase,
-                  baseTotal: fundTotalChange,
-                  scale: 1,
-                }}
-              />
-              {/* Market status + extended-hours badge, below the figure —
-                  this view has no ticker card or chart card to carry them.
-                  compact: the narrow column can't fit the full wording even
-                  on desktop. */}
-              <div className="flex flex-wrap items-center gap-2">
-                <MarketCountdown history={regularHistory} compact />
-                {badgePortfolio ? (
-                  <ExtendedHoursBadge
-                    data={badgePortfolio}
-                    scope="fund"
-                    history={extendedHistory}
-                    extra={{
-                      baseValueAzn: fund.totalCapital,
-                      unitPriceAzn: fund.unitPrice,
-                      unitPriceExtAzn,
-                    }}
-                  />
-                ) : sessionNow ? (
-                  <ExtendedHoursPlaceholder mode={sessionNow} />
-                ) : null}
-              </div>
-              {/* Günün icmalı fills the column's empty tail under the figure
-                  — auto-written from the figures above, on the news plate. */}
-              <DailySummaryCard
-                dateLabel={dateLabel}
-                valueAzn={fund.totalCapital + liveDeltaFundAzn}
-                dayAzn={fundDayLiveAzn}
-                sessionMode={extendedPortfolio?.mode ?? null}
-                best={
-                  bestMover
-                    ? { symbol: bestMover.symbol, pct: bestMover.dayChangePct! }
-                    : null
-                }
-                worst={
-                  worstMover
-                    ? { symbol: worstMover.symbol, pct: worstMover.dayChangePct! }
-                    : null
-                }
-              />
-            </div>
-            <div className="lg:col-span-1">
-              {/* Each holder's row carries their slice of the live delta
-                  (delta distributes per pay, so percent-of-fund is the
-                  right weight) — the rows keep summing to the hero. */}
-              <ShareholdersList
-                holders={fund.holders.map((h) => ({
-                  ...h,
-                  valueAzn: h.valueAzn + liveDeltaFundAzn * h.percent,
-                }))}
-                assetHolders={assetHolders}
-              />
-            </div>
-          </MotionSection>
-        ) : null}
-        {fundView ? (
-          /* The fund's own value chart — the minutely snapshot series over
-             the last day / week / month, i.e. exactly what the hero showed
-             at every minute. */
-          <MotionSection delay={0.08} className="-mt-11">
-            <FundValueChart
-              tiers={
-                minuteSeries
-                  ? {
-                      day: minuteSeries.day.fund,
-                      week: minuteSeries.week.fund,
-                      month: minuteSeries.month.fund,
-                    }
-                  : { day: [], week: [], month: [] }
-              }
-            />
-          </MotionSection>
-        ) : null}
-        {fundView ? null : (
           <>
-            <MotionSection id="tarixce" delay={0.05} className="scroll-mt-32 -mt-11">
-              <PerformanceChart
-                data={bookChartLive}
-                priceData={priceChartLive}
-                fineData={
-                  minuteSeries
-                    ? {
-                        day: withBasis(minuteSeries.day.mine),
-                        week: withBasis(minuteSeries.week.mine),
-                        month: withBasis(minuteSeries.month.mine),
-                      }
-                    : undefined
-                }
-                finePrice={
-                  minuteSeries
-                    ? {
-                        day: minuteSeries.day.price,
-                        week: minuteSeries.week.price,
-                        month: minuteSeries.month.price,
-                      }
-                    : undefined
-                }
-                sessionMode={extendedPortfolio?.mode ?? null}
-                events={chartEvents}
-                hero={
-                  <ChartSummary
-                    value={bookValue + liveDeltaMineAzn}
-                    dayChange={withExt(bookDayChange, liveDeltaMineAzn)}
-                    totalChange={withExtPnl(bookPnl, liveDeltaMineAzn)}
-                    units={effectiveUnits}
-                    avgBuyPrice={perf.avgBuyPrice}
-                    sessionMode={extendedPortfolio?.mode ?? null}
-                    live={{
-                      baseValue: bookValue,
-                      baseDay: bookDayChange,
-                      baseTotal: bookPnl,
-                      scale: holderShare,
-                    }}
-                    action={chartActions}
-                    session={chartSession}
-                  />
-                }
-                priceHero={
-                  <ChartSummary
-                    masked={false}
-                    value={unitPriceLiveAzn}
-                    dayChange={withExt(unitDayChange, unitLiveDeltaAzn)}
-                    totalChange={withExtPnl(unit3mChange, unitLiveDeltaAzn)}
-                    totalLabel="son 3 ayda"
-                    units={effectiveUnits}
-                    avgBuyPrice={perf.avgBuyPrice}
-                    sessionMode={extendedPortfolio?.mode ?? null}
-                    live={{
-                      baseValue: fund.unitPrice,
-                      baseDay: unitDayChange,
-                      baseTotal: unit3mChange,
-                      scale: fund.totalUnits > 0 ? 1 / fund.totalUnits : 0,
-                    }}
-                    action={chartActions}
-                    session={chartSession}
-                  />
-                }
-              />
-            </MotionSection>
-            {/* Aktivlərim — the viewer's whole personal book: İRF pays
-                first, then ETF positions from the Aktivlər ledger. Sits
-                right under the chart card (the unit-price row is gone —
-                Alış/Satış live on /market). */}
-            {(assetPositions.length > 0 || effectiveUnits > 0) && (
-              <MotionSection
-                id="aktivlerim"
-                delay={0.08}
-                className="scroll-mt-32 -mt-11"
-              >
-                <AssetHoldingsCard
-                  positions={assetPositions}
-                  irf={
-                    effectiveUnits > 0
+            {/* Fund hero grid. Desktop: the figure with its status chips and
+                Günün icmalı under it in the left two-thirds, Pay sahibləri on
+                the right, the value chart across the full row below. Phones
+                stack in İsmayıl's order — figure → chart → icmal → holders:
+                explicit grid placement from lg, `order` below it. */}
+            <MotionSection
+              delay={0.05}
+              className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start"
+            >
+              <div className="order-1 flex flex-col gap-5 lg:col-span-2 lg:col-start-1 lg:row-start-1">
+                <HeroPrice
+                  variant="fund"
+                  showGreeting={false}
+                  holderName={holder.name}
+                  value={fund.totalCapital + liveDeltaFundAzn}
+                  dayChange={fundDayLiveAzn}
+                  totalChange={fundTotalChange + liveDeltaFundAzn}
+                  sessionMode={extendedPortfolio?.mode ?? null}
+                  live={{
+                    baseValue: fund.totalCapital,
+                    baseDay: fundDayLiveBase,
+                    baseTotal: fundTotalChange,
+                    scale: 1,
+                  }}
+                />
+                {/* Market status + extended-hours badge, below the figure —
+                    this view has no ticker card or chart card to carry them.
+                    compact: the narrow column can't fit the full wording even
+                    on desktop. */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <MarketCountdown history={regularHistory} compact />
+                  {badgePortfolio ? (
+                    <ExtendedHoursBadge
+                      data={badgePortfolio}
+                      scope="fund"
+                      history={extendedHistory}
+                      extra={{
+                        baseValueAzn: fund.totalCapital,
+                        unitPriceAzn: fund.unitPrice,
+                        unitPriceExtAzn,
+                      }}
+                    />
+                  ) : sessionNow ? (
+                    <ExtendedHoursPlaceholder mode={sessionNow} />
+                  ) : null}
+                </div>
+              </div>
+              {/* The fund's own value chart — the minutely snapshot series
+                  over the last day / week / month (exactly what the hero
+                  showed at every minute) plus the long windows from the
+                  recorded pay prices. */}
+              <div className="order-2 lg:col-span-3 lg:col-start-1 lg:row-start-3">
+                <FundValueChart
+                  tiers={
+                    minuteSeries
                       ? {
-                          units: effectiveUnits,
-                          avgBuyAzn: perf.avgBuyPrice,
-                          priceAzn: unitPriceLiveAzn,
-                          // Header-sum coherence: a row whose P&L cannot
-                          // carry the delta (no cost basis) keeps the delta
-                          // out of its value too.
-                          valueAzn:
-                            holdingValue +
-                            (holdingPnl != null ? liveDeltaMineAzn : 0),
-                          dayChangePct: unitDayPctLive,
-                          dayChangeAzn: withExt(dayChange, liveDeltaMineAzn),
-                          totalPnlAzn: withExtPnl(holdingPnl, liveDeltaMineAzn),
-                          sparks: irfRowSparks,
-                          sessionMode: extendedPortfolio?.mode ?? null,
+                          day: minuteSeries.day.fund,
+                          week: minuteSeries.week.fund,
+                          month: minuteSeries.month.fund,
                         }
+                      : { day: [], week: [], month: [] }
+                  }
+                  daily={fundDailyHistory}
+                />
+              </div>
+              {/* Günün icmalı — auto-written from the figures above, on the
+                  news plate. */}
+              <div className="order-3 lg:col-span-2 lg:col-start-1 lg:row-start-2">
+                <DailySummaryCard
+                  dateLabel={dateLabel}
+                  valueAzn={fund.totalCapital + liveDeltaFundAzn}
+                  dayAzn={fundDayLiveAzn}
+                  sessionMode={extendedPortfolio?.mode ?? null}
+                  best={
+                    bestMover
+                      ? { symbol: bestMover.symbol, pct: bestMover.dayChangePct! }
                       : null
                   }
-                  sparks={assetRowSparks}
-                  showBuyHint={!isAdmin}
+                  worst={
+                    worstMover
+                      ? { symbol: worstMover.symbol, pct: worstMover.dayChangePct! }
+                      : null
+                  }
+                />
+              </div>
+              <div className="order-4 lg:col-start-3 lg:row-span-2 lg:row-start-1">
+                {/* Each holder's row carries their slice of the live delta
+                    (delta distributes per pay, so percent-of-fund is the
+                    right weight) — the rows keep summing to the hero. The
+                    viewer's own row wears their Google picture. */}
+                <ShareholdersList
+                  holders={fund.holders.map((h) => ({
+                    ...h,
+                    valueAzn: h.valueAzn + liveDeltaFundAzn * h.percent,
+                    avatarUrl:
+                      normName(h.name) === normName(holder.name)
+                        ? avatarUrl
+                        : null,
+                  }))}
+                  assetHolders={assetHolders}
+                />
+              </div>
+            </MotionSection>
+
+            {/* Fond portfeli — fund view only (İsmayıl's call: the personal
+                view stays a personal statement; everything fund-wide lives
+                under Ümumfond baxış). */}
+            {holdings.length > 0 && (() => {
+              // Group by sector, sort sectors by total value desc, stocks within
+              // each sector by value desc. This ordering is shared by the pie
+              // (so stocks sit inside their sector wedge), the list, and the
+              // sector breakdown — colors line up across all three.
+              const groups = new Map<string, typeof holdings>();
+              for (const h of holdings) {
+                const key = h.sector ?? "Naməlum";
+                const arr = groups.get(key);
+                if (arr) arr.push(h);
+                else groups.set(key, [h]);
+              }
+              const sectorEntries = Array.from(groups.entries())
+                .map(([sector, hs]) => {
+                  const sorted = [...hs].sort(
+                    (a, b) => b.valueAzn - a.valueAzn,
+                  );
+                  const total = sorted.reduce((s, h) => s + h.valueAzn, 0);
+                  return { sector, holdings: sorted, total };
+                })
+                .sort((a, b) => b.total - a.total);
+
+              const portfolioTotal = sectorEntries.reduce(
+                (s, e) => s + e.total,
+                0,
+              );
+
+              const colored: Array<{
+                holding: (typeof holdings)[number];
+                color: string;
+              }> = [];
+              for (const { sector, holdings: hs } of sectorEntries) {
+                const base = sectorColor(sector);
+                hs.forEach((h, idx) => {
+                  const shade = mixWithWhite(base, Math.min(idx * 0.14, 0.55));
+                  colored.push({ holding: h, color: shade });
+                });
+              }
+
+              const stockSlices = colored.map(({ holding, color }) => ({
+                name: holding.name,
+                value: holding.valueAzn,
+                fill: color,
+                sector: holding.sector ?? "Naməlum",
+              }));
+              const sectorSlices = sectorEntries.map((e) => ({
+                name: e.sector,
+                value: e.total,
+                fill: sectorColor(e.sector),
+              }));
+              // Sectors that should always appear in the breakdown even when
+              // the fund currently holds nothing in them.
+              const ALWAYS_SHOW_SECTORS = [
+                "Səhiyyə",
+                "Zəruri İstehlak",
+                "Q.Zəruri İstehlak",
+                "Enerji",
+              ];
+              const presentSectors = new Set(sectorEntries.map((e) => e.sector));
+              const emptySectorRows = ALWAYS_SHOW_SECTORS.filter(
+                (s) => !presentSectors.has(s),
+              ).map((sector) => ({
+                sector,
+                valueAzn: 0,
+                percent: 0,
+                color: sectorColor(sector),
+              }));
+              const sectorRows = [
+                ...sectorEntries.map((e) => ({
+                  sector: e.sector,
+                  valueAzn: e.total,
+                  percent: portfolioTotal > 0 ? e.total / portfolioTotal : 0,
+                  color: sectorColor(e.sector),
+                })),
+                ...emptySectorRows,
+              ];
+
+              return (
+                <MotionSection id="portfel" delay={0.15} className="scroll-mt-24">
+                  <div className="glass p-6 flex flex-col gap-6">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
+                        Fond Portfeli
+                      </div>
+                      <RefreshButton />
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                      <div className="lg:col-span-2">
+                        {/* Twelve rows open, the rest behind "Daha N mövqe" —
+                            the list then balances the pie column beside it. */}
+                        <AllocationList
+                          items={[...colored]
+                            .sort(
+                              (a, b) => b.holding.valueAzn - a.holding.valueAzn,
+                            )
+                            .map(({ holding, color }) => ({
+                              symbol: holding.symbol,
+                              name: holding.name,
+                              sector: holding.sector ?? "Naməlum",
+                              sharesHeld: holding.sharesHeld,
+                              priceUsd: holding.priceUsd,
+                              avgPurchaseUsd: holding.avgPurchaseUsd,
+                              valueAzn: holding.valueAzn,
+                              percent: holding.percent,
+                              changePct: holding.changePct,
+                              dayChangePct: holding.dayChangePct,
+                              dayChangeAzn: holding.dayChangeUsd,
+                              totalPnlAzn: holding.totalPnlUsd,
+                              isCash: holding.isCash,
+                              color,
+                            }))}
+                          extended={
+                            extendedPortfolio
+                              ? {
+                                  mode: extendedPortfolio.mode,
+                                  quotes: extendedPortfolio.perSymbol,
+                                }
+                              : null
+                          }
+                          momentum={
+                            momentumDefault.rows.length > 0
+                              ? momentumBySymbol
+                              : undefined
+                          }
+                          sparks={fondSparks}
+                          initialRows={12}
+                        />
+                      </div>
+                      <div className="lg:col-span-1 flex flex-col gap-6">
+                        {/* Pie slot carousel: sector pie ⟷ health gauge ⟷ vs SPY. */}
+                        <PortfolioCarousel
+                          slides={[
+                            {
+                              key: "pie",
+                              label: "Sektor dairəsi",
+                              content: (
+                                <PortfolioPie
+                                  sectors={sectorSlices}
+                                  stocks={stockSlices}
+                                />
+                              ),
+                            },
+                            ...(momentumDefault.health != null
+                              ? [
+                                  {
+                                    key: "health",
+                                    label: "Portfelin momentum gücü",
+                                    content: (
+                                      <HealthGauge
+                                        health={momentumDefault.health}
+                                      />
+                                    ),
+                                  },
+                                ]
+                              : []),
+                            ...(portfolio13w != null && spyRefs.ret13w != null
+                              ? [
+                                  {
+                                    key: "alpha",
+                                    label: "S&P 500 ilə müqayisə (13 həftə)",
+                                    content: (
+                                      <AlphaCompare
+                                        portfolioRet={portfolio13w}
+                                        spyRet={spyRefs.ret13w}
+                                      />
+                                    ),
+                                  },
+                                ]
+                              : []),
+                            {
+                              key: "signals",
+                              label: "Bazar siqnalları",
+                              content: (
+                                <MarketSignalsPanel
+                                  report={policyReport}
+                                  signals={marketSignals}
+                                />
+                              ),
+                            },
+                          ]}
+                        />
+                        <SectorBreakdown rows={sectorRows} />
+                      </div>
+                    </div>
+                  </div>
+                </MotionSection>
+              );
+            })()}
+
+            {/* İnvestisiya siyasəti — sleeve allocation vs the written policy,
+                unwind schedule and the dip-buying trigger. Hide-able. */}
+            {holdings.length > 0 && (
+              <MotionSection id="siyaset" delay={0.16} className="scroll-mt-24">
+                <InvestmentPolicyCard
+                  report={policyReport}
+                  signals={marketSignals}
                 />
               </MotionSection>
             )}
+
+            {/* Alış bileti with the Zəiflər podium beside it; the sell
+                matrix below folds away. */}
+            {ticket.picks.length > 0 && (
+              <MotionSection id="bilet" delay={0.17} className="scroll-mt-24">
+                <div className="glass p-6">
+                  <BuyTicketPodium
+                    ticket={ticket}
+                    sell={sellState}
+                    canEdit={isAdmin}
+                    weakest={weakest}
+                  />
+                </div>
+              </MotionSection>
+            )}
           </>
-        )}
-
-        {/* Fondumuz haqqında xəbərlər — personal view only. The günlük
-            mükafat card docks to its bottom (İsmayıl's placement call); with
-            no news to show, the reward card stands alone in the same slot. */}
-        {(() => {
-          const hasNews =
-            fundNews.fresh.length > 0 || fundNews.archive.length > 0;
-          const showNewsCard = canEditStrategy || hasNews;
-          if (fundView || (!showNewsCard && !rewardState)) return null;
-          return (
-            <MotionSection delay={0.12} className="-mt-10">
-              {showNewsCard ? (
-                <FundNewsCard news={fundNews} canPost={canEditStrategy} />
-              ) : null}
-              {rewardState ? (
-                <div className={showNewsCard ? "mt-4" : undefined}>
-                  <DailyRewardCard state={rewardState} />
-                </div>
-              ) : null}
-            </MotionSection>
-          );
-        })()}
-
-        {/* Debt panel — admin only, personal view only */}
-        {!fundView && isAdmin && debts.length > 0 && (
-          <MotionSection id="borclar" delay={0.13} className="scroll-mt-32 hairline -mt-8 pt-6">
-            <DebtPanel
-              projections={computeDebtProjections(debts)}
-              schedule={computeDebtSchedule(debts)}
-            />
-          </MotionSection>
-        )}
-
-        {/* Fond portfeli — fund view only (İsmayıl's call: the personal view
-            stays a personal statement; everything fund-wide lives under
-            Ümumfond baxış). */}
-        {fundView && holdings.length > 0 && (() => {
-          // Group by sector, sort sectors by total value desc, stocks within
-          // each sector by value desc. This ordering is shared by the pie
-          // (so stocks sit inside their sector wedge), the list, and the
-          // sector breakdown — colors line up across all three.
-          const groups = new Map<string, typeof holdings>();
-          for (const h of holdings) {
-            const key = h.sector ?? "Naməlum";
-            const arr = groups.get(key);
-            if (arr) arr.push(h);
-            else groups.set(key, [h]);
-          }
-          const sectorEntries = Array.from(groups.entries())
-            .map(([sector, hs]) => {
-              const sorted = [...hs].sort(
-                (a, b) => b.valueAzn - a.valueAzn,
-              );
-              const total = sorted.reduce((s, h) => s + h.valueAzn, 0);
-              return { sector, holdings: sorted, total };
-            })
-            .sort((a, b) => b.total - a.total);
-
-          const portfolioTotal = sectorEntries.reduce(
-            (s, e) => s + e.total,
-            0,
-          );
-
-          const colored: Array<{
-            holding: (typeof holdings)[number];
-            color: string;
-          }> = [];
-          for (const { sector, holdings: hs } of sectorEntries) {
-            const base = sectorColor(sector);
-            hs.forEach((h, idx) => {
-              const shade = mixWithWhite(base, Math.min(idx * 0.14, 0.55));
-              colored.push({ holding: h, color: shade });
-            });
-          }
-
-          const stockSlices = colored.map(({ holding, color }) => ({
-            name: holding.name,
-            value: holding.valueAzn,
-            fill: color,
-            sector: holding.sector ?? "Naməlum",
-          }));
-          const sectorSlices = sectorEntries.map((e) => ({
-            name: e.sector,
-            value: e.total,
-            fill: sectorColor(e.sector),
-          }));
-          // Sectors that should always appear in the breakdown even when
-          // the fund currently holds nothing in them.
-          const ALWAYS_SHOW_SECTORS = [
-            "Səhiyyə",
-            "Zəruri İstehlak",
-            "Q.Zəruri İstehlak",
-            "Enerji",
-          ];
-          const presentSectors = new Set(sectorEntries.map((e) => e.sector));
-          const emptySectorRows = ALWAYS_SHOW_SECTORS.filter(
-            (s) => !presentSectors.has(s),
-          ).map((sector) => ({
-            sector,
-            valueAzn: 0,
-            percent: 0,
-            color: sectorColor(sector),
-          }));
-          const sectorRows = [
-            ...sectorEntries.map((e) => ({
-              sector: e.sector,
-              valueAzn: e.total,
-              percent: portfolioTotal > 0 ? e.total / portfolioTotal : 0,
-              color: sectorColor(e.sector),
-            })),
-            ...emptySectorRows,
-          ];
-
-          return (
-            <MotionSection id="portfel" delay={0.15} className="scroll-mt-32 hairline -mt-8 pt-6">
-              <div className="glass p-6 flex flex-col gap-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-brand-green/80 sm:text-[14px] sm:tracking-[0.22em]">
-                    Fond Portfeli
-                  </div>
-                  <RefreshButton />
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                  <div className="lg:col-span-2">
-                    <AllocationList
-                      items={[...colored]
-                        .sort(
-                          (a, b) => b.holding.valueAzn - a.holding.valueAzn,
-                        )
-                        .map(({ holding, color }) => ({
-                          symbol: holding.symbol,
-                          name: holding.name,
-                          sector: holding.sector ?? "Naməlum",
-                          sharesHeld: holding.sharesHeld,
-                          priceUsd: holding.priceUsd,
-                          avgPurchaseUsd: holding.avgPurchaseUsd,
-                          valueAzn: holding.valueAzn,
-                          percent: holding.percent,
-                          changePct: holding.changePct,
-                          dayChangePct: holding.dayChangePct,
-                          dayChangeAzn: holding.dayChangeUsd,
-                          totalPnlAzn: holding.totalPnlUsd,
-                          isCash: holding.isCash,
-                          color,
-                        }))}
-                      extended={
-                        extendedPortfolio
-                          ? {
-                              mode: extendedPortfolio.mode,
-                              quotes: extendedPortfolio.perSymbol,
-                            }
-                          : null
-                      }
-                      momentum={
-                        momentumDefault.rows.length > 0
-                          ? momentumBySymbol
-                          : undefined
-                      }
-                      sparks={fondSparks}
+        ) : (
+          /* Personal view. Desktop: a main column (Tarixçə, Aktivlərim,
+             Xəbərlər, Borclar) and a sticky right rail (the Bazar card,
+             Gündəlik mükafat, the Google card). Phones: one column in
+             İsmayıl's order — Tarixçə, Aktivlərim, Xəbərlər, Mükafat,
+             Google, Borclar — which the two wrappers deliver by melting
+             into the flex flow (display: contents) below lg, with Borclar
+             ordered last. */
+          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-x-6">
+            <div className="contents lg:flex lg:flex-col lg:gap-6">
+              {/* The holding value lives inside the history chart card
+                  (Yahoo's portfolio-performance composition). */}
+              <MotionSection id="tarixce" delay={0.05} className="scroll-mt-24">
+                <PerformanceChart
+                  data={bookChartLive}
+                  priceData={priceChartLive}
+                  fineData={
+                    minuteSeries
+                      ? {
+                          day: withBasis(minuteSeries.day.mine),
+                          week: withBasis(minuteSeries.week.mine),
+                          month: withBasis(minuteSeries.month.mine),
+                        }
+                      : undefined
+                  }
+                  finePrice={
+                    minuteSeries
+                      ? {
+                          day: minuteSeries.day.price,
+                          week: minuteSeries.week.price,
+                          month: minuteSeries.month.price,
+                        }
+                      : undefined
+                  }
+                  sessionMode={extendedPortfolio?.mode ?? null}
+                  events={chartEvents}
+                  hero={
+                    <ChartSummary
+                      value={bookValue + liveDeltaMineAzn}
+                      dayChange={withExt(bookDayChange, liveDeltaMineAzn)}
+                      totalChange={withExtPnl(bookPnl, liveDeltaMineAzn)}
+                      units={effectiveUnits}
+                      avgBuyPrice={perf.avgBuyPrice}
+                      sessionMode={extendedPortfolio?.mode ?? null}
+                      live={{
+                        baseValue: bookValue,
+                        baseDay: bookDayChange,
+                        baseTotal: bookPnl,
+                        scale: holderShare,
+                      }}
+                      action={chartActions}
+                      session={chartSession}
                     />
-                  </div>
-                  <div className="lg:col-span-1 flex flex-col gap-6">
-                    {/* Pie slot carousel: sector pie ⟷ health gauge ⟷ vs SPY. */}
-                    <PortfolioCarousel
-                      slides={[
-                        {
-                          key: "pie",
-                          label: "Sektor dairəsi",
-                          content: (
-                            <PortfolioPie
-                              sectors={sectorSlices}
-                              stocks={stockSlices}
-                            />
-                          ),
-                        },
-                        ...(momentumDefault.health != null
-                          ? [
-                              {
-                                key: "health",
-                                label: "Portfelin momentum gücü",
-                                content: (
-                                  <HealthGauge
-                                    health={momentumDefault.health}
-                                  />
-                                ),
-                              },
-                            ]
-                          : []),
-                        ...(portfolio13w != null && spyRefs.ret13w != null
-                          ? [
-                              {
-                                key: "alpha",
-                                label: "S&P 500 ilə müqayisə (13 həftə)",
-                                content: (
-                                  <AlphaCompare
-                                    portfolioRet={portfolio13w}
-                                    spyRet={spyRefs.ret13w}
-                                  />
-                                ),
-                              },
-                            ]
-                          : []),
-                        {
-                          key: "signals",
-                          label: "Bazar siqnalları",
-                          content: (
-                            <MarketSignalsPanel
-                              report={policyReport}
-                              signals={marketSignals}
-                            />
-                          ),
-                        },
-                      ]}
+                  }
+                  priceHero={
+                    <ChartSummary
+                      masked={false}
+                      value={unitPriceLiveAzn}
+                      dayChange={withExt(unitDayChange, unitLiveDeltaAzn)}
+                      totalChange={withExtPnl(unit3mChange, unitLiveDeltaAzn)}
+                      totalLabel="son 3 ayda"
+                      units={effectiveUnits}
+                      avgBuyPrice={perf.avgBuyPrice}
+                      sessionMode={extendedPortfolio?.mode ?? null}
+                      live={{
+                        baseValue: fund.unitPrice,
+                        baseDay: unitDayChange,
+                        baseTotal: unit3mChange,
+                        scale: fund.totalUnits > 0 ? 1 / fund.totalUnits : 0,
+                      }}
+                      action={chartActions}
+                      session={chartSession}
                     />
-                    <SectorBreakdown rows={sectorRows} />
-                  </div>
-                </div>
-              </div>
-            </MotionSection>
-          );
-        })()}
+                  }
+                />
+              </MotionSection>
 
-        {/* İnvestisiya siyasəti — sleeve allocation vs the written policy,
-            unwind schedule and the dip-buying trigger. Fund view, with the
-            rest of the fund-wide sections. */}
-        {fundView && holdings.length > 0 && (
-          <MotionSection
-            id="siyaset"
-            delay={0.16}
-            className="scroll-mt-32 hairline -mt-8 pt-6"
-          >
-            <InvestmentPolicyCard
-              report={policyReport}
-              signals={marketSignals}
-            />
-          </MotionSection>
-        )}
+              {/* Aktivlərim — the viewer's whole personal book: İRF pays
+                  first, then ETF positions from the Aktivlər ledger. */}
+              {(assetPositions.length > 0 || effectiveUnits > 0) && (
+                <MotionSection id="aktivlerim" delay={0.08} className="scroll-mt-24">
+                  <AssetHoldingsCard
+                    positions={assetPositions}
+                    irf={
+                      effectiveUnits > 0
+                        ? {
+                            units: effectiveUnits,
+                            avgBuyAzn: perf.avgBuyPrice,
+                            priceAzn: unitPriceLiveAzn,
+                            // Header-sum coherence: a row whose P&L cannot
+                            // carry the delta (no cost basis) keeps the delta
+                            // out of its value too.
+                            valueAzn:
+                              holdingValue +
+                              (holdingPnl != null ? liveDeltaMineAzn : 0),
+                            dayChangePct: unitDayPctLive,
+                            dayChangeAzn: withExt(dayChange, liveDeltaMineAzn),
+                            totalPnlAzn: withExtPnl(holdingPnl, liveDeltaMineAzn),
+                            sparks: irfRowSparks,
+                            sessionMode: extendedPortfolio?.mode ?? null,
+                          }
+                        : null
+                    }
+                    sparks={assetRowSparks}
+                    showBuyHint={!isAdmin}
+                  />
+                </MotionSection>
+              )}
 
-        {/* Həftəlik alış bileti — fund view only */}
-        {fundView && ticket.picks.length > 0 && (
-          <MotionSection
-            id="bilet"
-            delay={0.17}
-            className="scroll-mt-32 hairline -mt-8 pt-6"
-          >
-            <div className="glass p-6">
-              <BuyTicketPodium ticket={ticket} sell={sellState} canEdit={isAdmin} />
+              {/* Fondumuz haqqında xəbərlər. */}
+              {(() => {
+                const hasNews =
+                  fundNews.fresh.length > 0 || fundNews.archive.length > 0;
+                if (!canEditStrategy && !hasNews) return null;
+                return (
+                  <MotionSection id="xeberler" delay={0.1} className="scroll-mt-24">
+                    <FundNewsCard news={fundNews} canPost={canEditStrategy} />
+                  </MotionSection>
+                );
+              })()}
+
+              {/* Debt panel — admin only; hide-able; last on phones. */}
+              {isAdmin && debts.length > 0 && (
+                <MotionSection
+                  id="borclar"
+                  delay={0.13}
+                  className="order-last scroll-mt-24 lg:order-none"
+                >
+                  <DebtPanel
+                    projections={computeDebtProjections(debts)}
+                    schedule={computeDebtSchedule(debts)}
+                  />
+                </MotionSection>
+              )}
             </div>
-          </MotionSection>
+
+            <aside className="contents lg:sticky lg:top-24 lg:flex lg:flex-col lg:gap-5">
+              {/* The market at a glance — desktop only; phones have the
+                  strip under the greeting. */}
+              <MotionSection delay={0.08} className="hidden lg:block">
+                <MarketRailCard
+                  quotes={marketTicker}
+                  holdingQuotes={holdingsTicker}
+                  irf={{
+                    priceAzn: unitPriceLiveAzn,
+                    changePct: unitDayPctLive,
+                    live: {
+                      basePriceAzn: fund.unitPrice,
+                      prevCloseAzn: previousPricePoint?.price ?? null,
+                      totalUnits: fund.totalUnits,
+                    },
+                  }}
+                  status={<MarketCountdown history={regularHistory} compact />}
+                />
+              </MotionSection>
+              {rewardState ? (
+                <MotionSection delay={0.12}>
+                  <DailyRewardCard state={rewardState} />
+                </MotionSection>
+              ) : null}
+              {!hasGoogle ? (
+                <MotionSection delay={0.14}>
+                  <GoogleLinkBanner
+                    returnTo="/dashboard"
+                    status={googleStatus}
+                    variant="card"
+                  />
+                </MotionSection>
+              ) : null}
+            </aside>
+          </div>
         )}
       </div>
       </LivePricingProvider>
-      </PrivacyProvider>
     </main>
+    </PrivacyProvider>
   );
 }

@@ -1,11 +1,31 @@
 "use client";
 
 import { usePrivacy } from "@/components/PrivacyProvider";
+import { iconBtn } from "@/components/iconButton";
 
-/** Round eye button that flips hide-amounts mode. */
-export function PrivacyToggle({ className }: { className?: string }) {
+/**
+ * Round eye button that flips hide-amounts mode. `size="header"` renders it
+ * in the header cluster's icon-button recipe (lit green while amounts are
+ * hidden); the default is the small inline eye used inside cards.
+ */
+export function PrivacyToggle({
+  className,
+  size = "sm",
+}: {
+  className?: string;
+  size?: "sm" | "header";
+}) {
   const { hidden, toggle } = usePrivacy();
   const label = hidden ? "Məbləğləri göstər" : "Məbləğləri gizlət";
+  const cls =
+    size === "header"
+      ? iconBtn(hidden)
+      : `inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border shadow-sm transition ${
+          hidden
+            ? "border-brand-green/40 bg-brand-green/10 text-brand-green dark:text-emerald-400"
+            : "border-black/12 bg-white/70 text-black/45 hover:border-brand-green/40 hover:text-brand-green dark:border-white/15 dark:bg-white/5 dark:text-white/50 dark:hover:text-emerald-400"
+        }`;
+  const iconSize = size === "header" ? 16 : 14;
 
   return (
     <button
@@ -14,22 +34,18 @@ export function PrivacyToggle({ className }: { className?: string }) {
       aria-pressed={hidden}
       aria-label={label}
       title={label}
-      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border shadow-sm transition ${
-        hidden
-          ? "border-brand-green/40 bg-brand-green/10 text-brand-green dark:text-emerald-400"
-          : "border-black/12 bg-white/70 text-black/45 hover:border-brand-green/40 hover:text-brand-green dark:border-white/15 dark:bg-white/5 dark:text-white/50 dark:hover:text-emerald-400"
-      } ${className ?? ""}`}
+      className={`${cls} ${className ?? ""}`}
     >
-      {hidden ? <EyeOffIcon /> : <EyeIcon />}
+      {hidden ? <EyeOffIcon size={iconSize} /> : <EyeIcon size={iconSize} />}
     </button>
   );
 }
 
-function EyeIcon() {
+function EyeIcon({ size }: { size: number }) {
   return (
     <svg
-      width="14"
-      height="14"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -44,11 +60,11 @@ function EyeIcon() {
   );
 }
 
-function EyeOffIcon() {
+function EyeOffIcon({ size }: { size: number }) {
   return (
     <svg
-      width="14"
-      height="14"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

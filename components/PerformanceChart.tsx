@@ -15,7 +15,6 @@ import {
 import { formatAzn, formatGrouped } from "@/lib/portfolio";
 import { usePrivacy } from "@/components/PrivacyProvider";
 import { IsmayilBankMark } from "@/components/IsmayilBankLogo";
-import { PrivacyToggle } from "@/components/PrivacyToggle";
 import { useIsPhone } from "@/components/useIsPhone";
 
 type Point = {
@@ -753,10 +752,11 @@ export function PerformanceChart({
   return (
     <div className="glass w-full p-4 sm:p-6">
       {/* Header: one short label left ("Tarixçə" — the mode buttons beside
-          it already name the series). Phones: the window-change pill and
-          the hide-amounts eye on the right — the card-level controls — so
-          nothing sits beside the headline's change lines below (the eye
-          there is sm+ only, see ChartSummary). sm+: pill + mode switch
+          it already name the series). Phones: the window-change pill on
+          the right, so nothing sits beside the headline's change lines
+          below (the hide-amounts eye lives in the page header on every
+          device since the landing redesign; the cluster beside the change
+          lines is sm+ only, see ChartSummary). sm+: pill + mode switch
           right; the range buttons sit below the plot (Yahoo-app
           composition, see bottom). */}
       <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4 sm:flex-wrap">
@@ -765,7 +765,6 @@ export function PerformanceChart({
         </span>
         <div className="flex items-center gap-2 sm:hidden">
           {changePill("", true)}
-          <PrivacyToggle />
         </div>
         <div className="ml-auto hidden items-center gap-2 sm:flex">
           {changePill("")}
