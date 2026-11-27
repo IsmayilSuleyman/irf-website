@@ -1,7 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, getRequestUser } from "@/lib/supabase/server";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { FUND_PRINCIPAL_NAME } from "@/lib/holdings";
 import type { FlowBondPayment, FlowBondTrade } from "@/lib/bankFlows";
@@ -316,9 +316,8 @@ export async function getBondMarketData(): Promise<BondMarketData | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // The page's auth guard already asked GoTrue this request — reuse it.
+  const { user } = await getRequestUser();
   if (!user) return null;
 
   const holderName = displayName(user.user_metadata);

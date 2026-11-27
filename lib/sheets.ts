@@ -1,4 +1,5 @@
-import { auth as googleAuth, sheets as sheetsApi } from "@googleapis/sheets";
+import { sheets as sheetsApi } from "@googleapis/sheets";
+import { getSheetsReadAuth } from "@/lib/googleAuth";
 import { unstable_cache } from "next/cache";
 import { USD_TO_AZN } from "@/lib/portfolio";
 import { parseSheetDateMs } from "@/lib/sheetDates";
@@ -68,15 +69,8 @@ export type Holding = {
 // working.
 export { USD_TO_AZN };
 
-function getAuth() {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON env var is missing");
-  const credentials = JSON.parse(raw);
-  return new googleAuth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-  });
-}
+// One auth client per instance (token reuse) — see lib/googleAuth.
+const getAuth = getSheetsReadAuth;
 
 const parseAzn = (v: unknown): number => {
   if (v == null) return 0;

@@ -264,11 +264,19 @@ export default async function BankPage({
   const dateLabel = formatBakuDate(new Date());
   // Admin (is_fund_admin): the cabinet, debt notices — and the full
   // Supabase-side money-flow ledger (every holder's rows, not just own).
-  const isAdmin = supabase
-    ? (await supabase.rpc("is_fund_admin")).data === true
-    : false;
+  // A promise, not an await: the personal view's main reads don't depend
+  // on it, so they start in the same round trip, and every admin-only read
+  // chains straight off the answer instead of waiting for the main pass.
+  // An RPC failure reads as "not admin" — the cabinet fails closed.
+  const isAdminPromise: Promise<boolean> = supabase
+    ? Promise.resolve(supabase.rpc("is_fund_admin")).then(
+        (r) => r.data === true,
+        () => false,
+      )
+    : Promise.resolve(false);
 
   if (bankView) {
+    const isAdmin = await isAdminPromise;
     const now = new Date();
     const data = await loadBankWideData(supabase, isAdmin, now);
     // Baku is fixed UTC+4 — manual math, no Intl (hydration rule).
@@ -311,6 +319,59 @@ export default async function BankPage({
   }
 
   const name = displayNameOf(user.user_metadata);
+  const creditOfferPromise = getMyCreditOffer(name);
+  // Admin-only reads — the cabinet's settlement totals, every credit
+  // offer, the access panel's users + registrations and the share cap it
+  // quotes — in ONE round as soon as is_fund_admin answers, concurrent with
+  // the main pass below (they used to be four sequential rounds after it).
+  // The cap is only shown next to the users list, so it is dropped when
+  // that list is unavailable (external_members migration not applied).
+  const adminPromise = isAdminPromise.then(async (admin) => {
+    if (!admin || !supabase) {
+      return {
+        rewardTotals: [] as DailyRewardHolderTotal[],
+        interestTotals: [] as BankInterestHolderTotal[],
+        offers: [] as Awaited<ReturnType<typeof getAllCreditOffers>>,
+        appUsersRaw: null as Awaited<ReturnType<typeof listAppUsers>>,
+        registrations: [] as Awaited<ReturnType<typeof listRegistrations>>,
+        externalCapPct: null as number | null,
+      };
+    }
+    const [rewardTotals, interestTotals, offers, appUsersRaw, registrations, capPct] =
+      await Promise.all([
+        getDailyRewardTotals(supabase),
+        getBankInterestTotals(supabase),
+        getAllCreditOffers(),
+        listAppUsers(supabase),
+        listRegistrations(supabase),
+        readExternalCapPct(supabase),
+      ]);
+    return {
+      rewardTotals,
+      interestTotals,
+      offers,
+      appUsersRaw,
+      registrations,
+      externalCapPct: appUsersRaw ? capPct : null,
+    };
+  });
+  // Bank-wide inputs for the admin cabinet and the credit-offer banner —
+  // every fetch is 60s-cached; they start once both gates have answered.
+  const sharedPromise = Promise.all([isAdminPromise, creditOfferPromise]).then(
+    ([admin, offer]) => {
+      const wantsShared = admin || offer != null;
+      return Promise.all([
+        wantsShared ? getBankAccounts() : Promise.resolve([] as BankAccount[]),
+        wantsShared ? getBondFundingAzn() : Promise.resolve(0),
+        wantsShared ? getBankProductTerms() : Promise.resolve(null),
+      ]);
+    },
+  );
+  // Both strands are awaited only after the main pass; marking them handled
+  // keeps a failure from surfacing as an unhandled rejection should that
+  // pass throw first (the await below still receives it).
+  adminPromise.catch(() => undefined);
+  sharedPromise.catch(() => undefined);
   const [
     sheetAccount,
     bonds,
@@ -321,10 +382,14 @@ export default async function BankPage({
     baseQuotes,
     fundHoldings,
     navHistory,
+    isAdmin,
+    founderMode,
+    rewardState,
+    personalDebts,
   ] = await Promise.all([
     getBankAccountByName(name),
     getMyBondHoldings(),
-    getMyCreditOffer(name),
+    creditOfferPromise,
     getAssetTransactions(),
     // İRF joins the vault podium (with its own not-a-deposit note); a
     // sheet outage just leaves it off, never breaks the bank page.
@@ -337,28 +402,19 @@ export default async function BankPage({
     // same 24/7 fold as the dashboard trio.
     getHoldings().catch(() => []),
     getPriceHistory().catch(() => []),
+    isAdminPromise,
+    // Təsisçi rejimi flag (30s-cached) — see isFounderHere below.
+    getFounderMode(),
+    // Today's Günlük mükafat claim state and the reminders card: both
+    // depend on the viewer alone.
+    supabase ? getDailyRewardState(supabase, user.id) : Promise.resolve(null),
+    supabase ? getMyPersonalDebts(supabase) : Promise.resolve(null),
   ]);
   // Same live pricing the dashboard shows: sheet value + the current
-  // session's delta, scaled to the holder's slice of the fund.
-  const liveDelta = await getLiveFundDelta(fundHoldings);
-  const irfShare =
-    fund && marketState && fund.totalUnits > 0
-      ? marketState.effectiveUnits / fund.totalUnits
-      : 0;
-  const irfValueAzn =
-    fund && marketState
-      ? fund.unitPrice * marketState.effectiveUnits +
-        liveDelta.deltaAzn * irfShare
-      : 0;
-  const unitPriceLiveAzn =
-    fund && fund.totalUnits > 0
-      ? fund.unitPrice + liveDelta.deltaAzn / fund.totalUnits
-      : (fund?.unitPrice ?? 0);
-  const navRef = dayChangeReference(navHistory);
-  const irfDayChangePct =
-    fund && navRef && navRef.price > 0
-      ? unitPriceLiveAzn / navRef.price - 1
-      : null;
+  // session's delta, scaled to the holder's slice of the fund. Started
+  // here, awaited with the interest round below.
+  const liveDeltaPromise = getLiveFundDelta(fundHoldings);
+  liveDeltaPromise.catch(() => undefined);
 
   // The vault: the holder's ETF book (gold/silver/BTC/S&P bought through
   // İsmayıl), valued live. Deliberately NEVER added to the deposit figure —
@@ -430,7 +486,6 @@ export default async function BankPage({
   // Təsisçi rejimi: when on, and this login IS the principal, the bank
   // stops being his depositor's account — no daily interest accrues to the
   // founder, and the founder hero replaces the balance hero below.
-  const founderMode = await getFounderMode();
   const isFounderHere =
     founderMode && isAdmin && account != null && isSameHolder(account.name, FUND_PRINCIPAL_NAME);
   // The Sheet row differentiates the two deposit products: filled term
@@ -442,57 +497,72 @@ export default async function BankPage({
     ((account.termMonths != null && account.termMonths > 0) ||
       (account.annualRatePct != null && account.annualRatePct > 0));
 
-  // Günlük mükafat + günlük faiz in one round: today's claim state, the
-  // interest accrual (lazy — the RPC back-fills any missed Baku days on
-  // this very render, so "everyday" needs no cron; term-deposit accounts
-  // only READ leftover unsettled interest, never accrue) and, admin only,
-  // both settlement totals. Everything degrades to "no card" when the
-  // migrations aren't applied yet.
-  const [rewardState, rewardTotals, interestState, interestTotals, personalDebts] = supabase
-    ? await Promise.all([
-        getDailyRewardState(supabase, user.id),
-        isAdmin
-          ? getDailyRewardTotals(supabase)
-          : Promise.resolve([] as DailyRewardHolderTotal[]),
-        account
-          ? hasTermProduct || isFounderHere
-            ? getBankInterestState(supabase, user.id)
-            : accrueAndGetBankInterest(
-                supabase,
-                user.id,
-                account.name,
-                account.depositedAzn,
-              )
-          : Promise.resolve(null as BankInterestState | null),
-        isAdmin
-          ? getBankInterestTotals(supabase)
-          : Promise.resolve([] as BankInterestHolderTotal[]),
-        getMyPersonalDebts(supabase),
-      ])
-    : [
-        null,
-        [] as DailyRewardHolderTotal[],
-        null,
-        [] as BankInterestHolderTotal[],
-        null,
-      ];
+  // The second (and last) round — everything that needed the account row
+  // or the founder answer, joined by the strands started before the main
+  // pass: the günlük faiz accrual (lazy — the RPC back-fills any missed
+  // Baku days on this very render, so "everyday" needs no cron; term-deposit
+  // accounts only READ leftover unsettled interest, never accrue), the
+  // founder hero's bank-wide data, the live fund delta, the admin-only
+  // reads and the shared credit-offer inputs. Everything degrades to "no
+  // card" when the migrations aren't applied yet.
+  const [
+    interestState,
+    founderData,
+    liveDelta,
+    {
+      rewardTotals,
+      interestTotals,
+      offers: adminOffers,
+      appUsersRaw,
+      registrations,
+      externalCapPct,
+    },
+    [sharedAccounts, sharedBondFundingAzn, sharedTerms],
+  ] = await Promise.all([
+    supabase && account
+      ? hasTermProduct || isFounderHere
+        ? getBankInterestState(supabase, user.id)
+        : accrueAndGetBankInterest(
+            supabase,
+            user.id,
+            account.name,
+            account.depositedAzn,
+          )
+      : Promise.resolve(null as BankInterestState | null),
+    // The founder's own hero needs the whole bank through the split — the
+    // same loader the bank-wide view runs.
+    isFounderHere
+      ? loadBankWideData(supabase, isAdmin, new Date())
+      : Promise.resolve(null),
+    liveDeltaPromise,
+    adminPromise,
+    sharedPromise,
+  ]);
+  const irfShare =
+    fund && marketState && fund.totalUnits > 0
+      ? marketState.effectiveUnits / fund.totalUnits
+      : 0;
+  const irfValueAzn =
+    fund && marketState
+      ? fund.unitPrice * marketState.effectiveUnits +
+        liveDelta.deltaAzn * irfShare
+      : 0;
+  const unitPriceLiveAzn =
+    fund && fund.totalUnits > 0
+      ? fund.unitPrice + liveDelta.deltaAzn / fund.totalUnits
+      : (fund?.unitPrice ?? 0);
+  const navRef = dayChangeReference(navHistory);
+  const irfDayChangePct =
+    fund && navRef && navRef.price > 0
+      ? unitPriceLiveAzn / navRef.price - 1
+      : null;
+
   // Baku is fixed UTC+4 — the card gets today's ISO from the server so the
   // relative-day pills hydrate identically.
   const bakuTodayIso = new Date(Date.now() + 4 * 3_600_000)
     .toISOString()
     .slice(0, 10);
 
-  // Admin cabinet + credit-offer inputs in ONE parallel round after the
-  // isAdmin answer — every fetch is 60s-cached, but a cold cache used to pay
-  // for four of them serially.
-  const wantsShared = isAdmin || creditOffer != null;
-  const [sharedAccounts, sharedBondFundingAzn, sharedTerms, adminOffers] =
-    await Promise.all([
-      wantsShared ? getBankAccounts() : Promise.resolve([] as BankAccount[]),
-      wantsShared ? getBondFundingAzn() : Promise.resolve(0),
-      wantsShared ? getBankProductTerms() : Promise.resolve(null),
-      isAdmin ? getAllCreditOffers() : Promise.resolve([]),
-    ]);
   const adminAccounts = isAdmin ? sharedAccounts : [];
   const debtors = adminAccounts
     .filter((a) => a.outstandingLoanAzn > 0)
@@ -538,25 +608,15 @@ export default async function BankPage({
   }
 
   const productTerms = isAdmin ? sharedTerms : null;
-  // The founder's own hero needs the whole bank through the split — the
-  // same loader the bank-wide view runs.
-  const founderData = isFounderHere
-    ? await loadBankWideData(supabase, isAdmin, new Date())
-    : null;
-  // The cabinet's access panel: every auth user with the external flag, plus
-  // the share cap it quotes. Absent until the external_members migration runs.
-  const [appUsersRaw, registrations] =
-    isAdmin && supabase
-      ? await Promise.all([listAppUsers(supabase), listRegistrations(supabase)])
-      : [null, []];
+  // The cabinet's access panel (users + registrations, fetched in the admin
+  // strand): every auth user with the external flag, plus the share cap it
+  // quotes. Absent until the external_members migration runs.
   // Pending /register logins have no name yet and are handled in their own
   // panel; keep them out of the family/external switch list.
   const pendingIds = new Set(registrations.map((r) => r.userId));
   const appUsers = appUsersRaw
     ? appUsersRaw.filter((u) => !pendingIds.has(u.userId))
     : null;
-  const externalCapPct =
-    appUsers && supabase ? await readExternalCapPct(supabase) : null;
   const adminNetLiquidity = isAdmin
     ? adminAccounts.reduce((s, a) => s + a.depositedAzn - a.outstandingLoanAzn, 0) +
       sharedBondFundingAzn

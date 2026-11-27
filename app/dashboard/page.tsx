@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { Suspense, type ReactNode } from "react";
 import {
   getAssetTransactions,
   getFundData,
@@ -38,7 +39,11 @@ import { DebtPanel } from "@/components/DebtPanelLazy";
 import { ChartSummary, Greeting, HeroPrice } from "@/components/HeroPrice";
 import { MarketTickerStrip } from "@/components/MarketTickerStrip";
 import { MarketRailCard } from "@/components/MarketRailCard";
-import { getHoldingsTicker, getMarketTicker } from "@/lib/marketTicker";
+import {
+  getHoldingsTicker,
+  getMarketTicker,
+  type TickerQuote,
+} from "@/lib/marketTicker";
 import { isTickerSymbol } from "@/lib/yahoo";
 import { FundNewsCard } from "@/components/FundNewsCard";
 import { getFundNews } from "@/lib/fundNews";
@@ -120,6 +125,38 @@ import { MarketSignalsPanel } from "@/components/MarketSignalsPanel";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * A ticker-fed card behind its own Suspense boundary: `render` runs once
+ * both Yahoo baskets are in. The fallback is the same card drawn with
+ * empty baskets — the İRF tile alone, nothing reflowing — so a cold Yahoo
+ * cache delays only the benchmark tiles, never the page. Warm, the baskets
+ * resolve long before React reaches the boundary and it renders inline.
+ */
+function TickerSlot({
+  tickers,
+  render,
+}: {
+  tickers: Promise<[TickerQuote[], TickerQuote[]]>;
+  render: (quotes: TickerQuote[], holdings: TickerQuote[]) => ReactNode;
+}) {
+  return (
+    <Suspense fallback={render([], [])}>
+      <TickerSlotContent tickers={tickers} render={render} />
+    </Suspense>
+  );
+}
+
+async function TickerSlotContent({
+  tickers,
+  render,
+}: {
+  tickers: Promise<[TickerQuote[], TickerQuote[]]>;
+  render: (quotes: TickerQuote[], holdings: TickerQuote[]) => ReactNode;
+}) {
+  const [quotes, holdings] = await tickers;
+  return <>{render(quotes, holdings)}</>;
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -142,7 +179,69 @@ export default async function DashboardPage({
 
   const name = displayNameOf(user.user_metadata);
   const isAdmin = isOwnerEmail(user.email);
-  const [holder, fund, priceHistory, transactions, holdings, fundNews, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, marketTicker, holdingsTicker, assetTxs] =
+
+  // Supabase reads that need only the viewer — not the Sheet — start NOW,
+  // alongside the big parallel pass below, instead of queueing behind it
+  // (they used to begin only once the slowest Sheet/Yahoo read was back,
+  // adding a whole sequential round — the minute series alone is the
+  // heaviest query the page makes). Each strand settles to a fallback
+  // rather than rejecting, so an early failure can't surface as an
+  // unhandled rejection while the main pass is still in flight.
+  //
+  // Günlük mükafat state for the card under the strategy statement. null
+  // (no card) when Supabase or the claims table is unavailable.
+  const rewardStatePromise = (async () => {
+    const sb = await createSupabaseServerClient();
+    if (!sb) return null;
+    const state = await getDailyRewardState(sb, user.id);
+    return state.available ? state : null;
+  })().catch(() => null);
+  // Minutely snapshot tiers for the fine chart ranges (1G/1H, richer 1 AY)
+  // and the fund view's value chart. null while the recorder is young —
+  // the charts then keep their daily-only ranges.
+  const minuteSeriesPromise = (async () => {
+    const sb = await createSupabaseServerClient();
+    if (!sb) return null;
+    return getMinuteSeries(sb, name ?? null);
+  })().catch(() => null);
+  // The session hover-graph reads and past weeks of momentum scores (the
+  // buy ticket's hysteresis replay) share one client. The extended-session
+  // history is fetched for the window the New York clock names; the fold
+  // below can still settle on a different one (a quiet pre-market rides
+  // the after-market close), and then fetches that one instead.
+  const histSupabasePromise = createSupabaseServerClient();
+  const sessionAtStart = currentUsSession();
+  const regularHistoryPromise = histSupabasePromise
+    .then((sb) => (sb ? getRegularHistory(sb) : []))
+    .catch(() => [] as SessionHistoryPoint[]);
+  const momentumWeeksPromise = histSupabasePromise
+    .then((sb) => (sb ? fetchMomentumWeeks(sb) : []))
+    .catch(() => [] as WeekScores[]);
+  const speculativeExtHistory = sessionAtStart
+    ? histSupabasePromise
+        .then((sb) => (sb ? getExtendedHistory(sb, sessionAtStart) : []))
+        .catch(() => [] as SessionHistoryPoint[])
+    : null;
+
+  // The Yahoo baskets behind the phone strip and the desktop Bazar card
+  // stream in behind their own Suspense boundaries instead of holding the
+  // whole page: warm they answer from the 60s cache in milliseconds, but
+  // cold (a fresh deploy, a new holding) the holdings basket alone is
+  // ~25 Yahoo chart calls plus the cookie/crumb handshake — 2-3 s that
+  // used to gate the first byte of every card. Both degrade to [] (the
+  // strip then shows just the İRF tile), so neither can reject.
+  const marketTickerPromise = getMarketTicker().catch(() => [] as TickerQuote[]);
+  // Reads the same cached sheet holdings itself, so it runs alongside
+  // everything else instead of waiting on the getHoldings() result.
+  const holdingsTickerPromise = getHoldingsTicker().catch(
+    () => [] as TickerQuote[],
+  );
+  const tickersPromise = Promise.all([
+    marketTickerPromise,
+    holdingsTickerPromise,
+  ]);
+
+  const [holder, fund, priceHistory, transactions, holdings, fundNews, debts, marketState, marketQuotes, spyRefs, weeklyBudgetAzn, purchaseCadence, marketSignals, assetTxs] =
     await Promise.all([
       getHolderByName(name),
       getFundData(),
@@ -157,10 +256,6 @@ export default async function DashboardPage({
       getWeeklyBudgetAzn(),
       getPurchaseCadence(),
       getMarketSignals(),
-      getMarketTicker(),
-      // Reads the same cached sheet holdings itself, so it parallelizes
-      // cleanly here instead of waiting on the getHoldings() result.
-      getHoldingsTicker(),
       getAssetTransactions(),
     ]);
   const canEditStrategy = isAdmin;
@@ -182,10 +277,10 @@ export default async function DashboardPage({
   // Whole-portfolio revaluation at Yahoo extended-hours prices (pre-market,
   // after-market, or the overnight gap carrying the after-market close);
   // null only during regular trading hours. Shared 60s quote cache. The
-  // Supabase hover-graph reads and the per-minute snapshot recording chain
-  // behind it inside one closure, so the whole strand runs concurrently with
-  // the ETF quote fetch kicked off just below — instead of the old serial
-  // await staircase. Recording runs in-render (not after()) because the
+  // per-minute snapshot recording chains behind it inside one closure, so
+  // the whole strand runs concurrently with the ETF quote fetch kicked off
+  // just below; the hover-graph reads it joins were started before the main
+  // pass (see the early strands above). Recording runs in-render (not after()) because the
   // Supabase client may touch the request's cookies, which are off-limits
   // post-response; the RPC buckets to the minute and first-write-wins, so
   // repeated renders cost one cheap no-op insert (the minutely cron is the
@@ -203,7 +298,7 @@ export default async function DashboardPage({
     let regularHistory: SessionHistoryPoint[] = [];
     // Past weeks of momentum scores, for the buy ticket's hysteresis replay.
     let momentumWeeks: WeekScores[] = [];
-    const histSupabase = await createSupabaseServerClient();
+    const histSupabase = await histSupabasePromise;
     if (histSupabase) {
       const record = extendedPortfolio
         ? extendedPortfolio.mode !== "overnight"
@@ -218,12 +313,19 @@ export default async function DashboardPage({
       const recordWeek = recordMomentumWeek(histSupabase, momentumDefault.rows, {
         factorsComplete: spyRefs.ret13w != null,
       });
+      // The early fetch is reused when it read the same session table the
+      // fold settled on (pre → "pre", everything else → "post").
+      const historyTable = (m: string) => (m === "pre" ? "pre" : "post");
       [extendedHistory, regularHistory, momentumWeeks] = await Promise.all([
         extendedPortfolio
-          ? getExtendedHistory(histSupabase, extendedPortfolio.mode)
+          ? speculativeExtHistory &&
+            sessionAtStart &&
+            historyTable(sessionAtStart) === historyTable(extendedPortfolio.mode)
+            ? speculativeExtHistory
+            : getExtendedHistory(histSupabase, extendedPortfolio.mode)
           : Promise.resolve([] as SessionHistoryPoint[]),
-        getRegularHistory(histSupabase),
-        fetchMomentumWeeks(histSupabase),
+        regularHistoryPromise,
+        momentumWeeksPromise,
         record.catch(() => undefined),
         recordWeek.catch(() => undefined),
       ]);
@@ -245,25 +347,6 @@ export default async function DashboardPage({
     ...PURCHASABLE_ASSETS.map((a) => a.symbol),
     ...assetTxs.map((t) => t.symbol),
   ]);
-
-  // Günlük mükafat state for the card under the strategy statement — its own
-  // Supabase client so it rides the same concurrency window as the strands
-  // above. null (no card) when Supabase or the claims table is unavailable.
-  const rewardStatePromise = (async () => {
-    const sb = await createSupabaseServerClient();
-    if (!sb) return null;
-    const state = await getDailyRewardState(sb, user.id);
-    return state.available ? state : null;
-  })();
-
-  // Minutely snapshot tiers for the fine chart ranges (1G/1H, richer 1 AY)
-  // and the fund view's value chart. null while the recorder is young —
-  // the charts then keep their daily-only ranges.
-  const minuteSeriesPromise = (async () => {
-    const sb = await createSupabaseServerClient();
-    if (!sb) return null;
-    return getMinuteSeries(sb, name ?? null);
-  })();
 
   const {
     extendedPortfolio,
@@ -566,12 +649,14 @@ export default async function DashboardPage({
     // chart's 5 İL window. The Günlük curves are the ticker strip's
     // holdings sparks, already fetched above — no extra calls.
     fundView && holdings.length > 0
-      ? getAssetRowSparks(
-          holdings
-            .filter((h) => !h.isCash && isTickerSymbol(h.symbol))
-            .map((h) => h.symbol),
-          Object.fromEntries(holdingsTicker.map((q) => [q.label, q.spark])),
-          true,
+      ? holdingsTickerPromise.then((holdingsTicker) =>
+          getAssetRowSparks(
+            holdings
+              .filter((h) => !h.isCash && isTickerSymbol(h.symbol))
+              .map((h) => h.symbol),
+            Object.fromEntries(holdingsTicker.map((q) => [q.label, q.spark])),
+            true,
+          ),
         )
       : Promise.resolve({} as Record<string, RowSparkSet>),
     assetPositions.length > 0
@@ -778,7 +863,14 @@ export default async function DashboardPage({
   // when a session is live — the hide-amounts eye lives in the page header
   // now. Personal view only; the fund view keeps the badge in its own row.
   // On phones the badge takes the `chartSession` line below instead.
-  const chartActions = (
+  //
+  // Both slots are FACTORIES, called once per headline (value and price
+  // mode): one element object passed to two props is serialized once and
+  // referenced from the second spot, and while the streamed ticker card
+  // below is still pending that reference arrives lazily — React's dev
+  // build then flags it as a keyless list child. Fresh elements per use
+  // keep the payload plain.
+  const chartActions = () => (
     <div className="flex items-center gap-2">
       {badgePortfolio ? (
         <ExtendedHoursBadge
@@ -804,22 +896,23 @@ export default async function DashboardPage({
   // Phones: the same badge on its own line under the chart headline
   // (ChartSummary's `session` slot), label and ₼ delta visible since the
   // line is all its own; the popover opens from the left edge there.
-  const chartSession = badgePortfolio ? (
-    <ExtendedHoursBadge
-      data={badgePortfolio}
-      scope="personal"
-      history={extendedHistory}
-      align="left"
-      detail="full"
-      extra={{
-        baseValueAzn: holdingValue,
-        unitPriceAzn: fund.unitPrice,
-        unitPriceExtAzn,
-      }}
-    />
-  ) : sessionNow ? (
-    <ExtendedHoursPlaceholder mode={sessionNow} />
-  ) : null;
+  const chartSession = () =>
+    badgePortfolio ? (
+      <ExtendedHoursBadge
+        data={badgePortfolio}
+        scope="personal"
+        history={extendedHistory}
+        align="left"
+        detail="full"
+        extra={{
+          baseValueAzn: holdingValue,
+          unitPriceAzn: fund.unitPrice,
+          unitPriceExtAzn,
+        }}
+      />
+    ) : sessionNow ? (
+      <ExtendedHoursPlaceholder mode={sessionNow} />
+    ) : null;
 
 
   // The header's account button and the viewer's own row in Pay sahibləri:
@@ -906,31 +999,36 @@ export default async function DashboardPage({
           <Greeting holderName={holder.name} />
           {fundView ? null : (
             <div className="sm:hidden">
-              <MarketTickerStrip
-                quotes={marketTicker}
-                holdingQuotes={holdingsTicker}
-                irf={{
-                  priceAzn: unitPriceLiveAzn,
-                  changePct: unitDayPctLive,
-                  sessionMode: extendedPortfolio?.mode ?? null,
-                  live: {
-                    basePriceAzn: fund.unitPrice,
-                    prevCloseAzn: previousPricePoint?.price ?? null,
-                    totalUnits: fund.totalUnits,
-                  },
-                  // Unit-price history stands in for an intraday line — the
-                  // pay reprices daily, so its "movement" is the last stretch
-                  // of recorded prices. The live tail point rides along, so
-                  // the glowing line ends at the price the tile displays.
-                  spark: priceChartLive.slice(-30).map((p) => p.value),
-                }}
-                assets={tileAssets}
-                showBuyHint={!isAdmin}
-                statusRow={
-                  <div className="flex flex-wrap items-center gap-2">
-                    <MarketCountdown history={regularHistory} />
-                  </div>
-                }
+              <TickerSlot
+                tickers={tickersPromise}
+                render={(marketTicker, holdingsTicker) => (
+                  <MarketTickerStrip
+                    quotes={marketTicker}
+                    holdingQuotes={holdingsTicker}
+                    irf={{
+                      priceAzn: unitPriceLiveAzn,
+                      changePct: unitDayPctLive,
+                      sessionMode: extendedPortfolio?.mode ?? null,
+                      live: {
+                        basePriceAzn: fund.unitPrice,
+                        prevCloseAzn: previousPricePoint?.price ?? null,
+                        totalUnits: fund.totalUnits,
+                      },
+                      // Unit-price history stands in for an intraday line — the
+                      // pay reprices daily, so its "movement" is the last stretch
+                      // of recorded prices. The live tail point rides along, so
+                      // the glowing line ends at the price the tile displays.
+                      spark: priceChartLive.slice(-30).map((p) => p.value),
+                    }}
+                    assets={tileAssets}
+                    showBuyHint={!isAdmin}
+                    statusRow={
+                      <div className="flex flex-wrap items-center gap-2">
+                        <MarketCountdown history={regularHistory} />
+                      </div>
+                    }
+                  />
+                )}
               />
             </div>
           )}
@@ -1310,8 +1408,8 @@ export default async function DashboardPage({
                         baseTotal: bookPnl,
                         scale: holderShare,
                       }}
-                      action={chartActions}
-                      session={chartSession}
+                      action={chartActions()}
+                      session={chartSession()}
                     />
                   }
                   priceHero={
@@ -1330,8 +1428,8 @@ export default async function DashboardPage({
                         baseTotal: unit3mChange,
                         scale: fund.totalUnits > 0 ? 1 / fund.totalUnits : 0,
                       }}
-                      action={chartActions}
-                      session={chartSession}
+                      action={chartActions()}
+                      session={chartSession()}
                     />
                   }
                 />
@@ -1400,24 +1498,29 @@ export default async function DashboardPage({
               {/* The market at a glance — desktop only; phones have the
                   strip under the greeting. */}
               <MotionSection delay={0.08} className="hidden lg:block">
-                <MarketRailCard
-                  quotes={marketTicker}
-                  holdingQuotes={holdingsTicker}
-                  irf={{
-                    priceAzn: unitPriceLiveAzn,
-                    changePct: unitDayPctLive,
-                    live: {
-                      basePriceAzn: fund.unitPrice,
-                      prevCloseAzn: previousPricePoint?.price ?? null,
-                      totalUnits: fund.totalUnits,
-                    },
-                    // Same stand-in as the phone strip's İRF tile: the last
-                    // stretch of recorded pay prices, live tail included.
-                    spark: priceChartLive.slice(-30).map((p) => p.value),
-                  }}
-                  status={<MarketCountdown history={regularHistory} compact />}
-                  assets={tileAssets}
-                  showBuyHint={!isAdmin}
+                <TickerSlot
+                  tickers={tickersPromise}
+                  render={(marketTicker, holdingsTicker) => (
+                    <MarketRailCard
+                      quotes={marketTicker}
+                      holdingQuotes={holdingsTicker}
+                      irf={{
+                        priceAzn: unitPriceLiveAzn,
+                        changePct: unitDayPctLive,
+                        live: {
+                          basePriceAzn: fund.unitPrice,
+                          prevCloseAzn: previousPricePoint?.price ?? null,
+                          totalUnits: fund.totalUnits,
+                        },
+                        // Same stand-in as the phone strip's İRF tile: the last
+                        // stretch of recorded pay prices, live tail included.
+                        spark: priceChartLive.slice(-30).map((p) => p.value),
+                      }}
+                      status={<MarketCountdown history={regularHistory} compact />}
+                      assets={tileAssets}
+                      showBuyHint={!isAdmin}
+                    />
+                  )}
                 />
               </MotionSection>
               {rewardState ? (

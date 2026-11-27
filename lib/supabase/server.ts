@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 
 export async function createSupabaseServerClient() {
@@ -70,3 +71,13 @@ export async function getSupabaseServerUser(): Promise<SupabaseServerUserResult>
     return { reason: "error", user: null };
   }
 }
+
+/**
+ * getSupabaseServerUser, answered ONCE per page render: the auth guard and
+ * the page's own loaders (getMarketData, getBondMarketData) used to ask
+ * GoTrue separately — one sequential network round trip each, on top of
+ * the middleware's own check. React's request-scoped cache() shares the
+ * first answer. Pages only: server actions keep the uncached call, so an
+ * action never reads a user from before its own auth change.
+ */
+export const getRequestUser = cache(getSupabaseServerUser);

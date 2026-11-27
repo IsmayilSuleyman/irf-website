@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   GOOGLE_LINK_TEXT,
   linkGoogleWithIdToken,
@@ -71,6 +70,7 @@ export function GoogleLinkCard({
     if (!window.confirm(`${googleEmail} Google hesabı bu girişdən ayrılsın? Google ilə giriş bağlanacaq; şifrə ilə giriş qalır.`)) {
       return;
     }
+    const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
     const supabase = createSupabaseBrowserClient();
     if (!supabase) return;
     setBusy(true);
