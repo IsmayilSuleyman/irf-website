@@ -1,4 +1,5 @@
-import { auth as googleAuth, sheets as sheetsApi } from "@googleapis/sheets";
+import { sheets as sheetsApi } from "@googleapis/sheets";
+import { getSheetsReadAuth } from "@/lib/googleAuth";
 import { unstable_cache } from "next/cache";
 import { formatAzn } from "@/lib/portfolio";
 import { isPaymentPaid, simplifyText } from "@/lib/bankShared";
@@ -25,17 +26,8 @@ export type BankAccount = {
   updatedAt: string | null;
 };
 
-function getAuth() {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON env var is missing");
-
-  const credentials = JSON.parse(raw);
-
-  return new googleAuth.GoogleAuth({
-    credentials,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-  });
-}
+// One auth client per instance (token reuse) — see lib/googleAuth.
+const getAuth = getSheetsReadAuth;
 
 function normalize(value: string): string {
   return value.trim().toLocaleLowerCase("az-AZ").replace(/\s+/g, " ");
