@@ -59,13 +59,36 @@ export async function GET(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
-    const { error } = await supabase
-      .from("price_history")
-      .upsert({ label, price, recorded_at }, { onConflict: "recorded_at" });
+    // price_history is read-only to anon and authenticated
+    // (20261127130000_lock_price_history_writes.sql). The one write path is
+    // the record_price_cron RPC, authorized by the shared cron secret, the
+    // same PAYMENT_REMINDER_SECRET the momentum snapshot below already uses.
+    // The RPC stamps recorded_at with the Baku date itself.
+    const { data: recorded, error: rpcError } = await supabase.rpc(
+      "record_price_cron",
+      {
+        p_price: price,
+        p_label: label,
+        p_secret: process.env.PAYMENT_REMINDER_SECRET ?? null,
+      },
+    );
+
+    let error = rpcError;
+    if (rpcError?.code === "PGRST202") {
+      // The RPC is missing because the migration isn't applied yet, and the
+      // old allow_all policy is still live. Keep the nightly row landing the
+      // old way. Remove this branch once the migration is in prod.
+      console.warn("[record-price] record_price_cron missing, using legacy upsert");
+      ({ error } = await supabase
+        .from("price_history")
+        .upsert({ label, price, recorded_at }, { onConflict: "recorded_at" }));
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+    const recordedDay =
+      (recorded as { recorded_at?: string } | null)?.recorded_at ?? recorded_at;
 
     // Piggybacked weekly momentum snapshot: this cron fires daily at 21:30
     // UTC = 01:30 Baku — after the US close in BOTH winter (21:00 UTC) and
@@ -93,7 +116,7 @@ export async function GET(req: Request) {
       success: true,
       price,
       label,
-      recorded_at,
+      recorded_at: recordedDay,
       ...(momentumWeek ? { momentumWeek } : {}),
     });
   } catch (err) {
