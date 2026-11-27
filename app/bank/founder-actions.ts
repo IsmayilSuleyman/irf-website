@@ -8,8 +8,9 @@ export type FounderModeResult = { ok: true; on: boolean } | { ok: false; error: 
 
 /**
  * Admin: switch Təsisçi rejimi on or off. Gated on is_fund_admin (the
- * admin_users table) server-side; fund_settings' own write policy is the
- * wide authenticated one every setting shares, so this action is the gate.
+ * admin_users table) server-side, and fund_settings' write policies
+ * require is_fund_admin() too (20261127130000_lock_price_history_writes),
+ * so a non-admin session is refused even without this check.
  */
 export async function setFounderMode(on: boolean): Promise<FounderModeResult> {
   const supabase = await createSupabaseServerClient();
