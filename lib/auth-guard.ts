@@ -2,14 +2,14 @@ import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import {
   createSupabaseServerClient,
-  getSupabaseServerUser,
+  getRequestUser,
 } from "@/lib/supabase/server";
 import { getMyAccess, type AccessScope, type MyAccess } from "@/lib/access";
 
 /** Signed-in user, or a redirect to /login. No approval check — /register
  *  and the sign-out paths need exactly this. */
 export async function requireSignedIn(loginRedirect?: string): Promise<User> {
-  const { reason, user } = await getSupabaseServerUser();
+  const { reason, user } = await getRequestUser();
 
   if (reason === "missing_config") {
     redirect("/welcome?setup=supabase");
@@ -30,8 +30,20 @@ export async function requireSignedIn(loginRedirect?: string): Promise<User> {
 export async function requireUserWithAccess(
   loginRedirect?: string,
 ): Promise<{ user: User; access: MyAccess }> {
-  const user = await requireSignedIn(loginRedirect);
-  const access = await getMyAccess(await createSupabaseServerClient());
+  // Both questions in ONE round trip: my_access reads the same session
+  // cookie getUser verifies, so it need not wait for getUser's answer. A
+  // signed-out request still redirects on the getUser result alone — the
+  // access row is only consulted for a verified user.
+  const [{ reason, user }, access] = await Promise.all([
+    getRequestUser(),
+    createSupabaseServerClient().then(getMyAccess),
+  ]);
+  if (reason === "missing_config") {
+    redirect("/welcome?setup=supabase");
+  }
+  if (reason === "error" || !user) {
+    redirect(loginRedirect ? `/login?next=${loginRedirect}` : "/login");
+  }
   if (access.status !== "approved") {
     redirect("/register");
   }

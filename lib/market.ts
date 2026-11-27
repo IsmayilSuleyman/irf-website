@@ -1,5 +1,5 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient, getRequestUser } from "@/lib/supabase/server";
 import { FUND_PRINCIPAL_NAME } from "@/lib/holdings";
 import { getFundData } from "@/lib/sheets";
 
@@ -143,19 +143,23 @@ export async function getMarketData(): Promise<MarketData | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // The page's auth guard already asked GoTrue this request — reuse it.
+  const { user } = await getRequestUser();
   if (!user) return null;
 
   const holderName = displayName(user.user_metadata);
 
   // Track the live Sheet price before reading status, so the bazar's unit
-  // price (and the engine's floor/cap) match the dashboard.
-  await refreshUnitPriceFromSheet(supabase);
+  // price (and the engine's floor/cap) match the dashboard. Only
+  // market_status depends on that write; the book, orders, trades and
+  // sell capacity don't read the price, so they ride the same round trip
+  // as the refresh instead of queueing behind it.
+  const statusAfterRefresh = refreshUnitPriceFromSheet(supabase).then(() =>
+    supabase.rpc("market_status"),
+  );
 
   const [statusRes, bookRes, ordersRes, tradesRes, availRes] = await Promise.all([
-    supabase.rpc("market_status"),
+    statusAfterRefresh,
     supabase.rpc("order_book"),
     supabase
       .from("orders")
