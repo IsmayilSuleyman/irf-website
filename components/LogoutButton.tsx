@@ -1,19 +1,24 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ICON_BTN } from "@/components/iconButton";
 
 /**
  * The round exit button of the fund and bank headers (İsmayıl's call: an
  * icon in the cluster instead of the "ÇIXIŞ" word). Signs out and lands on
  * /login; without Supabase config it points at the setup page instead.
+ *
+ * The Supabase browser client (~230 KB of JS with its realtime/storage
+ * clients) loads on the click, not with the header: it was the only reason
+ * every gated page shipped it, and booting it on load also started a
+ * client-side session watcher no page needed.
  */
 export function LogoutButton() {
   const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
 
   const onLogout = async () => {
+    const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
+    const supabase = createSupabaseBrowserClient();
     if (!supabase) {
       router.push("/welcome?setup=supabase");
       return;

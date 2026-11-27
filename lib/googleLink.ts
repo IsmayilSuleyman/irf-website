@@ -1,5 +1,12 @@
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { GoogleCredential } from "@/components/GoogleIdentity";
+
+// The Supabase browser client loads on demand (only when someone actually
+// links): this module rides the dashboard and bank banners, and a static
+// import put the whole client in every family page's first-load JS.
+async function browserClient() {
+  const { createSupabaseBrowserClient } = await import("@/lib/supabase/client");
+  return createSupabaseBrowserClient();
+}
 
 /**
  * Self-service Google linking for an EXISTING, approved login — shared by
@@ -44,7 +51,7 @@ export async function linkGoogleWithIdToken({
   token,
   nonce,
 }: GoogleCredential): Promise<string | null> {
-  const supabase = createSupabaseBrowserClient();
+  const supabase = await browserClient();
   if (!supabase) return GOOGLE_LINK_TEXT.error;
   const { error } = await supabase.auth.linkIdentity({
     provider: "google",
@@ -60,7 +67,7 @@ export async function linkGoogleWithIdToken({
  * to land on afterwards; the callback appends ?google=linked (or the error).
  */
 export async function startGoogleLink(returnTo: string): Promise<string | null> {
-  const supabase = createSupabaseBrowserClient();
+  const supabase = await browserClient();
   if (!supabase) return GOOGLE_LINK_TEXT.error;
   const callback = new URL("/auth/callback", window.location.origin);
   callback.searchParams.set("next", `${returnTo}?google=linked`);
