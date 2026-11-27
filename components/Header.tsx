@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useTransition } from "react";
 import { m } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
@@ -26,22 +27,43 @@ import { HEADER_DIVIDER, ICON_BTN, iconBtn } from "@/components/iconButton";
 function FondToggle({ active }: { active: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
+  // The switch is a server render of the other dataset and takes a few
+  // seconds; with no feedback the button read as dead (İsmayıl, 2026-11-05).
+  // So for the whole navigation the button already shows where it is going
+  // (lit ↔ plain), a green arc spins on its rim, and the page under the
+  // header dims (globals.css, html[data-view-switching]).
+  const [pending, startTransition] = useTransition();
+  const shown = pending ? !active : active;
+
+  useEffect(() => {
+    if (!pending) return;
+    const root = document.documentElement;
+    root.dataset.viewSwitching = "";
+    return () => {
+      delete root.dataset.viewSwitching;
+    };
+  }, [pending]);
+
   return (
     <button
       type="button"
-      aria-pressed={active}
+      aria-pressed={shown}
+      aria-busy={pending || undefined}
       aria-label={
-        active ? "Ümumfond açıqdır — Mənim portfelimə qayıt" : "Ümumfonda keç"
+        shown ? "Ümumfond açıqdır — Mənim portfelimə qayıt" : "Ümumfonda keç"
       }
       title="Ümumfond"
-      onClick={() =>
-        router.push(active ? pathname : `${pathname}?view=fund`, {
-          scroll: false,
-        })
-      }
+      onClick={() => {
+        if (pending) return;
+        startTransition(() => {
+          router.push(active ? pathname : `${pathname}?view=fund`, {
+            scroll: false,
+          });
+        });
+      }}
       // Phones switch views from the dock's Fond tab; the header button is
       // the desktop control.
-      className={`${iconBtn(active)} hidden sm:inline-flex`}
+      className={`${iconBtn(shown)} relative hidden sm:inline-flex`}
     >
       <img
         src="/images/irf-mark.png"
@@ -49,6 +71,12 @@ function FondToggle({ active }: { active: boolean }) {
         aria-hidden
         className="h-[18px] w-[18px]"
       />
+      {pending ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -inset-px animate-spin rounded-full border-2 border-transparent border-t-brand-green dark:border-t-emerald-400"
+        />
+      ) : null}
     </button>
   );
 }

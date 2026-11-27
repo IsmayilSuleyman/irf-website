@@ -50,6 +50,29 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Nothing may widen the page past the screen. A decorative bleed (the
+   phone greeting's green glow pokes 32px past the content edge, 8px past a
+   phone's screen) made the document 398px wide on a 390px phone, so the
+   browser let the page be zoomed out a notch and panned sideways —
+   İsmayıl "always zoomed out slightly" to fit it (2026-11-27). Every <main>
+   spans the full width, so clipping here only cuts what is off-screen
+   anyway. `clip`, not `hidden`: it creates no scroll container, so the
+   sticky header keeps working. */
+main {
+  overflow-x: clip;
+}
+
+/* Header Fond toggle: while the other view renders on the server, the page
+   under the header dims so the click visibly "took". !important beats the
+   inline opacity framer-motion leaves on the sections. */
+main > :not(header) {
+  transition: opacity 0.2s ease;
+}
+html[data-view-switching] main > :not(header) {
+  opacity: 0.5 !important;
+  pointer-events: none;
+}
+
 html,
 body {
   height: 100%;
