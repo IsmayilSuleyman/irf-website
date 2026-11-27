@@ -1411,8 +1411,13 @@ export default async function DashboardPage({
                       prevCloseAzn: previousPricePoint?.price ?? null,
                       totalUnits: fund.totalUnits,
                     },
+                    // Same stand-in as the phone strip's İRF tile: the last
+                    // stretch of recorded pay prices, live tail included.
+                    spark: priceChartLive.slice(-30).map((p) => p.value),
                   }}
                   status={<MarketCountdown history={regularHistory} compact />}
+                  assets={tileAssets}
+                  showBuyHint={!isAdmin}
                 />
               </MotionSection>
               {rewardState ? (
