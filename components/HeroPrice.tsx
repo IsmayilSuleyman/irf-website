@@ -114,7 +114,9 @@ export function Greeting({
   return (
     <div className="relative flex flex-col gap-0.5">
       {/* A soft green shade behind the right side of the greeting on phones
-          (İsmayıl's ask) — the name's glow, spread into the corner. */}
+          (İsmayıl's ask) — the name's glow, spread into the corner. It
+          bleeds past the screen edge; `main { overflow-x: clip }` in
+          globals.css cuts it there so the page never gets wider. */}
       <span
         aria-hidden
         className="pointer-events-none absolute -right-8 -top-8 h-24 w-44 rounded-full bg-[radial-gradient(closest-side,rgba(22,163,74,0.22),rgba(22,163,74,0))] blur-md dark:bg-[radial-gradient(closest-side,rgba(52,211,153,0.22),rgba(52,211,153,0))] sm:hidden"
