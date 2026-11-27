@@ -50,6 +50,17 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Header Fond toggle: while the other view renders on the server, the page
+   under the header dims so the click visibly "took". !important beats the
+   inline opacity framer-motion leaves on the sections. */
+main > :not(header) {
+  transition: opacity 0.2s ease;
+}
+html[data-view-switching] main > :not(header) {
+  opacity: 0.5 !important;
+  pointer-events: none;
+}
+
 html,
 body {
   height: 100%;
